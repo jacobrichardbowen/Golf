@@ -37,8 +37,12 @@ kbd { font-family: var(--f-display); font-weight: 600; font-size: 0.9em; padding
 .plate { background: var(--plate); border: 1px solid var(--plate-edge); border-radius: 6px; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
 .lbl { display: block; font-family: var(--f-display); font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
 
-.hole-plate { position: absolute; top: calc(var(--gutter) + env(safe-area-inset-top, 0px)); left: calc(var(--gutter) + env(safe-area-inset-left, 0px));
-  display: flex; align-items: stretch; overflow: hidden; max-width: calc(100% - 2 * var(--gutter)); }
+.top-left { position: absolute; top: calc(var(--gutter) + env(safe-area-inset-top, 0px)); left: calc(var(--gutter) + env(safe-area-inset-left, 0px));
+  display: flex; flex-direction: column; align-items: flex-start; gap: 8px; max-width: calc(100% - 2 * var(--gutter) - 170px); }
+.hole-plate { display: flex; align-items: stretch; overflow: hidden; max-width: 100%; }
+.objective { margin: 0; background: var(--plate); border: 1px solid var(--plate-edge); border-radius: 6px; padding: 5px 10px; font-size: 13px; color: var(--chalk); max-width: 100%; }
+.objective:empty { display: none; }
+.objective b { font-family: var(--f-display); font-weight: 700; font-size: 15px; letter-spacing: 0.02em; color: var(--flag); font-variant-numeric: tabular-nums; }
 .hole-num { background: var(--flag); color: var(--paper-ink); padding: 8px 14px 6px; text-align: center; display: flex; flex-direction: column; justify-content: center; }
 .hole-num .lbl { color: rgba(26, 42, 33, 0.7); }
 .hole-num b { font-family: var(--f-display); font-weight: 800; font-size: 38px; line-height: 0.95; }
@@ -66,7 +70,7 @@ kbd { font-family: var(--f-display); font-weight: 600; font-size: 0.9em; padding
 .wind-arrow::after { content: ""; position: absolute; left: -6px; top: -17px; border: 6px solid transparent; border-bottom: 9px solid var(--flag); border-top: 0; }
 .wind-read b { font-family: var(--f-display); font-weight: 700; font-size: 26px; line-height: 1; font-variant-numeric: tabular-nums; }
 .wind-read span { font-size: 12px; color: var(--muted); margin-left: 3px; letter-spacing: 0.06em; }
-#minimap { width: 150px; height: 230px; border-radius: 6px; border: 1px solid var(--plate-edge); background: var(--plate); }
+#minimap { width: 160px; height: 160px; border-radius: 50%; background: transparent; }
 
 /* Bottom dock */
 .dock { position: absolute; left: 0; right: 0; bottom: 0;
@@ -101,7 +105,8 @@ kbd { font-family: var(--f-display); font-weight: 600; font-size: 0.9em; padding
 .meter.disabled { opacity: 0.45; pointer-events: none; }
 
 .controls { justify-self: end; display: flex; align-items: end; gap: 10px; pointer-events: auto; }
-.aim-btns { display: none; gap: 6px; }
+.aim-btns { display: flex; gap: 6px; }
+.aim-btns #aimLeft, .aim-btns #aimRight { display: none; }
 .ctl { width: 52px; height: 52px; border-radius: 8px; border: 1px solid var(--plate-edge); background: var(--plate); font-size: 18px; }
 .ctl-text { font-family: var(--f-display); font-weight: 600; font-size: 14px; letter-spacing: 0.06em; text-transform: uppercase; }
 .ctl:active { background: rgba(242,194,48,0.25); }
@@ -110,11 +115,38 @@ kbd { font-family: var(--f-display); font-weight: 600; font-size: 0.9em; padding
 .swing:active { transform: scale(0.96); }
 .swing.idle { filter: saturate(0.35) brightness(0.8); }
 
-@media (pointer: coarse) { .aim-btns { display: flex; } }
+@media (pointer: coarse) { .aim-btns #aimLeft, .aim-btns #aimRight { display: block; } }
 
-.pin-marker { position: absolute; left: 0; top: 0; transform: translate(-50%, -100%); display: flex; flex-direction: column; align-items: center; pointer-events: none; will-change: transform; }
-.pin-marker span { background: var(--plate); border: 1px solid var(--flag); color: var(--chalk); font-family: var(--f-display); font-weight: 700; font-size: 14px; padding: 1px 7px; border-radius: 4px; font-variant-numeric: tabular-nums; white-space: nowrap; order: 1; }
-.pin-marker i { order: 2; width: 0; height: 0; border: 6px solid transparent; border-top: 7px solid var(--flag); }
+/* Mode-dependent HUD: the swing dock only appears at the ball. */
+#hud:not([data-mode="shot"]) .dock { display: none; }
+#hud[data-mode="shot"] .walk-ctl, #hud[data-mode="shot"] .prompt { display: none; }
+.walk-ctl { position: absolute; inset: auto 0 0 0; height: 46%; display: none; pointer-events: none; }
+@media (pointer: coarse) { .walk-ctl { display: block; } }
+.joy-zone { position: absolute; left: 0; bottom: 0; width: 50%; height: 100%; pointer-events: auto; touch-action: none; }
+.joy { position: absolute; left: calc(var(--gutter) + 24px + env(safe-area-inset-left, 0px)); bottom: calc(var(--gutter) + 24px + env(safe-area-inset-bottom, 0px)); width: 120px; height: 120px; border-radius: 50%;
+  border: 2px solid rgba(243, 241, 231, 0.35); background: rgba(12, 28, 21, 0.35); }
+.joy-knob { position: absolute; left: 50%; top: 50%; width: 52px; height: 52px; margin: -26px 0 0 -26px; border-radius: 50%; background: rgba(243, 241, 231, 0.8); box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
+.walk-btns { position: absolute; right: calc(var(--gutter) + env(safe-area-inset-right, 0px)); bottom: calc(var(--gutter) + env(safe-area-inset-bottom, 0px)); display: flex; align-items: end; gap: 10px; pointer-events: auto; }
+.act { width: 84px; height: 84px; border-radius: 50%; border: 3px solid rgba(255,255,255,0.7); background: rgba(12, 28, 21, 0.7); color: var(--muted);
+  font-family: var(--f-display); font-weight: 800; font-size: 15px; letter-spacing: 0.06em; text-transform: uppercase; line-height: 1.05; padding: 6px; }
+.act.ready { background: radial-gradient(circle at 35% 30%, #ffd75a, var(--flag) 55%, var(--flag-deep)); color: var(--paper-ink); border-color: rgba(255,255,255,0.9); }
+
+.prompt { position: absolute; left: 50%; bottom: calc(18% + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); margin: 0; background: var(--plate); border: 1px solid var(--plate-edge);
+  border-radius: 6px; padding: 8px 16px; font-family: var(--f-display); font-size: 20px; font-weight: 600; letter-spacing: 0.03em; white-space: nowrap; max-width: calc(100% - 2 * var(--gutter)); overflow: hidden; text-overflow: ellipsis; }
+.prompt kbd { font-size: 0.8em; margin-right: 8px; color: var(--flag); border-color: var(--flag); }
+@media (pointer: coarse) { .prompt { bottom: calc(46% + env(safe-area-inset-bottom, 0px)); font-size: 17px; } .prompt kbd { display: none; } }
+.crosshair { position: absolute; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%; background: rgba(255,255,255,0.75); box-shadow: 0 0 0 1px rgba(0,0,0,0.4); pointer-events: none; display: none; }
+#hud.fp:not([data-mode="shot"]) .crosshair { display: block; }
+
+/* Floating markers over the pin, the ball and the next tee. Off-screen
+   targets stick to the screen edge with an arrow pointing their way. */
+.marker { --c: var(--flag); position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; will-change: transform; display: none; }
+.marker span { position: absolute; left: 0; bottom: 9px; transform: translateX(-50%); background: var(--plate); border: 1px solid var(--c); color: var(--chalk); font-family: var(--f-display); font-weight: 700; font-size: 14px; padding: 1px 7px; border-radius: 4px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.marker i { position: absolute; left: -6px; top: -9px; width: 0; height: 0; border: 6px solid transparent; border-top: 8px solid var(--c); border-bottom: 0; }
+.marker.off span { bottom: auto; top: 0; transform: translate(-50%, -50%); }
+.marker.off i { left: 0; top: 0; border: 7px solid transparent; border-left: 11px solid var(--c); transform: translate(-50%, -50%) rotate(var(--ang)) translateX(26px); transform-origin: 50% 50%; }
+.ball-marker { --c: #ffffff; }
+.goal-marker { --c: #ff6b5a; }
 
 .toast { position: absolute; left: 50%; top: 21%; transform: translateX(-50%); background: var(--plate); border: 1px solid var(--plate-edge); border-left: 4px solid var(--flag); padding: 10px 18px; border-radius: 6px;
   font-family: var(--f-display); font-size: 22px; font-weight: 600; letter-spacing: 0.02em; text-align: center; max-width: calc(100% - 2 * var(--gutter)); animation: toastIn 0.25s ease-out; }
@@ -147,6 +179,14 @@ kbd { font-family: var(--f-display); font-weight: 600; font-size: 0.9em; padding
 .wordmark span { display: block; font-size: 0.24em; letter-spacing: 0.62em; font-weight: 600; margin-top: 0.5em; padding-left: 0.1em; }
 .title-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; align-items: center; }
 .best { margin: 16px 0 0; color: var(--chalk); font-size: 14px; text-shadow: 0 1px 6px rgba(0,0,0,0.7); }
+.tagline { margin: 14px 0 0; font-size: clamp(16px, 2.2vw, 20px); color: var(--chalk); text-shadow: 0 1px 8px rgba(0,0,0,0.7); max-width: 40ch; }
+
+.map-screen { background: var(--shade); }
+.map-sheet { width: 100%; height: 100%; max-width: 900px; display: flex; flex-direction: column; background: var(--plate-solid); border: 1px solid var(--plate-edge); border-radius: 10px; padding: 12px 16px 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+.map-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.map-head h2 { margin: 0; font-family: var(--f-display); font-weight: 800; font-size: 28px; text-transform: uppercase; }
+.map-box { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
+#mapCanvas { border-radius: 6px; display: block; }
 
 .help-screen, #glError { background: var(--shade); }
 .sheet { background: var(--plate-solid); border: 1px solid var(--plate-edge); border-radius: 10px; padding: 26px 28px; max-width: 620px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,0.5); margin: auto; }
@@ -210,12 +250,12 @@ kbd { font-family: var(--f-display); font-weight: 600; font-size: 0.9em; padding
   .hole-meta { font-size: 12px; gap: 10px; }
   .hole-score > div { padding: 6px 9px 4px; }
   .hole-score b { font-size: 20px; }
-  .hole-plate { max-width: calc(100% - 2 * var(--gutter) - 90px); }
   .tr-row { flex-direction: column-reverse; align-items: flex-end; gap: 6px; }
   .wind-plate { padding: 4px 8px 4px 4px; gap: 6px; }
   .wind-dial { width: 32px; height: 32px; }
   .wind-read b { font-size: 20px; }
-  #minimap { width: 84px; height: 128px; }
+  #minimap { width: 104px; height: 104px; }
+  .top-left { max-width: calc(100% - 2 * var(--gutter) - 112px); }
   .mini { padding: 4px 7px; font-size: 11px; }
   .toast { top: 25%; font-size: 18px; }
 }

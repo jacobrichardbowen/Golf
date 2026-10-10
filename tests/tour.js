@@ -1,5 +1,6 @@
-// Visits every hole and screenshots the tee view (and an overhead view).
-// Usage: node tests/tour.js [outDir] [holeNumbers e.g. 2,4]
+// Visits every tee and screenshots the address view (and optionally the
+// overhead shot camera). Usage: node tests/tour.js [outDir] [holes e.g. 2,4]
+// Set OVERHEAD=1 for the overhead view too.
 const path = require('path');
 const fs = require('fs');
 let chromium;
@@ -11,33 +12,34 @@ fs.mkdirSync(out, { recursive: true });
 
 (async () => {
   const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
-  const vw = Number(process.env.VW || 1280), vh = Number(process.env.VH || 760);
-  const page = await browser.newPage({ viewport: { width: vw, height: vh }, hasTouch: !!process.env.TOUCH, isMobile: !!process.env.TOUCH });
+  const page = await browser.newPage({ viewport: { width: Number(process.env.VW || 960), height: Number(process.env.VH || 600) } });
   const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
-  page.on('pageerror', (e) => errors.push('[pageerror] ' + e.message));
-  await page.goto('file://' + path.join(__dirname, '..', 'Golf.html'));
-  await page.waitForFunction(() => window.__golf && window.__golf.state === 'title', null, { timeout: 60000 });
+  await page.goto('file://' + path.join(__dirname, '..', 'Golf.html') + '?hq&dtcap=0.12');
+  await page.waitForFunction(() => window.__golfApi && window.__golf.mode === 'title', null, { timeout: 120000 });
   const waitGame = async (sec) => {
     const t = await page.evaluate(() => window.__golf.time);
-    await page.waitForFunction((t) => window.__golf.time >= t, t + sec, { timeout: 120000 });
+    await page.waitForFunction((t) => window.__golf.time >= t, t + sec, { timeout: 180000 });
   };
-  if (process.env.TOUCH) await page.tap('#startBtn'); else await page.click('#startBtn');
+  await page.click('#startBtn');
   for (let i = 0; i < 9; i++) {
     if (only && !only.includes(i + 1)) continue;
-    await page.evaluate((i) => window.__golfApi.loadHole(i), i);
-    await page.waitForFunction(() => window.__golf.state === 'intro', null, { timeout: 60000 });
-    await waitGame(1.0);
-    if (i === 0 || only) await page.screenshot({ path: path.join(out, `tour-${i + 1}-intro.png`) });
-    await page.evaluate(() => window.__golfApi.endIntro());
-    await waitGame(2.0);
-    await page.screenshot({ path: path.join(out, `tour-${i + 1}-tee.png`) });
+    await page.evaluate((i) => {
+      const api = window.__golfApi, h = api.course.holes[i];
+      api.activateHole(i);
+      api.placePlayer(h.tee.x + 1.2, h.tee.z + 1, 0);
+      api.enterShot();
+    }, i);
+    await waitGame(2);
+    await page.screenshot({ path: path.join(out, `tour-${i + 1}-tee.png`), timeout: 180000 });
     if (process.env.OVERHEAD) {
       await page.evaluate(() => (window.__golf.view = 2));
-      await waitGame(2.0);
-      await page.screenshot({ path: path.join(out, `tour-${i + 1}-overhead.png`) });
+      await waitGame(2);
+      await page.screenshot({ path: path.join(out, `tour-${i + 1}-overhead.png`), timeout: 180000 });
       await page.evaluate(() => (window.__golf.view = 0));
     }
+    await page.evaluate(() => window.__golfApi.leaveShot());
   }
   console.log('errors:', errors.length ? errors.join('\n') : 'none');
   await browser.close();

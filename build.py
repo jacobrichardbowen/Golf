@@ -15,7 +15,7 @@ ROOT = pathlib.Path(__file__).parent
 SRC = ROOT / "src"
 JS_ORDER = [
     "util.js", "data.js", "physics.js", "course.js", "terrain.js",
-    "audio.js", "world.js", "ui.js", "main.js",
+    "audio.js", "world.js", "character.js", "cart.js", "ui.js", "main.js",
 ]
 THREE_VERSION = "0.158.0"
 THREE_CDN = f"https://cdn.jsdelivr.net/npm/three@{THREE_VERSION}/build/three.min.js"

@@ -9,24 +9,28 @@
 <div id="app">
   <canvas id="scene" aria-label="3D golf course"></canvas>
 
-  <div id="hud" hidden>
-    <section class="plate hole-plate" aria-label="Current hole">
-      <div class="hole-num"><span class="lbl">Hole</span><b id="hHole">1</b></div>
-      <div class="hole-info">
-        <div class="hole-name" id="hName">First Light</div>
-        <div class="hole-meta"><span>Par <b id="hPar">4</b></span><span><b id="hYards">373</b> yds</span></div>
-      </div>
-      <div class="hole-score">
-        <div><span class="lbl">Stroke</span><b id="hStroke">1</b></div>
-        <div><span class="lbl">Round</span><b id="hTotal">E</b></div>
-      </div>
-    </section>
+  <div id="hud" data-mode="walk" hidden>
+    <div class="top-left">
+      <section class="plate hole-plate" aria-label="Current hole">
+        <div class="hole-num"><span class="lbl">Hole</span><b id="hHole">1</b></div>
+        <div class="hole-info">
+          <div class="hole-name" id="hName">First Light</div>
+          <div class="hole-meta"><span>Par <b id="hPar">4</b></span><span><b id="hYards">373</b> yds</span></div>
+        </div>
+        <div class="hole-score">
+          <div><span class="lbl">Stroke</span><b id="hStroke">1</b></div>
+          <div><span class="lbl">Round</span><b id="hTotal">E</b></div>
+        </div>
+      </section>
+      <p class="objective" id="objective"></p>
+    </div>
 
     <div class="top-right">
       <div class="tr-row">
         <div class="mini-btns">
+          <button class="mini" id="mapBtn" title="Course map (M)">Map</button>
           <button class="mini" id="cardBtn" title="Scorecard (C)">Card</button>
-          <button class="mini" id="muteBtn" title="Sound on/off (M)">Sound</button>
+          <button class="mini" id="muteBtn" title="Sound on/off (N)">Sound</button>
           <button class="mini" id="helpBtn" title="How to play (H)">?</button>
         </div>
         <section class="plate wind-plate" aria-label="Wind">
@@ -34,7 +38,7 @@
           <div class="wind-read"><b id="windSpeed">0</b><span>mph</span></div>
         </section>
       </div>
-      <canvas id="minimap" width="150" height="230" aria-label="Hole map"></canvas>
+      <canvas id="minimap" aria-label="Radar map"></canvas>
     </div>
 
     <div class="dock">
@@ -67,21 +71,35 @@
         <div class="aim-btns">
           <button class="ctl" id="aimLeft" aria-label="Aim left">◀</button>
           <button class="ctl" id="aimRight" aria-label="Aim right">▶</button>
-          <button class="ctl ctl-text" id="viewBtn" aria-label="Change camera view">View</button>
+          <button class="ctl ctl-text" id="viewBtn" aria-label="Change shot camera">View</button>
+          <button class="ctl ctl-text" id="backBtn" aria-label="Step away from the ball">Back</button>
         </div>
         <button class="swing" id="swingBtn">Swing</button>
       </div>
     </div>
 
-    <div id="pinMarker" class="pin-marker"><i></i><span id="pinDist">373y</span></div>
+    <div class="walk-ctl" aria-hidden="true">
+      <div class="joy-zone" id="joyZone"><div class="joy" id="joy"><div class="joy-knob" id="joyKnob"></div></div></div>
+      <div class="walk-btns">
+        <button class="ctl ctl-text" id="fpBtn">1st</button>
+        <button class="act" id="actBtn">Action</button>
+      </div>
+    </div>
+
+    <p class="prompt" id="prompt" hidden></p>
+    <div class="marker pin-marker" id="pinMarker"><i></i><span>373y</span></div>
+    <div class="marker ball-marker" id="ballMarker"><i></i><span>Ball</span></div>
+    <div class="marker goal-marker" id="goalMarker"><i></i><span>Tee</span></div>
+    <div class="crosshair" id="crosshair"></div>
     <div id="toast" class="toast" hidden></div>
     <div id="banner" class="banner" hidden></div>
   </div>
 
   <div id="title" class="screen title-screen">
     <div class="title-wrap">
-      <p class="eyebrow"><span id="tHoles">9</span> holes · Par <span id="tPar">36</span> · <span id="tYards">3,382</span> yards</p>
+      <p class="eyebrow"><span id="tHoles">9</span> holes · Par <span id="tPar">36</span> · <span id="tYards">3,182</span> yards</p>
       <h1 class="wordmark">Pinehaven<span>Golf Club</span></h1>
+      <p class="tagline">Walk the course, take the cart, play all nine.</p>
       <div class="title-actions">
         <button class="btn primary" id="startBtn">Tee off</button>
         <button class="btn" id="resumeBtn" hidden>Resume round</button>
@@ -95,20 +113,29 @@
     <div class="sheet">
       <h2>How to play</h2>
       <ol class="steps">
-        <li><b>Aim</b> with <kbd>←</kbd> <kbd>→</kbd> or drag across the course. Hold <kbd>Shift</kbd> for fine aim.</li>
-        <li><b>Pick a club</b> with <kbd>↑</kbd> <kbd>↓</kbd>. The ring shows where a full-power shot lands with no wind.</li>
-        <li><b>Swing</b> with three presses of <kbd>Space</kbd> (or the Swing button): start the backswing, set the power, then stop the marker on the white line for accuracy.</li>
-        <li><b>Early</b> on the third press hooks the ball left. <b>Late</b> slices it right. On the green, misses push or pull the putt.</li>
+        <li><b>Walk</b> with <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> and look around with the mouse (click the course to capture it). Hold <kbd>Shift</kbd> to run. On touch screens, use the stick on the left and drag on the right.</li>
+        <li><b>Play a shot:</b> walk up to your ball and press <kbd>E</kbd>. Aim with <kbd>A</kbd> <kbd>D</kbd> or the mouse, pick a club with <kbd>W</kbd> <kbd>S</kbd>, then press <kbd>Space</kbd> three times: start, set power, stop on the white line.</li>
+        <li><b>Early</b> on the third press hooks the ball left; <b>late</b> slices it right. On the green, misses push or pull the putt.</li>
+        <li><b>Drive the cart:</b> press <kbd>E</kbd> next to it to hop in, <kbd>W</kbd> <kbd>S</kbd> to drive, <kbd>A</kbd> <kbd>D</kbd> to steer, <kbd>Space</kbd> to brake, <kbd>E</kbd> to get out.</li>
+        <li><b>Hole out</b>, then follow the marker to the next tee.</li>
       </ol>
       <dl class="keys">
-        <div><dt><kbd>V</kbd></dt><dd>Change camera: behind ball, landing area, overhead</dd></div>
-        <div><dt><kbd>Space</kbd> hold</dt><dd>Fast-forward while the ball is moving</dd></div>
-        <div><dt><kbd>C</kbd></dt><dd>Scorecard</dd></div>
-        <div><dt><kbd>M</kbd></dt><dd>Sound on or off</dd></div>
-        <div><dt><kbd>Esc</kbd></dt><dd>Cancel a swing, or close this panel</dd></div>
+        <div><dt><kbd>V</kbd></dt><dd>First or third person</dd></div>
+        <div><dt><kbd>T</kbd></dt><dd>Shot camera: behind, landing area, overhead</dd></div>
+        <div><dt><kbd>Space</kbd> hold</dt><dd>Fast-forward while the camera follows the ball</dd></div>
+        <div><dt><kbd>M</kbd> / <kbd>C</kbd></dt><dd>Course map / scorecard</dd></div>
+        <div><dt><kbd>N</kbd></dt><dd>Sound on or off</dd></div>
+        <div><dt><kbd>Esc</kbd></dt><dd>Cancel a swing, step away, or close a panel</dd></div>
       </dl>
       <p class="note">Wind, slope and lie all matter. Rough costs distance, bunkers more (wedges cope best). Water and out of bounds cost a stroke. On the green, arrows show which way it breaks.</p>
       <button class="btn primary" id="helpClose">Got it</button>
+    </div>
+  </div>
+
+  <div id="map" class="screen map-screen" hidden>
+    <div class="map-sheet">
+      <header class="map-head"><h2>Course map</h2><button class="btn ghost" id="mapClose">Close</button></header>
+      <div class="map-box"><canvas id="mapCanvas" aria-label="Course map"></canvas></div>
     </div>
   </div>
 

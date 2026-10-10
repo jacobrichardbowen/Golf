@@ -1,5 +1,6 @@
-// Headless smoke test: loads Golf.html in Chromium, plays a few shots through
-// the real UI, records console errors and saves screenshots.
+// Headless smoke test: loads Golf.html in Chromium and plays through the
+// open-world flow (walk, address, swing, ball cam, first person, cart, hole
+// out, next tee), saving screenshots and reporting console errors.
 // Usage: node tests/smoke.js [outDir]
 const path = require('path');
 const fs = require('fs');
@@ -8,104 +9,147 @@ try { ({ chromium } = require('playwright')); } catch (e) { ({ chromium } = requ
 
 const out = process.argv[2] || path.join(__dirname, '..', 'tmp-shots');
 fs.mkdirSync(out, { recursive: true });
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-// Wait for `sec` seconds of *game* time (software GL can run at a few fps).
-async function waitGame(page, sec) {
-  const t = await page.evaluate(() => window.__golf.time);
-  await page.waitForFunction((t) => window.__golf.time >= t, t + sec, { timeout: 120000 });
-}
 
 (async () => {
-  const browser = await chromium.launch({
-    executablePath: fs.existsSync('/opt/pw-browsers/chromium') ? undefined : undefined,
-    args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'],
-  });
-  const vw = Number(process.env.VW || 1280), vh = Number(process.env.VH || 760);
+  const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+  const vw = Number(process.env.VW || 960), vh = Number(process.env.VH || 600);
   const page = await browser.newPage({ viewport: { width: vw, height: vh } });
   const errors = [];
-  page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') errors.push(`[${m.type()}] ${m.text()}`); });
+  page.on('console', (m) => { if (m.type() === 'error') errors.push(`[console] ${m.text()}`); });
   page.on('pageerror', (e) => errors.push('[pageerror] ' + e.message));
-  await page.goto('file://' + path.join(__dirname, '..', 'Golf.html'));
-  await page.waitForFunction(() => window.__golf && window.__golf.state === 'title', null, { timeout: 60000 });
-  await sleep(1500);
-  await page.screenshot({ path: path.join(out, '01-title.png') });
+  const t0 = Date.now();
+  await page.goto('file://' + path.join(__dirname, '..', 'Golf.html') + '?hq&dtcap=' + (process.env.DTCAP || '0.12'));
+  await page.waitForFunction(() => window.__golfApi && window.__golf.mode === 'title', null, { timeout: 120000 });
+  console.log(`course ready in ${Date.now() - t0}ms`);
+  const G = (fn, arg) => page.evaluate(fn, arg);
+  const waitGame = async (sec) => {
+    const t = await G(() => window.__golf.time);
+    await page.waitForFunction((t) => window.__golf.time >= t, t + sec, { timeout: 180000 });
+  };
+  const shot = (name) => page.screenshot({ path: path.join(out, name), timeout: 180000 });
+  await waitGame(1);
+  await shot('01-title.png');
 
   await page.click('#startBtn');
-  await page.waitForFunction(() => window.__golf.state === 'intro', null, { timeout: 30000 });
-  await waitGame(page, 1.2);
-  await page.screenshot({ path: path.join(out, '02-intro.png') });
-  await page.keyboard.press('Space');
-  await page.waitForFunction(() => window.__golf.state === 'aim');
-  await waitGame(page, 1.5);
-  await page.screenshot({ path: path.join(out, '03-aim.png') });
+  await page.waitForFunction(() => window.__golf.mode === 'walk', null, { timeout: 120000 });
+  await waitGame(1.5);
+  await shot('02-walk-start.png');
 
-  // Real three-press swing via keyboard: start, power at ~90%, accuracy near the line.
+  // Walk forward (towards the tee) for a couple of seconds of game time.
+  const p0 = await G(() => ({ ...window.__golf.player }));
+  await page.keyboard.down('KeyW');
+  await waitGame(2);
+  await page.keyboard.up('KeyW');
+  const p1 = await G(() => ({ ...window.__golf.player }));
+  console.log('walked', Math.hypot(p1.x - p0.x, p1.z - p0.z).toFixed(1), 'yds');
+  await shot('03-walking.png');
+
+  // Step up to the ball on the tee and address it.
+  await G(() => { const h = window.__golfApi.course.holes[0]; window.__golfApi.placePlayer(h.tee.x + 1.2, h.tee.z + 1.0, 0); });
+  await waitGame(0.5);
+  const prompt = await G(() => document.getElementById('prompt').textContent);
+  console.log('prompt near ball:', prompt);
+  await page.keyboard.press('KeyE');
+  await page.waitForFunction(() => window.__golf.mode === 'shot', null, { timeout: 120000 });
+  await waitGame(1.5);
+  await shot('04-address.png');
+
+  // A real three-press swing.
   await page.keyboard.press('Space');
-  await page.waitForFunction(() => window.__golf.meter.p > 0.88);
+  await page.waitForFunction(() => window.__golf.meter.p > 0.85, null, { timeout: 120000 });
   await page.keyboard.press('Space');
-  await page.waitForFunction(() => window.__golf.meter.p < 0.02);
+  await shot('05-backswing.png'); // the club stays at the top while the marker returns
+  await page.waitForFunction(() => window.__golf.meter.p < 0.02, null, { timeout: 120000 });
   await page.keyboard.press('Space');
-  await waitGame(page, 2.5);
-  await page.screenshot({ path: path.join(out, '04-flight.png') });
-  const t0 = Date.now();
-  // fast-forward
-  await page.keyboard.down('Space');
-  await page.waitForFunction(() => ['settle', 'aim', 'penalty', 'holed'].includes(window.__golf.state), null, { timeout: 60000 });
+  await page.waitForFunction(() => window.__golf.ballState === 'moving', null, { timeout: 60000 });
+  await waitGame(0.15);
+  await shot('06-impact.png');
+  await waitGame(1.6);
+  await shot('07-ballcam.png');
+  await page.keyboard.down('Space'); // fast-forward the ball
+  await page.waitForFunction(() => window.__golf.ballState === 'rest', null, { timeout: 600000 });
   await page.keyboard.up('Space');
-  const info = await page.evaluate(() => {
-    const G = window.__golf;
-    return { state: G.state, strokes: G.strokes, ball: G.ball.p, carry: G.ball.carry, shot: G.shot && { power: G.shot.power, e: G.shot.e, club: G.shot.club.name } };
-  });
-  console.log('after shot 1 (' + (Date.now() - t0) + 'ms):', JSON.stringify(info));
-  await sleep(400);
-  await page.screenshot({ path: path.join(out, '05-rest.png') });
-  await page.waitForFunction(() => window.__golf.state === 'aim', null, { timeout: 120000 });
-  await waitGame(page, 1.5);
-  await page.screenshot({ path: path.join(out, '06-aim2.png') });
+  const r1 = await G(() => ({ ball: window.__golf.ball.p, strokes: window.__golf.strokes, mode: window.__golf.mode }));
+  console.log('after drive:', JSON.stringify(r1));
+  await waitGame(2.5);
+  await shot('08-after-drive.png');
 
-  // Play out the hole with API shots (perfect accuracy, power to reach the pin).
-  for (let i = 0; i < 8; i++) {
-    const st = await page.evaluate(() => window.__golf.state);
-    if (st !== 'aim') break;
-    await page.evaluate(() => {
-      const G = window.__golf, api = window.__golfApi;
-      const d = Math.hypot(G.field.pin.x - G.ball.p.x, G.field.pin.z - G.ball.p.z);
-      api.meterPress(); // enter swing state
-      // power: putt -> distance/range; full shot -> distance/carry
-      let p = 1;
-      const isPutt = document.getElementById('clubName').textContent === 'Putter';
-      if (isPutt) p = Math.min(1, (d + 0.4) / G.puttRange);
-      else {
-        const carry = Number(document.getElementById('clubDist').textContent.split(' ')[0]);
-        p = Math.min(1, (d - 6) / carry);
-      }
-      api.takeShot(Math.max(0.05, p), 0);
+  // First person
+  await page.keyboard.press('KeyV');
+  await waitGame(0.6);
+  await shot('09-first-person.png');
+  await page.keyboard.press('KeyV');
+
+  // Drive the cart a little
+  await G(() => { const c = window.__golfApi.cart.st; window.__golfApi.placePlayer(c.x + 1.6, c.z, 0); });
+  await waitGame(0.3);
+  await page.keyboard.press('KeyE');
+  await page.waitForFunction(() => window.__golf.mode === 'cart', null, { timeout: 120000 });
+  const c0 = await G(() => ({ ...window.__golfApi.cart.st }));
+  await page.keyboard.down('KeyW');
+  await waitGame(2.5);
+  await page.keyboard.up('KeyW');
+  const c1 = await G(() => ({ ...window.__golfApi.cart.st }));
+  console.log('cart drove', Math.hypot(c1.x - c0.x, c1.z - c0.z).toFixed(1), 'yds, speed', c1.speed.toFixed(1));
+  await shot('10-cart.png');
+  await page.keyboard.press('KeyV');
+  await waitGame(0.5);
+  await shot('11-cart-fp.png');
+  await page.keyboard.press('KeyV');
+  await page.keyboard.press('KeyE');
+  await page.waitForFunction(() => window.__golf.mode === 'walk', null, { timeout: 120000 });
+
+  // Play out the hole: walk (teleport) to the ball, address, hit with good power.
+  for (let i = 0; i < 9; i++) {
+    const st = await G(() => window.__golf.ballState);
+    if (st !== 'rest' && st !== 'tee') break;
+    await G(() => { window.__golfApi.teleportToBall(); window.__golfApi.enterShot(); });
+    const info = await G(() => {
+      const g = window.__golf, h = window.__golfApi.course.holes[g.hole];
+      const d = Math.hypot(h.pin.x - g.ball.p.x, h.pin.z - g.ball.p.z);
+      const putt = document.getElementById('clubName').textContent === 'Putter';
+      let p;
+      if (putt) p = Math.min(1, (d + 0.4) / g.puttRange);
+      else p = Math.min(1, (d - 6) / Number(document.getElementById('clubDist').textContent.split(' ')[0]));
+      window.__golfApi.swingNow(Math.max(0.05, p), 0);
+      return { d: d.toFixed(1), putt };
     });
+    await page.waitForFunction(() => window.__golf.ballState === 'moving', null, { timeout: 120000 });
+    if (i === 1) { await waitGame(0.1); await shot('12-approach.png'); }
     await page.keyboard.down('Space');
-    await page.waitForFunction(() => ['settle', 'aim', 'penalty', 'holed', 'card'].includes(window.__golf.state), null, { timeout: 60000 });
+    await page.waitForFunction(() => ['rest', 'holed', 'tee'].includes(window.__golf.ballState), null, { timeout: 600000 });
     await page.keyboard.up('Space');
-    const s = await page.evaluate(() => ({ state: window.__golf.state, strokes: window.__golf.strokes, lie: window.__golf.lie, d: Math.hypot(window.__golf.field.pin.x - window.__golf.ball.p.x, window.__golf.field.pin.z - window.__golf.ball.p.z) }));
-    console.log('shot', i + 2, JSON.stringify(s));
-    if (i === 0) await page.screenshot({ path: path.join(out, '07-approach.png') });
-    if (s.state === 'holed') {
-      await waitGame(page, 0.8);
-      await page.screenshot({ path: path.join(out, '08-holed.png') });
-      break;
+    const s = await G(() => ({ state: window.__golf.ballState, strokes: window.__golf.strokes }));
+    console.log('shot from', info.d, 'yds', info.putt ? '(putt)' : '', '->', JSON.stringify(s));
+    if (s.state === 'holed') break;
+    const lie = await G(() => window.__golfApi.course.surface(window.__golf.ball.p.x, window.__golf.ball.p.z));
+    if (lie === 3) {
+      await G(() => { window.__golfApi.teleportToBall(); window.__golfApi.enterShot(); });
+      await waitGame(1.2);
+      await shot('13-putt.png');
+      await G(() => window.__golfApi.leaveShot());
     }
-    await page.waitForFunction(() => ['aim', 'holed', 'card'].includes(window.__golf.state), null, { timeout: 120000 });
-    await waitGame(page, 1.2);
-    const lie = await page.evaluate(() => window.__golf.lie);
-    if (lie === 3) await page.screenshot({ path: path.join(out, '07b-putt.png') });
   }
-  await page.waitForFunction(() => window.__golf.state === 'card', null, { timeout: 120000 }).catch(() => {});
-  await sleep(500);
-  await page.screenshot({ path: path.join(out, '09-card.png') });
-  const fps = await page.evaluate(() => new Promise((res) => {
+  await page.waitForFunction(() => !document.getElementById('card').hidden, null, { timeout: 600000 }).catch(() => {});
+  await shot('14-card.png');
+  await page.keyboard.press('Enter');
+  await waitGame(1.5);
+  const nx = await G(() => ({ hole: window.__golf.hole, state: window.__golf.ballState, score: window.__golf.scores[0] }));
+  console.log('next hole:', JSON.stringify(nx));
+  await shot('15-next-tee.png');
+  await page.keyboard.press('KeyM');
+  await waitGame(0.3);
+  await shot('16-map.png');
+  await page.keyboard.press('KeyM');
+
+  const fps = await G(() => new Promise((res) => {
     let n = 0; const t = performance.now();
     function f() { n++; if (performance.now() - t < 2000) requestAnimationFrame(f); else res(n / 2); }
     requestAnimationFrame(f);
   }));
-  console.log('fps (software GL):', fps);
+  const painted = await G(() => `${window.__golfWorld.paintedChunks}/${window.__golfWorld.chunkCount}`);
+  console.log('fps (software GL):', fps, ' hi-res chunks painted:', painted);
   console.log('errors:', errors.length ? '\n' + errors.join('\n') : 'none');
   await browser.close();
+  process.exit(errors.length ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(1); });

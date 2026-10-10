@@ -1,6 +1,11 @@
 // ---------------------------------------------------------------------------
-// Pinehaven — 9 holes, par 36. All coordinates are in yards. Each hole is
-// laid out with its tee at the origin and play heading towards -Z.
+// Pinehaven — 9 holes, par 36, laid out as one walkable course. All
+// coordinates are in yards. Each hole is designed in its own frame (tee at the
+// origin, play heading towards -Z) and placed on the course with
+//   at       [x, z, heading]  world position of the tee; heading in degrees,
+//            0 = north (-Z), 90 = east (+X)
+//   flip     mirror the design left-to-right
+//   cartSide which side of the hole the cart path runs (1 right, -1 left)
 //
 //   path     centre line of the hole: tee -> ... -> centre of the green
 //   fairway  { start: yards from tee where the short grass begins, width }
@@ -8,15 +13,19 @@
 //   pin      flag position relative to the centre of the green
 //   bunkers / water: rotated ellipses { x, z, rx, rz, rot (degrees) }
 //   mounds   gaussian bumps { x, z, r, h } to shape elevation
-//   hills    amplitude of the broad rolling terrain
 //   wind     [min, max] mph
 // ---------------------------------------------------------------------------
 
 const COURSE = {
   name: 'Pinehaven',
+  seed: 7,
+  hills: 5,
+  // The clubhouse sits beside the first tee; the cart is parked out front.
+  clubhouse: { x: 52, z: 42, heading: 0 },
+  cartStart: { x: 26, z: 26, heading: 0 },
   holes: [
     {
-      name: 'First Light', par: 4, seed: 11, hills: 5, wind: [2, 7],
+      name: 'First Light', par: 4, seed: 11, at: [0, 0, 0], wind: [2, 7],
       path: [[0, 0], [0, -235], [-14, -372]],
       fairway: { start: 45, width: 36 },
       green: { r: 15, tilt: [0.006, -0.016] },
@@ -30,7 +39,7 @@ const COURSE = {
       mounds: [{ x: -14, z: -372, r: 28, h: 1.5 }],
     },
     {
-      name: 'Glass Pond', par: 3, seed: 23, hills: 3, wind: [3, 10],
+      name: 'Glass Pond', par: 3, seed: 23, at: [-35, -400, 270], wind: [3, 10],
       path: [[0, 0], [6, -162]],
       fairway: { start: 128, width: 26 },
       green: { r: 14, tilt: [-0.008, -0.012] },
@@ -43,7 +52,7 @@ const COURSE = {
       mounds: [{ x: 6, z: -162, r: 30, h: 1.5 }],
     },
     {
-      name: 'Long Way Round', par: 5, seed: 37, hills: 7, wind: [4, 12],
+      name: 'Long Way Round', par: 5, seed: 37, at: [-228, -372, 180], wind: [4, 12],
       path: [[0, 0], [0, -250], [-55, -400], [-70, -525]],
       fairway: { start: 50, width: 40 },
       green: { r: 16, tilt: [0.010, -0.010] },
@@ -58,7 +67,7 @@ const COURSE = {
       mounds: [{ x: -70, z: -525, r: 30, h: 2 }],
     },
     {
-      name: 'The Cape', par: 4, seed: 41, hills: 5, wind: [3, 11],
+      name: 'The Cape', par: 4, seed: 41, at: [-110, 195, 90], wind: [3, 11],
       path: [[0, 0], [0, -225], [60, -330], [78, -395]],
       fairway: { start: 55, width: 34 },
       green: { r: 14, tilt: [-0.012, -0.006] },
@@ -72,7 +81,7 @@ const COURSE = {
       mounds: [],
     },
     {
-      name: "Eagle's Perch", par: 3, seed: 53, hills: 4, wind: [5, 14],
+      name: "Eagle's Perch", par: 3, seed: 53, at: [318, 250, 0], wind: [5, 14],
       path: [[0, 0], [-8, -142]],
       fairway: { start: 112, width: 22 },
       green: { r: 13, tilt: [0.006, -0.020] },
@@ -86,7 +95,7 @@ const COURSE = {
       mounds: [{ x: -8, z: -142, r: 34, h: 6 }],
     },
     {
-      name: 'Creek Crossing', par: 4, seed: 67, hills: 4, wind: [2, 9],
+      name: 'Creek Crossing', par: 4, seed: 67, at: [322, 75, 0], wind: [2, 9],
       path: [[0, 0], [12, -215], [2, -345]],
       fairway: { start: 45, width: 34 },
       green: { r: 15, tilt: [0.008, -0.012] },
@@ -100,7 +109,7 @@ const COURSE = {
       mounds: [{ x: 2, z: -345, r: 26, h: 1.2 }],
     },
     {
-      name: 'Serpentine', par: 5, seed: 79, hills: 6, wind: [4, 12],
+      name: 'Serpentine', par: 5, seed: 79, at: [330, -305, 0], wind: [4, 12],
       path: [[0, 0], [-28, -200], [22, -370], [2, -490]],
       fairway: { start: 50, width: 36 },
       green: { r: 15, tilt: [-0.006, -0.014] },
@@ -116,7 +125,7 @@ const COURSE = {
       mounds: [],
     },
     {
-      name: 'Long Iron', par: 3, seed: 83, hills: 4, wind: [3, 10],
+      name: 'Long Iron', par: 3, seed: 83, at: [300, -820, 270], wind: [3, 10],
       path: [[0, 0], [-4, -205]],
       fairway: { start: 150, width: 26 },
       green: { r: 16, tilt: [0.004, -0.012] },
@@ -130,7 +139,7 @@ const COURSE = {
       mounds: [],
     },
     {
-      name: 'Homecoming', par: 5, seed: 97, hills: 6, wind: [3, 12],
+      name: 'Homecoming', par: 5, seed: 97, at: [150, -778, 180], wind: [3, 12],
       path: [[0, 0], [-10, -260], [22, -400], [32, -500]],
       fairway: { start: 50, width: 38 },
       green: { r: 15, tilt: [0.010, -0.008] },

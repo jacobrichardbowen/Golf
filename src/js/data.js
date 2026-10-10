@@ -23,7 +23,7 @@ const PUTTER_INDEX = CLUBS.length - 1;
 
 // Surface ids.
 const S_TEE = 0, S_FAIRWAY = 1, S_FRINGE = 2, S_GREEN = 3, S_ROUGH = 4,
-  S_DEEP = 5, S_SAND = 6, S_WATER = 7, S_OOB = 8;
+  S_DEEP = 5, S_SAND = 6, S_WATER = 7, S_OOB = 8, S_PATH = 9;
 
 // bounce: restitution on landing     mu: turf friction during a bounce
 // grip:   how strongly backspin bites roll / rollV: rolling resistance (constant / speed-scaled)
@@ -38,6 +38,7 @@ const SURFACES = [
   { id: S_SAND,    name: 'Bunker',     label: 'In the bunker',     bounce: 0.05, mu: 0.95, grip: 0.30, roll: 1.10, rollV: 4.0, lie: 0.62, spinLie: 0.70 },
   { id: S_WATER,   name: 'Water',      label: 'In the water',      bounce: 0.0,  mu: 1.0,  grip: 0.0,  roll: 9.0,  rollV: 9.0, lie: 0.0,  spinLie: 0.0 },
   { id: S_OOB,     name: 'Out of bounds', label: 'Out of bounds',  bounce: 0.2,  mu: 0.7,  grip: 0.2,  roll: 0.6,  rollV: 2.0, lie: 0.7,  spinLie: 0.5 },
+  { id: S_PATH,    name: 'Cart path',  label: 'On the cart path',  bounce: 0.55, mu: 0.25, grip: 0.25, roll: 0.05, rollV: 0.12, lie: 0.95, spinLie: 0.8 },
 ];
 
 // Distance multiplier for a club from a given lie (wedges cope with sand).

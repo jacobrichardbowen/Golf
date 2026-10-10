@@ -4,6 +4,7 @@
 
 const Sound = (() => {
   let ctx = null, master = null, noise = null, muted = false, birdTimer = 4;
+  let engineOsc = null, engineGain = null;
 
   function init() {
     if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
@@ -110,6 +111,34 @@ const Sound = (() => {
       noiseBurst({ dur: 0.7, type: 'lowpass', f: 600, vol: 0.06, attack: 0.15 });
     },
     click() { tone({ f: 900, dur: 0.03, type: 'square', vol: 0.03 }); },
+    step(surf) {
+      if (surf === S_SAND) noiseBurst({ dur: 0.08, f: 2400, q: 0.7, vol: 0.05 });
+      else if (surf === S_PATH) noiseBurst({ dur: 0.04, f: 1800, q: 1.2, vol: 0.05 });
+      else noiseBurst({ dur: 0.05, type: 'lowpass', f: 700 + Math.random() * 300, vol: 0.05 });
+    },
+    bump(speed) {
+      const v = clamp(speed / 10, 0.2, 1);
+      tone({ f: 120, f2: 55, dur: 0.18, vol: 0.35 * v });
+      noiseBurst({ dur: 0.12, type: 'lowpass', f: 1200, vol: 0.25 * v });
+    },
+    // Electric cart whine: a persistent oscillator whose pitch follows speed.
+    engine(level) {
+      if (!ctx) return;
+      if (!engineOsc) {
+        if (level <= 0.01) return;
+        engineOsc = ctx.createOscillator();
+        engineOsc.type = 'sawtooth';
+        const lp = ctx.createBiquadFilter();
+        lp.type = 'lowpass'; lp.frequency.value = 900;
+        engineGain = ctx.createGain();
+        engineGain.gain.value = 0;
+        engineOsc.connect(lp); lp.connect(engineGain); engineGain.connect(master);
+        engineOsc.start();
+      }
+      const now = ctx.currentTime;
+      engineOsc.frequency.setTargetAtTime(70 + level * 260, now, 0.08);
+      engineGain.gain.setTargetAtTime(level > 0.01 ? 0.02 + level * 0.05 : 0, now, 0.12);
+    },
     // Occasional birdsong for atmosphere; call every frame with dt.
     ambient(dt) {
       if (!ctx || muted) return;
