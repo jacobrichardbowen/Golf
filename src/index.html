@@ -1,0 +1,139 @@
+<title>Pinehaven Golf</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Barlow:wght@400;500;600;700&display=swap">
+<style>
+/*STYLE*/
+</style>
+<!--BODY-->
+<div id="app">
+  <canvas id="scene" aria-label="3D golf course"></canvas>
+
+  <div id="hud" hidden>
+    <section class="plate hole-plate" aria-label="Current hole">
+      <div class="hole-num"><span class="lbl">Hole</span><b id="hHole">1</b></div>
+      <div class="hole-info">
+        <div class="hole-name" id="hName">First Light</div>
+        <div class="hole-meta"><span>Par <b id="hPar">4</b></span><span><b id="hYards">373</b> yds</span></div>
+      </div>
+      <div class="hole-score">
+        <div><span class="lbl">Stroke</span><b id="hStroke">1</b></div>
+        <div><span class="lbl">Round</span><b id="hTotal">E</b></div>
+      </div>
+    </section>
+
+    <div class="top-right">
+      <div class="tr-row">
+        <div class="mini-btns">
+          <button class="mini" id="cardBtn" title="Scorecard (C)">Card</button>
+          <button class="mini" id="muteBtn" title="Sound on/off (M)">Sound</button>
+          <button class="mini" id="helpBtn" title="How to play (H)">?</button>
+        </div>
+        <section class="plate wind-plate" aria-label="Wind">
+          <div class="wind-dial"><div class="wind-arrow" id="windArrow"></div></div>
+          <div class="wind-read"><b id="windSpeed">0</b><span>mph</span></div>
+        </section>
+      </div>
+      <canvas id="minimap" width="150" height="230" aria-label="Hole map"></canvas>
+    </div>
+
+    <div class="dock">
+      <section class="plate shot-plate" aria-label="Shot">
+        <div class="club-row">
+          <button class="club-btn" id="clubPrev" aria-label="Longer club">‹</button>
+          <div class="club-read"><div class="club-name" id="clubName">Driver</div><div class="club-dist" id="clubDist">235 yds</div></div>
+          <button class="club-btn" id="clubNext" aria-label="Shorter club">›</button>
+        </div>
+        <dl class="shot-facts">
+          <div><dt>To pin</dt><dd id="toPin">373 yds</dd></div>
+          <div><dt>Lie</dt><dd id="lie">Tee</dd></div>
+        </dl>
+      </section>
+
+      <div class="meter" id="meter" aria-label="Swing meter">
+        <div class="meter-track" id="meterTrack">
+          <div class="meter-acc"></div>
+          <div class="meter-perfect"></div>
+          <div class="meter-fill" id="meterFill"></div>
+          <div class="meter-lock" id="meterLock"></div>
+          <div class="meter-snap"></div>
+          <div class="meter-ticks" id="meterTicks"></div>
+          <div class="meter-mark" id="meterMark"></div>
+        </div>
+        <div class="meter-hint" id="meterHint">Press <kbd>Space</kbd> to swing</div>
+      </div>
+
+      <div class="controls">
+        <div class="aim-btns">
+          <button class="ctl" id="aimLeft" aria-label="Aim left">◀</button>
+          <button class="ctl" id="aimRight" aria-label="Aim right">▶</button>
+          <button class="ctl ctl-text" id="viewBtn" aria-label="Change camera view">View</button>
+        </div>
+        <button class="swing" id="swingBtn">Swing</button>
+      </div>
+    </div>
+
+    <div id="pinMarker" class="pin-marker"><i></i><span id="pinDist">373y</span></div>
+    <div id="toast" class="toast" hidden></div>
+    <div id="banner" class="banner" hidden></div>
+  </div>
+
+  <div id="title" class="screen title-screen">
+    <div class="title-wrap">
+      <p class="eyebrow"><span id="tHoles">9</span> holes · Par <span id="tPar">36</span> · <span id="tYards">3,382</span> yards</p>
+      <h1 class="wordmark">Pinehaven<span>Golf Club</span></h1>
+      <div class="title-actions">
+        <button class="btn primary" id="startBtn">Tee off</button>
+        <button class="btn" id="resumeBtn" hidden>Resume round</button>
+        <button class="btn ghost" id="howBtn">How to play</button>
+      </div>
+      <p class="best" id="bestLine" hidden></p>
+    </div>
+  </div>
+
+  <div id="help" class="screen help-screen" hidden>
+    <div class="sheet">
+      <h2>How to play</h2>
+      <ol class="steps">
+        <li><b>Aim</b> with <kbd>←</kbd> <kbd>→</kbd> or drag across the course. Hold <kbd>Shift</kbd> for fine aim.</li>
+        <li><b>Pick a club</b> with <kbd>↑</kbd> <kbd>↓</kbd>. The ring shows where a full-power shot lands with no wind.</li>
+        <li><b>Swing</b> with three presses of <kbd>Space</kbd> (or the Swing button): start the backswing, set the power, then stop the marker on the white line for accuracy.</li>
+        <li><b>Early</b> on the third press hooks the ball left. <b>Late</b> slices it right. On the green, misses push or pull the putt.</li>
+      </ol>
+      <dl class="keys">
+        <div><dt><kbd>V</kbd></dt><dd>Change camera: behind ball, landing area, overhead</dd></div>
+        <div><dt><kbd>Space</kbd> hold</dt><dd>Fast-forward while the ball is moving</dd></div>
+        <div><dt><kbd>C</kbd></dt><dd>Scorecard</dd></div>
+        <div><dt><kbd>M</kbd></dt><dd>Sound on or off</dd></div>
+        <div><dt><kbd>Esc</kbd></dt><dd>Cancel a swing, or close this panel</dd></div>
+      </dl>
+      <p class="note">Wind, slope and lie all matter. Rough costs distance, bunkers more (wedges cope best). Water and out of bounds cost a stroke. On the green, arrows show which way it breaks.</p>
+      <button class="btn primary" id="helpClose">Got it</button>
+    </div>
+  </div>
+
+  <div id="card" class="screen card-screen" hidden>
+    <div class="scorecard">
+      <header class="sc-head">
+        <div>
+          <p class="sc-club">Pinehaven Golf Club</p>
+          <h2 id="cardTitle">Scorecard</h2>
+        </div>
+        <p class="sc-sub" id="cardSub"></p>
+      </header>
+      <div class="sc-scroll"><table class="sc-table" id="cardTable"></table></div>
+      <div class="sc-legend"><span><i class="mk eagle"></i>Eagle</span><span><i class="mk birdie"></i>Birdie</span><span><i class="mk bogey"></i>Bogey</span><span><i class="mk double"></i>Double+</span></div>
+      <div class="sc-actions">
+        <button class="btn ghost" id="cardClose">Close</button>
+        <button class="btn primary" id="cardNext">Next hole</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="loading" class="loading" hidden><span id="loadingText">Mowing the fairways…</span></div>
+  <div id="glError" class="screen" hidden><div class="sheet"><h2>3D graphics unavailable</h2><p>This game needs WebGL. Try a recent version of Chrome, Edge, Firefox or Safari, and check that hardware acceleration is turned on.</p></div></div>
+</div>
+<!--THREE-->
+<script>
+/*GAME*/
+</script>
