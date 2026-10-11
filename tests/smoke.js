@@ -86,7 +86,12 @@ const errors = [];
   // Change clubs at the bag: wait for the caddy to stop, walk up to the bag, pick the 4 iron.
   await G(() => window.__golfApi.teleportToBall());
   await waitGame(4);
-  await G(() => { const b = window.__golfApi.bagBase, P = window.__golf.player; window.__golfApi.placePlayer(b.x + 1.2, b.z + 0.6, Math.atan2(-1.2, 0.6)); });
+  await G(() => {
+    // Stand just beyond the bag, on the side away from the ball, facing it.
+    const b = window.__golfApi.bagBase, ball = window.__golf.ball.p;
+    let dx = b.x - ball.x, dz = b.z - ball.z; const d = Math.hypot(dx, dz) || 1; dx /= d; dz /= d;
+    window.__golfApi.placePlayer(b.x + dx * 1.2, b.z + dz * 1.2, Math.atan2(-dx, dz));
+  });
   await waitGame(0.4);
   console.log('prompt near bag:', await G(() => document.getElementById('prompt').textContent));
   await page.keyboard.press('KeyE');

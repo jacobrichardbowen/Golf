@@ -47,7 +47,12 @@ fs.mkdirSync(out, { recursive: true });
     // The bag close-up: step back, walk up to the bag, tap the action button.
     await page.tap('#backBtn');
     await waitGame(4); // the caddy walks over and sets the bag down
-    await page.evaluate(() => { const b = window.__golfApi.bagBase; window.__golfApi.placePlayer(b.x + 1.2, b.z + 0.6, Math.atan2(-1.2, 0.6)); });
+    await page.evaluate(() => {
+      // Stand just beyond the bag, on the side away from the ball, facing it.
+      const b = window.__golfApi.bagBase, ball = window.__golf.ball.p;
+      let dx = b.x - ball.x, dz = b.z - ball.z; const d = Math.hypot(dx, dz) || 1; dx /= d; dz /= d;
+      window.__golfApi.placePlayer(b.x + dx * 1.2, b.z + dz * 1.2, Math.atan2(-dx, dz));
+    });
     await page.waitForFunction(() => document.getElementById('actBtn').textContent.trim() === 'Clubs', null, { timeout: 120000 });
     await page.tap('#actBtn');
     await page.waitForFunction(() => window.__golf.mode === 'bag', null, { timeout: 120000 });
