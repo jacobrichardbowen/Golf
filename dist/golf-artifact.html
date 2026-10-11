@@ -491,7 +491,7 @@ label.btn { display: inline-block; cursor: pointer; }
   <div id="select" class="select-screen" hidden>
     <header class="sel-head">
       <p class="eyebrow">Choose your golfer</p>
-      <p class="sel-sub">Use <kbd>←</kbd> <kbd>→</kbd> or tap a golfer, then tee off.</p>
+      <p class="sel-sub" id="selSub">Use <kbd>←</kbd> <kbd>→</kbd> or click a golfer, then tee off.</p>
     </header>
     <div class="sel-cards" id="selCards"></div>
     <div class="sel-actions">
@@ -14077,6 +14077,12 @@ function startGame(saved) {
     G.wind = { mph, yaw, x: d.x * mph * MPH, z: d.z * mph * MPH };
   }
 
+  // The flag comes out once the ball is on the green.
+  function setFlag(v) {
+    G.flagIn = v;
+    World.setPinVisible(G.hole, v);
+  }
+
   function placePlayer(x, z, yaw) {
     Object.assign(G.player, { x, z, y: course.H(x, z), yaw, vx: 0, vz: 0, speed: 0 });
     G.camYaw = yaw;
@@ -14096,7 +14102,7 @@ function startGame(saved) {
     G.introShown = false;
     G.trace = [];
     World.trailReset();
-    World.setPinVisible(i, true);
+    setFlag(true);
     World.showSlope(i, false);
     UI.setHole(i + 1, h);
     UI.setStroke(1);
@@ -14174,6 +14180,7 @@ function startGame(saved) {
     lineup = CHARACTERS.map((c) => { const g = Golfer.create(c); World.add(g.root); return g; });
     const st = store.load();
     G.select.index = clamp(st.character != null ? st.character : 0, 0, CHARACTERS.length - 1);
+    if (matchMedia('(pointer: coarse)').matches) UI.$('selSub').textContent = 'Tap a golfer, then tee off.';
     renderSelectCards();
     chooseSelect(G.select.index);
   }
@@ -14361,7 +14368,7 @@ function startGame(saved) {
     UI.setHint(rec !== G.clubIndex
       ? `Caddy: “I’d hit the <b>${CLUBS[rec].name}</b> here.” Press <kbd>E</kbd> to step back.`
       : swingHint());
-    World.setPinVisible(G.hole, G.lie !== S_GREEN);
+    setFlag(G.lie !== S_GREEN);
     World.showSlope(G.hole, G.lie === S_GREEN || G.lie === S_FRINGE);
     G.view = 0;
     UI.setMode('shot');
@@ -14748,7 +14755,7 @@ function startGame(saved) {
     UI.toast(`${shotName(s)} · ${fmtDist(dist, s.putter)}`, `${SURFACES[lie].label} · ${fmtDist(distToPin(), onGreen)} to the pin`, 2600);
     G.ballCamTimer = s.putter ? 1.0 : 1.6;
     World.showSlope(G.hole, onGreen);
-    World.setPinVisible(G.hole, lie !== S_GREEN);
+    setFlag(lie !== S_GREEN);
     if (G.strokes >= MAX_STROKES) pickUp();
   }
 
@@ -14795,7 +14802,7 @@ function startGame(saved) {
     );
     UI.setTotal(toPar(), true);
     World.showSlope(G.hole, false);
-    World.setPinVisible(G.hole, true);
+    setFlag(true);
     G.ballCamTimer = 2.4;
     G.cardTimer = 3.4;
     saveProgress();
@@ -15157,7 +15164,7 @@ function startGame(saved) {
     else UI.objective('');
 
     const inShot = G.mode === 'shot', inBag = G.mode === 'bag';
-    const pinTop = project(h.pin.x, h.pin.y + (G.lie === S_GREEN && inShot ? 0.3 : 2.7), h.pin.z);
+    const pinTop = project(h.pin.x, h.pin.y + (G.flagIn === false ? 0.3 : 2.7), h.pin.z);
     const ballLie = G.ballState === 'rest' ? course.surface(b.x, b.z) : -1;
     const onGreen = ballLie === S_GREEN || ballLie === S_FRINGE;
     const pinVis = !inBag && G.ballState !== 'holed' && !(G.ballState === 'tee' && distTo(h.tee.x, h.tee.z) > 60) && (!pinTop.behind || inShot);
