@@ -10,11 +10,11 @@ try { ({ chromium } = require('playwright')); } catch (e) { ({ chromium } = requ
 const out = process.argv[2] || path.join(__dirname, '..', 'tmp-shots');
 fs.mkdirSync(out, { recursive: true });
 
+const errors = [];
 (async () => {
   const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   const vw = Number(process.env.VW || 960), vh = Number(process.env.VH || 600);
   const page = await browser.newPage({ viewport: { width: vw, height: vh } });
-  const errors = [];
   page.on('console', (m) => { if (m.type() === 'error') errors.push(`[console] ${m.text()}`); });
   page.on('pageerror', (e) => errors.push('[pageerror] ' + e.message));
   const t0 = Date.now();
@@ -197,4 +197,8 @@ fs.mkdirSync(out, { recursive: true });
   console.log('errors:', errors.length ? '\n' + errors.join('\n') : 'none');
   await browser.close();
   process.exit(errors.length ? 1 : 0);
-})().catch((e) => { console.error(e); process.exit(1); });
+})().catch((e) => {
+  console.error(e);
+  if (errors.length) console.error('page errors so far:\n' + errors.join('\n'));
+  process.exit(1);
+});
