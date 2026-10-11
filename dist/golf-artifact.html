@@ -14504,12 +14504,11 @@ function startGame(saved) {
       if (bag.root.parent !== World.scene) World.add(bag.root);
       const c = G.cad, f = dirFromYaw(c.yaw), r = rightOf(c.yaw);
       if (c.speed > 0.4) {
-        // Slung diagonally across his back.
-        const s = caddy.scale;
-        bag.root.position.set(c.x - f.x * 0.2 * s - r.x * 0.08, c.y + 0.3 * s, c.z - f.z * 0.2 * s - r.z * 0.08);
+        // Slung on his back: base by the left hip, top over the right shoulder.
+        bag.root.position.set(c.x - f.x * 0.18 - r.x * 0.2, c.y + 0.28, c.z - f.z * 0.18 - r.z * 0.2);
         bag.root.rotation.set(0, Math.PI - c.yaw, 0);
-        bag.root.rotateZ(-0.75);
-        bag.root.rotateX(-0.25);
+        bag.root.rotateZ(0.5);
+        bag.root.rotateX(-0.2);
       } else {
         const x = c.x + r.x * 0.55 + f.x * 0.2, z = c.z + r.z * 0.55 + f.z * 0.2;
         bag.root.position.set(x, course.H(x, z), z);
