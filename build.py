@@ -8,15 +8,23 @@ Outputs:
   dist/golf-artifact.html   - page body for publishing as a claude.ai Artifact
                               (loads three.js from the jsDelivr CDN)
 """
+import base64
+import json
 import pathlib
 import re
 
 ROOT = pathlib.Path(__file__).parent
 SRC = ROOT / "src"
 JS_ORDER = [
-    "util.js", "data.js", "physics.js", "course.js", "terrain.js",
-    "audio.js", "world.js", "character.js", "cart.js", "ui.js", "main.js",
+    "util.js", "data.js", "physics.js", "course.js", "terrain.js", "audio.js",
+    "assets.js", "world.js", "equipment.js", "character.js", "cart.js", "ui.js",
+    "workshop.js", "main.js",
 ]
+# three.js example modules (r158) used by the workshop to read and write .glb.
+# They are ES modules; esm_to_script() turns them into plain scripts.
+ADDONS = ["BufferGeometryUtils.js", "TextureUtils.js", "GLTFLoader.js", "GLTFExporter.js"]
+# Custom assets built into the game: assets/<asset-id>.glb|.png|.jpg
+ASSET_TYPES = {".glb": "model/gltf-binary", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg"}
 THREE_VERSION = "0.158.0"
 THREE_CDN = f"https://cdn.jsdelivr.net/npm/three@{THREE_VERSION}/build/three.min.js"
 
@@ -26,8 +34,68 @@ def safe_script(code: str) -> str:
     return re.sub(r"</(script)", r"<\\/\1", code, flags=re.IGNORECASE)
 
 
+def names(spec: str) -> str:
+    # "A, B as C" -> "A, B: C" (object destructuring)
+    out = []
+    for n in spec.replace("\n", " ").split(","):
+        n = n.strip()
+        if not n:
+            continue
+        m = re.fullmatch(r"(\w+)\s+as\s+(\w+)", n)
+        out.append(f"{m.group(1)}: {m.group(2)}" if m else n)
+    return ", ".join(out)
+
+
+def esm_to_script(code: str) -> str:
+    """Convert one three.js example module into code that reads its imports
+    from THREE / __addons and writes its exports to __addons."""
+    code = re.sub(r"import\s*\{([^}]*)\}\s*from\s*'three';",
+                  lambda m: f"const {{ {names(m.group(1))} }} = THREE;", code)
+    code = re.sub(r"import\s*\{([^}]*)\}\s*from\s*'[^']+';",
+                  lambda m: f"const {{ {names(m.group(1))} }} = __addons;", code)
+    exported = []
+
+    def export_list(m):
+        for n in names(m.group(1)).split(", "):
+            local, _, public = n.partition(": ")
+            exported.append(f"{public}: {local}" if public else local)
+        return ""
+    code = re.sub(r"^export\s*\{([^}]*)\};?", export_list, code, flags=re.MULTILINE)
+
+    def export_decl(m):
+        exported.append(m.group(2))
+        return m.group(1)
+    code = re.sub(r"^export\s+((?:async\s+)?(?:function|class|const|let)\s+(\w+))", export_decl,
+                  code, flags=re.MULTILINE)
+    assert not re.search(r"^(import|export)\b", code, flags=re.MULTILINE), "unconverted import/export"
+    return "(function () {\n" + code + f"\nObject.assign(__addons, {{ {', '.join(exported)} }});\n}})();\n"
+
+
+def addons_js() -> str:
+    parts = ["const __addons = {};"]
+    for name in ADDONS:
+        parts.append(f"// ===== three/examples/jsm {name} =====\n" +
+                     esm_to_script((ROOT / "vendor" / "three-addons" / name).read_text()))
+    parts.append("window.GLTFKit = { GLTFLoader: __addons.GLTFLoader, GLTFExporter: __addons.GLTFExporter };")
+    return "\n".join(parts)
+
+
+def assets_js() -> str:
+    """Files dropped in assets/ become the game's own versions of those assets."""
+    folder = ROOT / "assets"
+    embedded = {}
+    if folder.is_dir():
+        for f in sorted(folder.iterdir()):
+            ext = f.suffix.lower()
+            if ext in ASSET_TYPES:
+                embedded[f.stem] = {"name": f.name, "type": ASSET_TYPES[ext],
+                                    "b64": base64.b64encode(f.read_bytes()).decode("ascii")}
+                print(f"embedding assets/{f.name} as '{f.stem}'")
+    return f"window.__PINEHAVEN_ASSETS = {json.dumps(embedded)};\n"
+
+
 def game_js() -> str:
-    parts = []
+    parts = [assets_js(), addons_js()]
     for name in JS_ORDER:
         parts.append(f"// ===== {name} =====\n" + (SRC / "js" / name).read_text())
     body = "\n".join(parts)

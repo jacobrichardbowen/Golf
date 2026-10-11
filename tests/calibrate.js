@@ -20,7 +20,7 @@ for (const c of G.CLUBS) {
   );
 }
 // Half-power shots
-for (const id of ['7I', 'PW', 'SW']) {
+for (const id of ['4I', '8I', 'CW']) {
   const c = G.CLUBS.find((k) => k.id === id);
   for (const f of [0.25, 0.5, 0.75]) {
     const target = c.carry * f;

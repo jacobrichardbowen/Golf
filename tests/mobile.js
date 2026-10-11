@@ -20,6 +20,11 @@ fs.mkdirSync(out, { recursive: true });
       await page.waitForFunction((t) => window.__golf.time >= t, t + sec, { timeout: 180000 });
     };
     await page.tap('#startBtn');
+    await page.waitForFunction(() => window.__golf.mode === 'select', null, { timeout: 120000 });
+    await waitGame(1.5);
+    await page.screenshot({ path: path.join(out, `m-${tag}-select.png`), timeout: 180000 });
+    await page.tap('#selGo');
+    await page.waitForFunction(() => window.__golf.mode === 'walk', null, { timeout: 120000 });
     await waitGame(1);
     // Joystick: drag up to walk forward.
     const box = await page.locator('#joy').boundingBox();
@@ -39,6 +44,18 @@ fs.mkdirSync(out, { recursive: true });
     await waitGame(1.5);
     await page.screenshot({ path: path.join(out, `m-${tag}-shot.png`), timeout: 180000 });
     console.log(tag, 'mode after action button:', await page.evaluate(() => window.__golf.mode));
+    // The bag close-up: step back, walk up to the bag, tap the action button.
+    await page.tap('#backBtn');
+    await waitGame(3);
+    await page.evaluate(() => { const b = window.__golfApi.bagBase; window.__golfApi.placePlayer(b.x + 1.2, b.z + 0.6, Math.atan2(-1.2, 0.6)); });
+    await waitGame(0.4);
+    await page.tap('#actBtn');
+    await waitGame(1.6);
+    await page.screenshot({ path: path.join(out, `m-${tag}-bag.png`), timeout: 180000 });
+    const cs = await page.evaluate(() => window.__golfApi.clubScreen(3));
+    await page.touchscreen.tap(cs.x, cs.y);
+    await waitGame(1);
+    console.log(tag, 'after tapping a club:', await page.evaluate(() => [window.__golf.mode, document.getElementById('inHandClub').textContent].join(' / ')));
     await page.close();
   }
   console.log('errors:', errors.length ? errors.join('\n') : 'none');

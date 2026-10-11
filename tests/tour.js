@@ -23,6 +23,8 @@ fs.mkdirSync(out, { recursive: true });
     await page.waitForFunction((t) => window.__golf.time >= t, t + sec, { timeout: 180000 });
   };
   await page.click('#startBtn');
+  await page.waitForFunction(() => window.__golf.mode === 'select', null, { timeout: 120000 });
+  await page.evaluate((c) => { window.__golfApi.chooseSelect(c); window.__golfApi.confirmSelect(); }, Number(process.env.CHAR || 1));
   for (let i = 0; i < 9; i++) {
     if (only && !only.includes(i + 1)) continue;
     await page.evaluate((i) => {

@@ -30,8 +30,17 @@ fs.mkdirSync(out, { recursive: true });
   await waitGame(1);
   await shot('01-title.png');
 
+  // Character select: step through the line-up, then tee off as G. Surlaw (the tallest).
   await page.click('#startBtn');
+  await page.waitForFunction(() => window.__golf.mode === 'select', null, { timeout: 120000 });
+  await page.keyboard.press('ArrowRight');
+  await waitGame(2.5);
+  await shot('02-select.png');
+  await G(() => window.__golfApi.chooseSelect(Number(0)));
+  await waitGame(0.6);
+  await page.click('#selGo');
   await page.waitForFunction(() => window.__golf.mode === 'walk', null, { timeout: 120000 });
+  console.log('playing as', await G(() => window.__golfApi.golfer.style.name));
   await waitGame(1.5);
   await shot('02-walk-start.png');
 
@@ -74,6 +83,26 @@ fs.mkdirSync(out, { recursive: true });
   await waitGame(2.5);
   await shot('08-after-drive.png');
 
+  // Change clubs at the bag: wait for the caddy to stop, walk up to the bag, pick the 4 iron.
+  await G(() => window.__golfApi.teleportToBall());
+  await waitGame(4);
+  await G(() => { const b = window.__golfApi.bagBase, P = window.__golf.player; window.__golfApi.placePlayer(b.x + 1.2, b.z + 0.6, Math.atan2(-1.2, 0.6)); });
+  await waitGame(0.4);
+  console.log('prompt near bag:', await G(() => document.getElementById('prompt').textContent));
+  await page.keyboard.press('KeyE');
+  await page.waitForFunction(() => window.__golf.mode === 'bag', null, { timeout: 120000 });
+  await waitGame(1.8);
+  await shot('08b-bag.png');
+  const cs = await G(() => window.__golfApi.clubScreen(1));
+  await page.mouse.move(cs.x, cs.y);
+  await waitGame(0.4);
+  const hover = await G(() => ({ hover: window.__golf.bagHover, cursor: document.getElementById('scene').style.cursor }));
+  console.log('hovering club', JSON.stringify(hover));
+  await shot('08c-bag-hover.png');
+  await page.mouse.down(); await page.mouse.up();
+  await page.waitForFunction(() => window.__golf.mode === 'walk', null, { timeout: 120000 });
+  console.log('club in hand:', await G(() => document.getElementById('inHandClub').textContent));
+
   // First person
   await page.keyboard.press('KeyV');
   await waitGame(0.6);
@@ -100,10 +129,17 @@ fs.mkdirSync(out, { recursive: true });
   await page.waitForFunction(() => window.__golf.mode === 'walk', null, { timeout: 120000 });
 
   // Play out the hole: walk (teleport) to the ball, address, hit with good power.
+  let putted = false;
   for (let i = 0; i < 9; i++) {
     const st = await G(() => window.__golf.ballState);
     if (st !== 'rest' && st !== 'tee') break;
-    await G(() => { window.__golfApi.teleportToBall(); window.__golfApi.enterShot(); });
+    await G(() => {
+      // Take the caddy's advice (tests skip the walk to the bag).
+      const api = window.__golfApi;
+      api.teleportToBall(); api.enterShot();
+      const rec = api.recommendedClub(); api.leaveShot();
+      window.__golf.clubIndex = rec; api.enterShot();
+    });
     const info = await G(() => {
       const g = window.__golf, h = window.__golfApi.course.holes[g.hole];
       const d = Math.hypot(h.pin.x - g.ball.p.x, h.pin.z - g.ball.p.z);
@@ -123,11 +159,20 @@ fs.mkdirSync(out, { recursive: true });
     console.log('shot from', info.d, 'yds', info.putt ? '(putt)' : '', '->', JSON.stringify(s));
     if (s.state === 'holed') break;
     const lie = await G(() => window.__golfApi.course.surface(window.__golf.ball.p.x, window.__golf.ball.p.z));
-    if (lie === 3) {
-      await G(() => { window.__golfApi.teleportToBall(); window.__golfApi.enterShot(); });
+    if (lie === 3 && !putted) {
+      putted = true;
+      await G(() => { const api = window.__golfApi; api.teleportToBall(); window.__golf.clubIndex = 4; api.enterShot(); });
       await waitGame(1.2);
       await shot('13-putt.png');
       await G(() => window.__golfApi.leaveShot());
+      // Stand right next to the cup and look down at it.
+      await G(() => { const h = window.__golfApi.course.holes[window.__golf.hole]; window.__golfApi.placePlayer(h.pin.x - 1.2, h.pin.z + 1.2, Math.atan2(1.2, -1.2)); window.__golf.camPitch = 0.75; });
+      await waitGame(1.0);
+      await shot('13b-cup-close.png');
+      await G(() => { window.__golf.fp = true; window.__golf.camPitch = 0.9; });
+      await waitGame(0.6);
+      await shot('13c-cup-fp.png');
+      await G(() => { window.__golf.fp = false; window.__golf.camPitch = 0.22; });
     }
   }
   await page.waitForFunction(() => !document.getElementById('card').hidden, null, { timeout: 600000 }).catch(() => {});

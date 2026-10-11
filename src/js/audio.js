@@ -111,6 +111,12 @@ const Sound = (() => {
       noiseBurst({ dur: 0.7, type: 'lowpass', f: 600, vol: 0.06, attack: 0.15 });
     },
     click() { tone({ f: 900, dur: 0.03, type: 'square', vol: 0.03 }); },
+    clubs() {
+      // Irons clinking together as a club comes out of the bag.
+      tone({ f: 2300, f2: 2150, dur: 0.12, type: 'triangle', vol: 0.06 });
+      tone({ t: 0.05, f: 3100, f2: 2950, dur: 0.1, type: 'triangle', vol: 0.045 });
+      noiseBurst({ t: 0.02, dur: 0.08, f: 5200, q: 2, vol: 0.03 });
+    },
     step(surf) {
       if (surf === S_SAND) noiseBurst({ dur: 0.08, f: 2400, q: 0.7, vol: 0.05 });
       else if (surf === S_PATH) noiseBurst({ dur: 0.04, f: 1800, q: 1.2, vol: 0.05 });

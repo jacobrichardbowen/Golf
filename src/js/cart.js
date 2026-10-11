@@ -4,84 +4,98 @@
 // The model faces +Z; the driver sits on the left (+X).
 // ---------------------------------------------------------------------------
 
+const CART_SEAT = { x: 0.3, y: 0.84, z: -0.22 };       // driver's seat (left)
+const CART_PASSENGER = { x: -0.3, y: 0.84, z: -0.22 };  // passenger's seat (right)
+const CART_BAG = { x: 0, y: 0.5, z: -1.15, tilt: -0.28 }; // bag rack at the back
+
+// The built-in cart. Wheel groups are named wheel.FL/FR/RL/RR (each with a
+// "spin.XX" child) and the steering wheel "steering-wheel", so they animate.
+function cartModel() {
+  const L = (name, c) => { const m = new THREE.MeshLambertMaterial({ color: c }); m.name = name; return m; };
+  const cream = L('body', 0xefe9d8), green = L('seats', 0x1d5537), dark = L('trim', 0x202422), tan = L('frame', 0xd9cfb6);
+  const roofMat = L('roof', 0x1d5537), dash = L('dash', 0x4a5248);
+  const g = new THREE.Group();
+  g.name = 'golf-cart';
+  const box = (name, w, h, d, mat, x, y, z) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+    m.name = name; m.position.set(x, y, z); m.castShadow = true; g.add(m); return m;
+  };
+  box('chassis', 1.25, 0.22, 2.55, cream, 0, 0.4, 0);
+  box('floor', 1.18, 0.1, 2.35, dark, 0, 0.26, 0);
+  box('cowl', 1.22, 0.48, 0.72, cream, 0, 0.72, 0.9);
+  box('dash', 1.0, 0.06, 0.6, dash, 0, 0.98, 0.86);
+  box('seat', 1.16, 0.2, 0.64, green, 0, 0.73, -0.22);
+  box('backrest', 1.16, 0.5, 0.11, green, 0, 1.08, -0.55);
+  box('rack', 1.22, 0.32, 0.55, cream, 0, 0.66, -0.96);
+  for (const [px, pz] of [[0.56, 0.6], [-0.56, 0.6], [0.56, -0.66], [-0.56, -0.66]]) {
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.024, 1.3, 6), tan);
+    post.name = 'post'; post.position.set(px, 1.36, pz); post.castShadow = true;
+    g.add(post);
+  }
+  box('roof', 1.34, 0.06, 1.95, roofMat, 0, 2.03, -0.02);
+  const column = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.45, 6), dark);
+  column.name = 'steering-column'; column.position.set(CART_SEAT.x, 0.98, 0.5); column.rotation.x = 0.55;
+  g.add(column);
+  const wheelPivot = new THREE.Group();
+  wheelPivot.name = 'steering-mount';
+  wheelPivot.position.set(CART_SEAT.x, 1.17, 0.38);
+  wheelPivot.rotation.x = -1.0;
+  g.add(wheelPivot);
+  const steering = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.018, 6, 18), dark);
+  steering.name = 'steering-wheel'; steering.castShadow = true;
+  wheelPivot.add(steering);
+  const lampMat = new THREE.MeshStandardMaterial({ color: 0xfff6d8, emissive: 0xfff2c0, emissiveIntensity: 0.6 });
+  lampMat.name = 'lamp';
+  for (const sx of [-0.42, 0.42]) box('headlight', 0.16, 0.08, 0.04, lampMat, sx, 0.78, 1.27);
+  const tyre = new THREE.CylinderGeometry(0.21, 0.21, 0.16, 14).rotateZ(Math.PI / 2);
+  const hubGeo = new THREE.CylinderGeometry(0.11, 0.11, 0.17, 10).rotateZ(Math.PI / 2);
+  for (const [name, wx, wz] of [['wheel.FL', 0.6, 0.82], ['wheel.FR', -0.6, 0.82], ['wheel.RL', 0.6, -0.82], ['wheel.RR', -0.6, -0.82]]) {
+    const steerG = new THREE.Group();
+    steerG.name = name;
+    steerG.position.set(wx, 0.21, wz);
+    g.add(steerG);
+    const spin = new THREE.Group();
+    spin.name = 'spin.' + name.slice(6);
+    steerG.add(spin);
+    const t = new THREE.Mesh(tyre, dark); t.name = 'tyre'; t.castShadow = true;
+    const h = new THREE.Mesh(hubGeo, tan); h.name = 'hub';
+    spin.add(t, h);
+  }
+  return g;
+}
+Assets.define('golf-cart', { kind: 'model', group: 'Vehicles', name: 'Golf cart', build: cartModel,
+  note: 'Real size (the default is about 2.3 m long). Ground at the origin, front towards +Z, driver on the left (+X). Wheels are nodes named wheel.FL, wheel.FR, wheel.RL and wheel.RR (origin at the hub); a child whose name starts with "spin" rolls around X, and the front pair steer. A node named "steering-wheel" turns with the steering.' });
+
 const Cart = (() => {
   const WHEELBASE = 1.64;
   const MAX_FWD = 13;     // yd/s (about 27 mph: faster than a real cart, for fun)
   const MAX_REV = 4.5;
   const ACCEL = 6.5;
   const BRAKE = 15;
-  const SEAT = { x: 0.3, y: 0.84, z: -0.22 };
 
   function create(course) {
-    const L = (c) => new THREE.MeshLambertMaterial({ color: c });
-    const cream = L(0xefe9d8), green = L(0x1d5537), dark = L(0x202422), tan = L(0xd9cfb6);
-    const shadowed = (m) => { m.castShadow = true; return m; };
-    const box = (w, h, d, mat, x, y, z) => { const m = shadowed(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat)); m.position.set(x, y, z); return m; };
-
     const root = new THREE.Group();
     const body = new THREE.Group();
     root.add(body);
-    body.add(box(1.25, 0.22, 2.55, cream, 0, 0.4, 0));
-    body.add(box(1.18, 0.1, 2.35, dark, 0, 0.26, 0));
-    body.add(box(1.22, 0.48, 0.72, cream, 0, 0.72, 0.9));
-    body.add(box(1.0, 0.06, 0.6, L(0x4a5248), 0, 0.98, 0.86));
-    body.add(box(1.16, 0.2, 0.64, green, 0, 0.73, -0.22));
-    body.add(box(1.16, 0.5, 0.11, green, 0, 1.08, -0.55));
-    body.add(box(1.22, 0.32, 0.55, cream, 0, 0.66, -0.96));
-    // Roof on four posts
-    for (const [px, pz] of [[0.56, 0.6], [-0.56, 0.6], [0.56, -0.66], [-0.56, -0.66]]) {
-      const post = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.024, 1.3, 6), tan));
-      post.position.set(px, 1.36, pz);
-      body.add(post);
-    }
-    body.add(box(1.34, 0.06, 1.95, green, 0, 2.03, -0.02));
-    // Steering wheel
-    const column = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.45, 6), dark));
-    column.position.set(SEAT.x, 0.98, 0.5);
-    column.rotation.x = 0.55;
-    body.add(column);
-    const wheelPivot = new THREE.Group();
-    wheelPivot.position.set(SEAT.x, 1.17, 0.38);
-    wheelPivot.rotation.x = -1.0;
-    body.add(wheelPivot);
-    const steering = shadowed(new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.018, 6, 18), dark));
-    wheelPivot.add(steering);
-    // Headlights
-    const lampMat = new THREE.MeshStandardMaterial({ color: 0xfff6d8, emissive: 0xfff2c0, emissiveIntensity: 0.6 });
-    for (const sx of [-0.42, 0.42]) body.add(box(0.16, 0.08, 0.04, lampMat, sx, 0.78, 1.27));
-    // Golf bag on the back
-    const bag = new THREE.Group();
-    bag.position.set(0, 0.85, -1.15);
-    bag.rotation.x = -0.28;
-    body.add(bag);
-    const bagBody = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.13, 0.95, 10), L(0x8e2f2a)));
-    bagBody.position.y = 0.45;
-    bag.add(bagBody);
-    const steel = new THREE.MeshStandardMaterial({ color: 0xc0c4c8, metalness: 0.8, roughness: 0.3 });
-    for (let i = 0; i < 6; i++) {
-      const a = (i / 6) * TAU;
-      const c = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.25, 4), steel));
-      c.position.set(Math.cos(a) * 0.07, 1.02, Math.sin(a) * 0.07);
-      bag.add(c);
-      const hd = box(0.05, 0.04, 0.07, i < 2 ? dark : steel, Math.cos(a) * 0.07, 1.15, Math.sin(a) * 0.07 + 0.02);
-      bag.add(hd);
-    }
-    // Wheels
-    const tyre = new THREE.CylinderGeometry(0.21, 0.21, 0.16, 14);
-    tyre.rotateZ(Math.PI / 2);
-    const hubGeo = new THREE.CylinderGeometry(0.11, 0.11, 0.17, 10);
-    hubGeo.rotateZ(Math.PI / 2);
+    const model = Assets.object('golf-cart');
+    body.add(model);
+    // Animated parts (built-in names, or any node called "wheel...").
     const wheels = [];
-    for (const [wx, wz, front] of [[0.6, 0.82, 1], [-0.6, 0.82, 1], [0.6, -0.82, 0], [-0.6, -0.82, 0]]) {
-      const steerG = new THREE.Group();
-      steerG.position.set(wx, 0.21, wz);
-      body.add(steerG);
-      const spin = new THREE.Group();
-      steerG.add(spin);
-      spin.add(shadowed(new THREE.Mesh(tyre, dark)));
-      spin.add(new THREE.Mesh(hubGeo, tan));
-      wheels.push({ steerG, spin, front });
-    }
+    let steering = null;
+    model.traverse((o) => {
+      if (/^wheel/i.test(o.name) && !wheels.some((w) => w.node === o || o.parent === w.node)) {
+        // (Blender may add ".001"-style suffixes to repeated names.)
+        let spin = null;
+        o.traverse((c) => { if (!spin && c !== o && /^spin/i.test(c.name)) spin = c; });
+        wheels.push({ node: o, spin: spin || o, front: /^wheel\W*F[LR]/i.test(o.name) && !!spin });
+      }
+      if (/^steering-wheel/i.test(o.name)) steering = o;
+    });
+    // A mount for the golf bag when it rides on the back.
+    const bagMount = new THREE.Group();
+    bagMount.position.set(CART_BAG.x, CART_BAG.y, CART_BAG.z);
+    bagMount.rotation.x = CART_BAG.tilt;
+    body.add(bagMount);
 
     const st = { x: 0, z: 0, y: 0, yaw: 0, speed: 0, steer: 0, pitch: 0, roll: 0, spin: 0, surf: S_ROUGH };
 
@@ -170,28 +184,30 @@ const Cart = (() => {
       body.rotation.set(-st.pitch, 0, -st.roll, 'YXZ'); // model's right side is -X
       for (const w of wheels) {
         w.spin.rotation.x = st.spin;
-        w.steerG.rotation.y = w.front ? -st.steer : 0;
+        if (w.front) w.node.rotation.y = -st.steer;
       }
-      steering.rotation.z = st.steer * 2.5;
+      if (steering) steering.rotation.z = st.steer * 2.5;
     }
 
     const _v = new THREE.Vector3();
-    // World transform for the driver (golfer root) sitting in the seat.
-    function seatPose() {
+    // World position for a golfer's root (feet) when sitting in a seat; the
+    // pelvis sits on the cushion, so taller people sit with their feet lower.
+    function seatPose(scale, passenger) {
+      const seat = passenger ? CART_PASSENGER : CART_SEAT;
       root.updateMatrixWorld(true);
-      body.localToWorld(_v.set(SEAT.x, SEAT.y - 0.89, SEAT.z));
+      body.localToWorld(_v.set(seat.x, seat.y - 0.89 * (scale || 1), seat.z));
       return { x: _v.x, y: _v.y, z: _v.z, yaw: st.yaw };
     }
     // Eye position for the first-person driving view.
-    function eyePose() {
+    function eyePose(scale) {
       root.updateMatrixWorld(true);
-      body.localToWorld(_v.set(SEAT.x - 0.02, SEAT.y + 0.74, SEAT.z + 0.2));
+      body.localToWorld(_v.set(CART_SEAT.x - 0.02, CART_SEAT.y + 0.74 * (scale || 1), CART_SEAT.z + 0.2));
       return { x: _v.x, y: _v.y, z: _v.z };
     }
     // Somewhere free to step out: driver's side first, then the other side.
-    function exitSpot() {
+    function exitSpot(passenger) {
       const f = fwd(), rx = -f.z, rz = f.x;
-      for (const side of [-1, 1]) {
+      for (const side of passenger ? [1, -1] : [-1, 1]) {
         for (const d of [1.25, 1.8, 2.4]) {
           const x = st.x + rx * side * d, z = st.z + rz * side * d;
           if (course.inBounds(x, z) && course.waterLevel(x, z) === -Infinity) return { x, z };
@@ -200,7 +216,7 @@ const Cart = (() => {
       return { x: st.x - f.x * 2.2, z: st.z - f.z * 2.2 };
     }
 
-    return { root, st, update, place, seatPose, eyePose, exitSpot, sync };
+    return { root, st, update, place, seatPose, eyePose, exitSpot, sync, bagMount };
   }
 
   return { create };

@@ -92,7 +92,7 @@ const UI = (() => {
   function marker(id, sx, sy, behind, visible, label, w, h) {
     const el = $(id);
     if (!visible) { if (el.style.display !== 'none') el.style.display = 'none'; return; }
-    if (el.style.display === 'none') el.style.display = '';
+    if (el.style.display !== 'block') el.style.display = 'block';
     const m = 46;
     let x = sx, y = sy, off = false;
     if (behind) { x = w - x; y = h - y; }
@@ -200,6 +200,10 @@ const UI = (() => {
       g.rotate(ang);
       g.fillStyle = '#f1ede2'; g.strokeStyle = '#1d5537'; g.lineWidth = 1.5 * d;
       g.fillRect(-3 * d, -5 * d, 6 * d, 10 * d); g.strokeRect(-3 * d, -5 * d, 6 * d, 10 * d);
+    } else if (kind === 'caddy') {
+      g.fillStyle = '#f5f5f0'; g.strokeStyle = '#0b1a12'; g.lineWidth = 1.3 * d;
+      g.beginPath(); g.arc(0, 0, 3.4 * d, 0, TAU); g.fill(); g.stroke();
+      g.fillStyle = '#1d5537'; g.fillRect(-1 * d, -1 * d, 2 * d, 2 * d);
     } else if (kind === 'tee') {
       g.fillStyle = '#d8342a'; g.strokeStyle = '#ffffff'; g.lineWidth = 1.2 * d;
       g.beginPath(); g.arc(0, 0, 4 * d, 0, TAU); g.fill(); g.stroke();

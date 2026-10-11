@@ -1,7 +1,8 @@
 // ---------------------------------------------------------------------------
 // Everything that draws: renderer, sky, chunked course terrain (with grass
 // textures that sharpen progressively near the player), trees, water, flags,
-// clubhouse, ball, trail and aim guides.
+// clubhouse, ball, trail and aim guides. Replaceable models and textures are
+// registered with Assets so the Workshop can swap them.
 // ---------------------------------------------------------------------------
 
 const SUN_DIR = new THREE.Vector3(0.55, 0.62, 0.42).normalize();
@@ -9,6 +10,231 @@ const SKY = { top: 0x3f7fd0, horizon: 0xbcd7ec, ground: 0x7d9a76 };
 const CHUNK = 128;          // terrain chunk size, yards
 const LO_PPY = 1;           // first-pass texture density, px per yard
 const HI_PPY = 2.5;         // final texture density near the action
+
+// ---------- built-in textures (as canvases) ----------------------------------
+function makeCanvas(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
+
+function grassDetailCanvas() {
+  const N = 256;
+  const c = makeCanvas(N, N);
+  const g = c.getContext('2d');
+  const img = g.createImageData(N, N);
+  const rnd = mulberry32(99);
+  let v = new Float32Array(N * N).map(() => rnd());
+  for (let pass = 0; pass < 2; pass++) {
+    const o = new Float32Array(N * N);
+    for (let y = 0; y < N; y++)
+      for (let x = 0; x < N; x++) {
+        let s = 0;
+        for (let k = -1; k <= 1; k++) s += v[y * N + ((x + k + N) % N)] + v[((y + k + N) % N) * N + x];
+        o[y * N + x] = s / 6;
+      }
+    v = o;
+  }
+  for (let i = 0; i < N * N; i++) {
+    const q = clamp((v[i] - 0.5) * 3 + 0.5, 0, 1) * 255;
+    img.data[i * 4] = img.data[i * 4 + 1] = img.data[i * 4 + 2] = q;
+    img.data[i * 4 + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+  return c;
+}
+
+function waterNormalCanvas() {
+  const N = 128;
+  const c = makeCanvas(N, N);
+  const g = c.getContext('2d');
+  const img = g.createImageData(N, N);
+  const waves = [[3, 1, 0.3, 0.2], [1, 4, 0.25, 1.1], [5, -2, 0.12, 2.3], [-2, 7, 0.08, 0.7], [9, 3, 0.05, 4.1]];
+  const h = (u, v) => waves.reduce((s, [a, b, amp, ph]) => s + amp * Math.sin(TAU * (a * u + b * v) + ph), 0);
+  for (let y = 0; y < N; y++)
+    for (let x = 0; x < N; x++) {
+      const u = x / N, v = y / N, e = 1 / N;
+      const dx = (h(u + e, v) - h(u - e, v)) * 3, dy = (h(u, v + e) - h(u, v - e)) * 3;
+      const l = Math.hypot(dx, dy, 1);
+      const i = (y * N + x) * 4;
+      img.data[i] = (-dx / l * 0.5 + 0.5) * 255;
+      img.data[i + 1] = (-dy / l * 0.5 + 0.5) * 255;
+      img.data[i + 2] = (1 / l * 0.5 + 0.5) * 255;
+      img.data[i + 3] = 255;
+    }
+  g.putImageData(img, 0, 0);
+  return c;
+}
+
+function cloudCanvas(seed) {
+  const c = makeCanvas(256, 128);
+  const g = c.getContext('2d');
+  const rnd = mulberry32(seed);
+  for (let i = 0; i < 26; i++) {
+    const x = 40 + rnd() * 176, y = 60 + (rnd() - 0.5) * 34, r = 14 + rnd() * 30;
+    const gr = g.createRadialGradient(x, y, 0, x, y, r);
+    gr.addColorStop(0, 'rgba(255,255,255,0.55)');
+    gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr;
+    g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill();
+  }
+  return c;
+}
+
+function flagClothCanvas() {
+  const c = makeCanvas(128, 84);
+  const g = c.getContext('2d');
+  g.fillStyle = '#f2c230';
+  g.fillRect(0, 0, 128, 84);
+  return c;
+}
+
+Assets.define('tex-grass', { kind: 'texture', group: 'Textures', name: 'Grass grain', build: grassDetailCanvas,
+  note: 'Greyscale and seamlessly tiling. Multiplied over all the turf (about one tile per yard) to give it grain.' });
+Assets.define('tex-water', { kind: 'texture', group: 'Textures', name: 'Water ripples', build: waterNormalCanvas,
+  note: 'A seamless tangent-space normal map that slowly scrolls across the ponds.' });
+Assets.define('tex-flag', { kind: 'texture', group: 'Textures', name: 'Flag cloth', build: flagClothCanvas,
+  note: 'Fills the pin flags; the hole number is printed on top. About 3:2.' });
+Assets.define('tex-cloud', { kind: 'texture', group: 'Textures', name: 'Cloud', build: () => cloudCanvas(400),
+  note: 'A soft white cloud on a transparent background (PNG with alpha).' });
+
+// ---------- built-in models ---------------------------------------------------
+function mergeGeoms(geoms) {
+  const parts = geoms.map((g) => (g.index ? g.toNonIndexed() : g));
+  let n = 0;
+  parts.forEach((g) => (n += g.attributes.position.count));
+  const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3);
+  let o = 0;
+  parts.forEach((g) => {
+    g.computeVertexNormals();
+    pos.set(g.attributes.position.array, o * 3);
+    nor.set(g.attributes.normal.array, o * 3);
+    o += g.attributes.position.count;
+  });
+  const out = new THREE.BufferGeometry();
+  out.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  out.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+  return out;
+}
+function namedMat(name, opts) { const m = new THREE.MeshLambertMaterial(opts); m.name = name; return m; }
+function namedMesh(name, geo, mat) { const m = new THREE.Mesh(geo, mat); m.name = name; m.castShadow = true; m.receiveShadow = true; return m; }
+
+// Trees are authored at unit height with their base at the origin; the game
+// scales each one to the height of the spot it grows in.
+function pineTree() {
+  const g = new THREE.Group();
+  g.name = 'tree-pine';
+  g.add(namedMesh('trunk', new THREE.CylinderGeometry(0.022, 0.034, 0.34, 6).translate(0, 0.17, 0), namedMat('bark', { color: 0x5a4330 })));
+  const crown = mergeGeoms([
+    new THREE.ConeGeometry(1, 0.62, 8).translate(0, 0.31, 0),
+    new THREE.ConeGeometry(0.78, 0.5, 8).translate(0, 0.52, 0),
+    new THREE.ConeGeometry(0.5, 0.42, 8).translate(0, 0.75, 0),
+  ]);
+  crown.scale(0.27, 0.78, 0.27);
+  crown.translate(0, 0.22, 0);
+  g.add(namedMesh('crown', crown, namedMat('leaves', { color: 0x2c5a34, flatShading: true })));
+  return g;
+}
+function oakTree() {
+  const g = new THREE.Group();
+  g.name = 'tree-oak';
+  g.add(namedMesh('trunk', new THREE.CylinderGeometry(0.026, 0.038, 0.5, 6).translate(0, 0.25, 0), namedMat('bark', { color: 0x5a4330 })));
+  const ico = new THREE.IcosahedronGeometry(1, 1);
+  const p = ico.attributes.position;
+  const r = mulberry32(17);
+  for (let i = 0; i < p.count; i++) {
+    const k = 0.85 + r() * 0.3;
+    p.setXYZ(i, p.getX(i) * k, p.getY(i) * k, p.getZ(i) * k);
+  }
+  const crown = mergeGeoms([ico]);
+  crown.scale(0.36, 0.34, 0.36);
+  crown.translate(0, 0.66, 0);
+  g.add(namedMesh('crown', crown, namedMat('leaves', { color: 0x557d2c, flatShading: true })));
+  return g;
+}
+Assets.define('tree-pine', { kind: 'model', group: 'Course', name: 'Pine tree', fit: 'height', build: pineTree,
+  note: 'Any size: it is rescaled to each tree’s height (10–18 yards). Base at the origin, +Y up. Materials named "leaves" get a little color variety.' });
+Assets.define('tree-oak', { kind: 'model', group: 'Course', name: 'Oak tree', fit: 'height', build: oakTree,
+  note: 'Any size: it is rescaled to each tree’s height (8–14 yards). Base at the origin, +Y up. Materials named "leaves" get a little color variety.' });
+
+function teeMarker() {
+  const g = new THREE.Group();
+  g.name = 'tee-marker';
+  const m = namedMesh('marker', new THREE.SphereGeometry(0.075, 12, 8), new THREE.MeshStandardMaterial({ color: 0xd8342a, roughness: 0.4 }));
+  m.material.name = 'paint';
+  m.position.y = 0.06;
+  g.add(m);
+  return g;
+}
+Assets.define('tee-marker', { kind: 'model', group: 'Course', name: 'Tee marker', build: teeMarker,
+  note: 'Real size (about 15 cm). Sits on the ground at the origin. Two mark the front of every tee box.' });
+
+function textCanvasTexture(w, h, draw) {
+  const c = makeCanvas(w, h);
+  draw(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  return t;
+}
+
+function clubhouseModel() {
+  const g = new THREE.Group();
+  g.name = 'clubhouse';
+  const wall = namedMat('walls', { color: 0xf1ede2 });
+  const trim = namedMat('trim', { color: 0x1d5537 });
+  const roofMat = namedMat('roof', { color: 0x3b4a44 });
+  const glass = new THREE.MeshStandardMaterial({ color: 0x2c3e46, roughness: 0.15, metalness: 0.3 });
+  glass.name = 'glass';
+  const body = namedMesh('building', new THREE.BoxGeometry(30, 6, 18), wall);
+  body.position.y = 3;
+  g.add(body);
+  const roofShape = new THREE.Shape();
+  roofShape.moveTo(-10.5, 0); roofShape.lineTo(10.5, 0); roofShape.lineTo(0, 5); roofShape.closePath();
+  const roofGeo = new THREE.ExtrudeGeometry(roofShape, { depth: 32, bevelEnabled: false });
+  roofGeo.translate(0, 0, -16);
+  roofGeo.rotateY(Math.PI / 2);
+  const roof = namedMesh('roof', roofGeo, roofMat);
+  roof.position.y = 6;
+  g.add(roof);
+  for (let i = -3; i <= 3; i++) {
+    if (i === 0) continue;
+    const w = namedMesh('window', new THREE.BoxGeometry(2.4, 2.2, 0.2), glass);
+    w.position.set(i * 4, 3.3, -9.05);
+    g.add(w);
+  }
+  const door = namedMesh('door', new THREE.BoxGeometry(2.6, 3.4, 0.2), trim);
+  door.position.set(0, 1.7, -9.05);
+  g.add(door);
+  const porch = namedMesh('porch', new THREE.BoxGeometry(14, 0.3, 4), namedMat('deck', { color: 0x8a6f52 }));
+  porch.position.set(0, 0.15, -11);
+  g.add(porch);
+  const awning = namedMesh('awning', new THREE.BoxGeometry(14, 0.25, 4.4), trim);
+  awning.position.set(0, 4.2, -11);
+  g.add(awning);
+  for (const px of [-6.5, -2.2, 2.2, 6.5]) {
+    const col = namedMesh('column', new THREE.CylinderGeometry(0.15, 0.15, 4, 8), wall);
+    col.position.set(px, 2.1, -12.8);
+    g.add(col);
+  }
+  const signTex = textCanvasTexture(512, 96, (ctx, w, h) => {
+    ctx.fillStyle = '#1d5537'; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#f2c230';
+    // Shrink to fit when the condensed web font isn't available (offline).
+    const font = (px) => `800 ${px}px "Barlow Condensed", "Arial Narrow", Arial, sans-serif`;
+    ctx.font = font(58);
+    const tw = ctx.measureText('PINEHAVEN GOLF CLUB').width;
+    if (tw > w * 0.92) ctx.font = font(Math.floor(58 * (w * 0.92) / tw));
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('PINEHAVEN GOLF CLUB', w / 2, h / 2 + 2);
+  });
+  const board = namedMesh('sign', new THREE.PlaneGeometry(11, 2.06), namedMat('sign', { map: signTex }));
+  board.position.set(0, 5.1, -9.2);
+  board.rotation.y = Math.PI;
+  g.add(board);
+  const pole = namedMesh('flagpole', new THREE.CylinderGeometry(0.06, 0.08, 12, 8), new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.3 }));
+  pole.position.set(-17, 6, -12);
+  g.add(pole);
+  return g;
+}
+Assets.define('clubhouse', { kind: 'model', group: 'Course', name: 'Clubhouse', build: clubhouseModel,
+  note: 'Real size (the default is about 27 × 16 m). Ground level at the origin; the entrance faces −Z, towards the course.' });
 
 const World = (() => {
   let renderer, scene, camera, sun, hemi;
@@ -23,64 +249,13 @@ const World = (() => {
   let time = 0;
 
   // ---------- textures ----------------------------------------------------
-  function makeDetailTexture() {
-    const N = 256;
-    const c = document.createElement('canvas');
-    c.width = c.height = N;
-    const g = c.getContext('2d');
-    const img = g.createImageData(N, N);
-    const rnd = mulberry32(99);
-    let v = new Float32Array(N * N).map(() => rnd());
-    for (let pass = 0; pass < 2; pass++) {
-      const o = new Float32Array(N * N);
-      for (let y = 0; y < N; y++)
-        for (let x = 0; x < N; x++) {
-          let s = 0;
-          for (let k = -1; k <= 1; k++) s += v[y * N + ((x + k + N) % N)] + v[((y + k + N) % N) * N + x];
-          o[y * N + x] = s / 6;
-        }
-      v = o;
-    }
-    for (let i = 0; i < N * N; i++) {
-      const q = clamp((v[i] - 0.5) * 3 + 0.5, 0, 1) * 255;
-      img.data[i * 4] = img.data[i * 4 + 1] = img.data[i * 4 + 2] = q;
-      img.data[i * 4 + 3] = 255;
-    }
-    g.putImageData(img, 0, 0);
-    const t = new THREE.CanvasTexture(c);
-    t.wrapS = t.wrapT = THREE.RepeatWrapping;
-    t.anisotropy = renderer.capabilities.getMaxAnisotropy();
-    return t;
-  }
-
-  function makeWaterNormal() {
-    const N = 128;
-    const c = document.createElement('canvas');
-    c.width = c.height = N;
-    const g = c.getContext('2d');
-    const img = g.createImageData(N, N);
-    const waves = [[3, 1, 0.3, 0.2], [1, 4, 0.25, 1.1], [5, -2, 0.12, 2.3], [-2, 7, 0.08, 0.7], [9, 3, 0.05, 4.1]];
-    const h = (u, v) => waves.reduce((s, [a, b, amp, ph]) => s + amp * Math.sin(TAU * (a * u + b * v) + ph), 0);
-    for (let y = 0; y < N; y++)
-      for (let x = 0; x < N; x++) {
-        const u = x / N, v = y / N, e = 1 / N;
-        const dx = (h(u + e, v) - h(u - e, v)) * 3, dy = (h(u, v + e) - h(u, v - e)) * 3;
-        const l = Math.hypot(dx, dy, 1);
-        const i = (y * N + x) * 4;
-        img.data[i] = (-dx / l * 0.5 + 0.5) * 255;
-        img.data[i + 1] = (-dy / l * 0.5 + 0.5) * 255;
-        img.data[i + 2] = (1 / l * 0.5 + 0.5) * 255;
-        img.data[i + 3] = 255;
-      }
-    g.putImageData(img, 0, 0);
-    const t = new THREE.CanvasTexture(c);
-    t.wrapS = t.wrapT = THREE.RepeatWrapping;
-    return t;
+  // A custom texture from the Workshop, or the built-in canvas.
+  function assetTexture(id) {
+    return Assets.texture(id) || new THREE.CanvasTexture(Assets.get(id).build());
   }
 
   function radialTexture(inner, outer) {
-    const c = document.createElement('canvas');
-    c.width = c.height = 64;
+    const c = makeCanvas(64, 64);
     const g = c.getContext('2d');
     const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
     gr.addColorStop(0, inner); gr.addColorStop(1, outer);
@@ -89,32 +264,12 @@ const World = (() => {
   }
 
   function cloudTexture(seed) {
-    const c = document.createElement('canvas');
-    c.width = 256; c.height = 128;
-    const g = c.getContext('2d');
-    const rnd = mulberry32(seed);
-    for (let i = 0; i < 26; i++) {
-      const x = 40 + rnd() * 176, y = 60 + (rnd() - 0.5) * 34, r = 14 + rnd() * 30;
-      const gr = g.createRadialGradient(x, y, 0, x, y, r);
-      gr.addColorStop(0, 'rgba(255,255,255,0.55)');
-      gr.addColorStop(1, 'rgba(255,255,255,0)');
-      g.fillStyle = gr;
-      g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill();
-    }
-    const t = new THREE.CanvasTexture(c);
+    const t = Assets.texture('tex-cloud') || new THREE.CanvasTexture(cloudCanvas(seed));
     t.colorSpace = THREE.SRGBColorSpace;
     return t;
   }
 
-  function textTexture(w, h, draw) {
-    const c = document.createElement('canvas');
-    c.width = w; c.height = h;
-    draw(c.getContext('2d'), w, h);
-    const t = new THREE.CanvasTexture(c);
-    t.colorSpace = THREE.SRGBColorSpace;
-    t.anisotropy = 4;
-    return t;
-  }
+  const textTexture = textCanvasTexture;
 
   // ---------- one-time scene setup -----------------------------------------
   function init(canvas) {
@@ -131,8 +286,11 @@ const World = (() => {
     camera = new THREE.PerspectiveCamera(60, 1, 0.08, 9000);
     camera.position.set(0, 3, 8);
 
-    detailTex = makeDetailTexture();
-    waterNormal = makeWaterNormal();
+    detailTex = assetTexture('tex-grass');
+    detailTex.wrapS = detailTex.wrapT = THREE.RepeatWrapping;
+    detailTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    waterNormal = assetTexture('tex-water');
+    waterNormal.wrapS = waterNormal.wrapT = THREE.RepeatWrapping;
 
     const skyMat = new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false, fog: false,
@@ -383,23 +541,17 @@ const World = (() => {
   }
 
   // ---------- trees ----------------------------------------------------------
-  function mergeGeoms(geoms) {
-    const parts = geoms.map((g) => (g.index ? g.toNonIndexed() : g));
-    let n = 0;
-    parts.forEach((g) => (n += g.attributes.position.count));
-    const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3);
-    let o = 0;
-    parts.forEach((g) => {
-      g.computeVertexNormals();
-      pos.set(g.attributes.position.array, o * 3);
-      nor.set(g.attributes.normal.array, o * 3);
-      o += g.attributes.position.count;
-    });
-    const out = new THREE.BufferGeometry();
-    out.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    out.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
-    return out;
+  // Cheap stand-ins for distant default trees (custom trees reuse their mesh).
+  function farTree(kind) {
+    const g = new THREE.Group();
+    g.add(namedMesh('trunk', new THREE.CylinderGeometry(0.024, 0.034, kind === 0 ? 0.34 : 0.5, 4).translate(0, kind === 0 ? 0.17 : 0.25, 0), namedMat('bark', { color: 0x5a4330 })));
+    const crown = kind === 0
+      ? new THREE.ConeGeometry(0.25, 0.78, 6).translate(0, 0.22 + 0.39, 0)
+      : new THREE.IcosahedronGeometry(1, 0).scale(0.36, 0.34, 0.36).translate(0, 0.66, 0);
+    g.add(namedMesh('crown', crown, namedMat('leaves', { color: kind === 0 ? 0x2c5a34 : 0x557d2c, flatShading: true })));
+    return g;
   }
+  const isLeaf = (p) => /leaf|leaves|foliage|needle|crown|canopy/i.test((p.material && p.material.name) || p.name || '');
 
   function buildTrees(group) {
     const b = course.bounds;
@@ -412,31 +564,18 @@ const World = (() => {
         if (rnd() > 0.7) continue;
         const pine = rnd() < 0.6;
         const height = pine ? 11 + rnd() * 9 : 9 + rnd() * 7;
-        all.push({ x: x + (rnd() - 0.5) * 8, z: z + (rnd() - 0.5) * 8, y0: -0.2, kind: pine ? 0 : 1, height, trunkR: 0.22 + height * 0.018, trunkH: height * (pine ? 0.3 : 0.42), rot: rnd() * TAU, tint: rnd() });
+        all.push({ x: x + (rnd() - 0.5) * 8, z: z + (rnd() - 0.5) * 8, y0: -0.2, kind: pine ? 0 : 1, height, rot: rnd() * TAU, tint: rnd() });
       }
-    const trunkGeo = new THREE.CylinderGeometry(0.7, 1, 1, 6);
-    trunkGeo.translate(0, 0.5, 0);
-    const pineGeo = mergeGeoms([
-      new THREE.ConeGeometry(1, 0.62, 8).translate(0, 0.31, 0),
-      new THREE.ConeGeometry(0.78, 0.5, 8).translate(0, 0.52, 0),
-      new THREE.ConeGeometry(0.5, 0.42, 8).translate(0, 0.75, 0),
-    ]);
-    const oakGeo = (() => {
-      const g = new THREE.IcosahedronGeometry(1, 1);
-      const p = g.attributes.position;
-      const r = mulberry32(17);
-      for (let i = 0; i < p.count; i++) {
-        const k = 0.85 + r() * 0.3;
-        p.setXYZ(i, p.getX(i) * k, p.getY(i) * k, p.getZ(i) * k);
-      }
-      return mergeGeoms([g]);
-    })();
-    // Cheap stand-ins for distant trees.
-    const pineFar = new THREE.ConeGeometry(0.85, 1, 6).translate(0, 0.5, 0);
-    const oakFar = new THREE.IcosahedronGeometry(1, 0);
-    const trunkFar = new THREE.CylinderGeometry(0.7, 1, 1, 4).translate(0, 0.5, 0);
-    const leafMat = new THREE.MeshLambertMaterial({ flatShading: true });
-    const barkMat = new THREE.MeshLambertMaterial({ color: 0x5a4330 });
+    const ids = ['tree-pine', 'tree-oak'];
+    const nearParts = ids.map((id) => Assets.parts(id));
+    const farParts = ids.map((id, k) => (Assets.isCustom(id) ? nearParts[k] : flattenFar(k)));
+    function flattenFar(k) {
+      const ps = [];
+      const g = farTree(k);
+      g.updateMatrixWorld(true);
+      g.traverse((o) => { if (o.isMesh) { const geo = o.geometry.clone(); geo.applyMatrix4(o.matrixWorld); ps.push({ geometry: geo, material: o.material, name: o.name }); } });
+      return ps;
+    }
     // Bucket trees into tiles: off-screen tiles are culled, distant ones
     // switch to simple shapes and only nearby trees cast shadows.
     const TILE = 160;
@@ -449,41 +588,25 @@ const World = (() => {
     const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3();
     const up = new THREE.Vector3(0, 1, 0);
     const col = new THREE.Color();
-    function tileMeshes(list, geos, shadows) {
-      const pines = list.filter((t) => t.kind === 0), oaks = list.filter((t) => t.kind === 1);
+    function tileMeshes(list, partsByKind, shadows) {
       const g = new THREE.Group();
-      const trunks = new THREE.InstancedMesh(geos.trunk, barkMat, list.length);
-      list.forEach((t, i) => {
-        q.setFromAxisAngle(up, t.rot);
-        m.compose(p.set(t.x, t.y0, t.z), q, s.set(t.trunkR, t.trunkH + 0.5, t.trunkR));
-        trunks.setMatrixAt(i, m);
-      });
-      const meshes = [trunks];
-      if (pines.length) {
-        const pm = new THREE.InstancedMesh(geos.pine, leafMat, pines.length);
-        pines.forEach((t, i) => {
-          q.setFromAxisAngle(up, t.rot);
-          m.compose(p.set(t.x, t.y0 + t.height * 0.22, t.z), q, s.set(t.height * 0.27, t.height * 0.78, t.height * 0.27));
-          pm.setMatrixAt(i, m);
-          pm.setColorAt(i, col.setRGB(0.13 + t.tint * 0.05, 0.29 + t.tint * 0.08, 0.16 + t.tint * 0.04));
-        });
-        meshes.push(pm);
-      }
-      if (oaks.length) {
-        const om = new THREE.InstancedMesh(geos.oak, leafMat, oaks.length);
-        oaks.forEach((t, i) => {
-          q.setFromAxisAngle(up, t.rot);
-          const cr = t.height * 0.36, ch = t.height * 0.34;
-          m.compose(p.set(t.x, t.y0 + t.height * 0.66, t.z), q, s.set(cr, ch, cr));
-          om.setMatrixAt(i, m);
-          om.setColorAt(i, col.setRGB(0.22 + t.tint * 0.12, 0.38 + t.tint * 0.1, 0.12 + t.tint * 0.04));
-        });
-        meshes.push(om);
-      }
-      for (const im of meshes) {
-        im.castShadow = shadows;
-        im.computeBoundingSphere();
-        g.add(im);
+      for (let kind = 0; kind < 2; kind++) {
+        const trees = list.filter((t) => t.kind === kind);
+        if (!trees.length) continue;
+        for (const part of partsByKind[kind]) {
+          const im = new THREE.InstancedMesh(part.geometry, part.material, trees.length);
+          const tint = isLeaf(part);
+          trees.forEach((t, i) => {
+            q.setFromAxisAngle(up, t.rot);
+            const w = 0.9 + (t.tint || 0) * 0.2;
+            m.compose(p.set(t.x, t.y0, t.z), q, s.set(t.height * w, t.height, t.height * w));
+            im.setMatrixAt(i, m);
+            if (tint) im.setColorAt(i, col.setRGB(0.82 + t.tint * 0.3, 0.88 + t.tint * 0.22, 0.85 + t.tint * 0.15));
+          });
+          im.castShadow = shadows;
+          im.computeBoundingSphere();
+          g.add(im);
+        }
       }
       return g;
     }
@@ -494,8 +617,8 @@ const World = (() => {
       const lod = new THREE.LOD();
       lod.position.set(cx, course.H(cx, cz), cz);
       // Instances are placed in world space, so undo the LOD's own offset.
-      const near = tileMeshes(list, { trunk: trunkGeo, pine: pineGeo, oak: oakGeo }, true);
-      const far = tileMeshes(list, { trunk: trunkFar, pine: pineFar, oak: oakFar }, false);
+      const near = tileMeshes(list, nearParts, true);
+      const far = tileMeshes(list, farParts, false);
       near.position.set(-cx, -lod.position.y, -cz);
       far.position.copy(near.position);
       lod.addLevel(near, 0);
@@ -506,9 +629,10 @@ const World = (() => {
 
   // ---------- flags, tees, clubhouse -----------------------------------------
   function flagTexture(num) {
+    const cloth = Assets.image('tex-flag');
     return textTexture(128, 84, (g) => {
-      g.fillStyle = '#f2c230';
-      g.fillRect(0, 0, 128, 84);
+      if (cloth) g.drawImage(cloth, 0, 0, 128, 84);
+      else g.drawImage(flagClothCanvas(), 0, 0);
       g.fillStyle = '#16261d';
       g.font = '800 62px "Barlow Condensed", "Arial Narrow", Arial, sans-serif';
       g.textAlign = 'center'; g.textBaseline = 'middle';
@@ -523,16 +647,29 @@ const World = (() => {
     pg.position.set(pin.x, pin.y, pin.z);
     const cupGeo = new THREE.CircleGeometry(CUP_R, 28);
     cupGeo.rotateX(-Math.PI / 2);
-    const cup = new THREE.Mesh(cupGeo, new THREE.MeshBasicMaterial({ color: 0x0b0f0b, polygonOffset: true, polygonOffsetFactor: -8 }));
+    const cup = new THREE.Mesh(cupGeo, new THREE.MeshBasicMaterial({ color: 0x0b0f0b, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -12 }));
     cup.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(n.x, n.y, n.z));
-    cup.position.y = 0.003;
+    cup.position.y = 0.006;
+    cup.renderOrder = 2;
     pg.add(cup);
-    const rimGeo = new THREE.RingGeometry(CUP_R, CUP_R * 1.12, 28);
+    const rimGeo = new THREE.RingGeometry(CUP_R, CUP_R * 1.25, 28);
     rimGeo.rotateX(-Math.PI / 2);
-    const rim = new THREE.Mesh(rimGeo, new THREE.MeshBasicMaterial({ color: 0xdfe8d8, polygonOffset: true, polygonOffsetFactor: -8 }));
+    const rim = new THREE.Mesh(rimGeo, new THREE.MeshBasicMaterial({ color: 0xdfe8d8, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -12 }));
     rim.quaternion.copy(cup.quaternion);
-    rim.position.y = 0.003;
+    rim.position.y = 0.006;
+    rim.renderOrder = 2;
     pg.add(rim);
+    // With the flag out (putting), a soft ring marks the hole so it can't get
+    // lost against the grass at a low angle.
+    const haloGeo = new THREE.RingGeometry(CUP_R * 2.2, CUP_R * 3.2, 36);
+    haloGeo.rotateX(-Math.PI / 2);
+    const halo = new THREE.Mesh(haloGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5, depthWrite: false,
+      polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -12 }));
+    halo.quaternion.copy(cup.quaternion);
+    halo.position.y = 0.006;
+    halo.renderOrder = 2;
+    halo.visible = false;
+    pg.add(halo);
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 2.45, 8), new THREE.MeshStandardMaterial({ color: 0xf3f3f3, roughness: 0.4 }));
     pole.position.y = 1.2;
     pole.castShadow = true;
@@ -552,18 +689,16 @@ const World = (() => {
     fpivot.add(flag, flagBack);
     pg.add(fpivot);
     group.add(pg);
-    pins.push({ group: pg, flag, fpivot, pole, phase: hole.index * 1.7 });
+    pins.push({ group: pg, flag, fpivot, pole, halo, phase: hole.index * 1.7 });
   }
 
   function buildTeeMarkers(hole, group) {
-    const markerGeo = new THREE.SphereGeometry(0.075, 12, 8);
-    const markerMat = new THREE.MeshStandardMaterial({ color: 0xd8342a, roughness: 0.4 });
     for (const side of [-1, 1]) {
-      const mk = new THREE.Mesh(markerGeo, markerMat);
+      const mk = Assets.object('tee-marker');
       const x = hole.tee.x - hole.teeDir.z * side * 3.2 + hole.teeDir.x * 1.2;
       const z = hole.tee.z + hole.teeDir.x * side * 3.2 + hole.teeDir.z * 1.2;
-      mk.position.set(x, course.H(x, z) + 0.06, z);
-      mk.castShadow = true;
+      mk.position.set(x, course.H(x, z), z);
+      mk.rotation.y = Math.atan2(hole.teeDir.x, hole.teeDir.z);
       group.add(mk);
     }
     // A small sign at the back of the tee: hole number, par and yardage.
@@ -599,69 +734,18 @@ const World = (() => {
 
   function buildClubhouse(group) {
     const c = course.clubhouse;
-    const g = new THREE.Group();
+    const g = Assets.object('clubhouse');
     g.position.set(c.x, c.y, c.z);
     g.rotation.y = -(c.heading || 0) * DEG;
-    const wall = new THREE.MeshLambertMaterial({ color: 0xf1ede2 });
-    const trim = new THREE.MeshLambertMaterial({ color: 0x1d5537 });
-    const roofMat = new THREE.MeshLambertMaterial({ color: 0x3b4a44 });
-    const glass = new THREE.MeshStandardMaterial({ color: 0x2c3e46, roughness: 0.15, metalness: 0.3 });
-    const body = new THREE.Mesh(new THREE.BoxGeometry(30, 6, 18), wall);
-    body.position.y = 3;
-    body.castShadow = true; body.receiveShadow = true;
-    g.add(body);
-    // Pitched roof
-    const roofShape = new THREE.Shape();
-    roofShape.moveTo(-10.5, 0); roofShape.lineTo(10.5, 0); roofShape.lineTo(0, 5); roofShape.closePath();
-    const roofGeo = new THREE.ExtrudeGeometry(roofShape, { depth: 32, bevelEnabled: false });
-    roofGeo.translate(0, 0, -16);
-    roofGeo.rotateY(Math.PI / 2);
-    const roof = new THREE.Mesh(roofGeo, roofMat);
-    roof.position.y = 6;
-    roof.castShadow = true;
-    g.add(roof);
-    // Windows and door on the course side (-Z)
-    for (let i = -3; i <= 3; i++) {
-      if (i === 0) continue;
-      const w = new THREE.Mesh(new THREE.BoxGeometry(2.4, 2.2, 0.2), glass);
-      w.position.set(i * 4, 3.3, -9.05);
-      g.add(w);
-    }
-    const door = new THREE.Mesh(new THREE.BoxGeometry(2.6, 3.4, 0.2), trim);
-    door.position.set(0, 1.7, -9.05);
-    g.add(door);
-    // Porch
-    const porch = new THREE.Mesh(new THREE.BoxGeometry(14, 0.3, 4), new THREE.MeshLambertMaterial({ color: 0x8a6f52 }));
-    porch.position.set(0, 0.15, -11);
-    porch.receiveShadow = true;
-    g.add(porch);
-    const awning = new THREE.Mesh(new THREE.BoxGeometry(14, 0.25, 4.4), trim);
-    awning.position.set(0, 4.2, -11);
-    awning.castShadow = true;
-    g.add(awning);
-    for (const px of [-6.5, -2.2, 2.2, 6.5]) {
-      const col = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 4, 8), wall);
-      col.position.set(px, 2.1, -12.8);
-      g.add(col);
-    }
-    // Name board
-    const signTex = textTexture(512, 96, (ctx, w, h) => {
-      ctx.fillStyle = '#1d5537'; ctx.fillRect(0, 0, w, h);
-      ctx.fillStyle = '#f2c230';
-      ctx.font = '800 58px "Barlow Condensed", "Arial Narrow", Arial, sans-serif';
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText('PINEHAVEN GOLF CLUB', w / 2, h / 2 + 2);
-    });
-    const board = new THREE.Mesh(new THREE.PlaneGeometry(11, 2.06), new THREE.MeshLambertMaterial({ map: signTex }));
-    board.position.set(0, 5.1, -9.2);
-    board.rotation.y = Math.PI;
-    g.add(board);
-    // Flagpole
-    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 12, 8), new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.3 }));
-    pole.position.set(-17, 6, -12);
-    pole.castShadow = true;
-    g.add(pole);
+    g.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
     group.add(g);
+    // Walls block walking and driving: fit the footprint to the model.
+    g.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(g);
+    const ob = course.obstacles[0];
+    ob.hx = Math.max(1, (box.max.x - box.min.x) / 2 - 0.5);
+    ob.hz = Math.max(1, (box.max.z - box.min.z) / 2 - 0.5);
+    ob.x = (box.max.x + box.min.x) / 2; ob.z = (box.max.z + box.min.z) / 2;
   }
 
   function buildSlope(hole, group) {
@@ -740,7 +824,11 @@ const World = (() => {
         const mat = terrainMaterial(tex);
         // Full detail up close, a coarse mesh further away (skirts hide the seams).
         const lod = new THREE.LOD();
+        const cx = x0 + CHUNK / 2, cz = z0 + CHUNK / 2;
+        lod.position.set(cx, course.H(cx, cz), cz);
         const near = new THREE.Mesh(geo, mat), far = new THREE.Mesh(geoFar, mat);
+        near.position.set(-cx, -lod.position.y, -cz);
+        far.position.copy(near.position);
         near.receiveShadow = far.receiveShadow = true;
         lod.addLevel(near, 0);
         lod.addLevel(far, 230);
@@ -899,7 +987,9 @@ const World = (() => {
   function hideGuides() { guides.arc.visible = false; guides.ring.visible = false; }
   function showSlope(index, v) { slopes.forEach((s, i) => { if (s) s.visible = v && i === index; }); }
   // The flagstick is pulled out when putting.
-  function setPinVisible(index, v) { pins.forEach((p, i) => { const on = i !== index || v; p.pole.visible = on; p.fpivot.visible = on; }); }
+  function setPinVisible(index, v) {
+    pins.forEach((p, i) => { const on = i !== index || v; p.pole.visible = on; p.fpivot.visible = on; p.halo.visible = !on; });
+  }
 
   // Water splash: an expanding ripple and a burst of droplets.
   const splashes = [];
@@ -964,6 +1054,7 @@ const World = (() => {
     const ws = Math.hypot(wind.x, wind.z);
     const amp = 0.03 + Math.min(ws, 8) * 0.012;
     for (const p of pins) {
+      if (p.halo.visible) p.halo.material.opacity = 0.38 + 0.18 * Math.sin(time * 3);
       p.fpivot.rotation.y = ws > 0.01 ? Math.atan2(-wind.z, wind.x) : 0;
       if (p.group.position.distanceTo(camera.position) > 400) continue;
       const fg = p.flag.geometry, base = fg.userData.base, arr = fg.attributes.position.array;
