@@ -7,6 +7,9 @@
 //   1. "local"   uploaded in the Workshop, kept in this browser (IndexedDB)
 //   2. "project" files in the repo's assets/ folder, baked into Golf.html
 //   3. the built-in default
+// A local "removed" record means "use the built-in one" even though the
+// project has a file. Local changes stay pending until they are committed to
+// the project (see publish.js); once a build includes them they're dropped.
 //
 // Units: glTF files are in meters (+Y up, front faces +Z). The game works in
 // yards, so models are scaled on the way in and out.
@@ -18,6 +21,7 @@ const Assets = (() => {
   const custom = new Map();     // id -> { source, name, type, bytes, size, scene?, image? }
   const project = new Map();    // id -> raw record from the build (for "reset")
   const partsCache = new Map();
+  const localRecs = new Map();  // id -> IndexedDB record: an upload, or { removed: true }
   let changed = false;
 
   // def: { kind: 'model'|'rig'|'texture', group, name, note, fit: 'real'|'height', build(), joints? }
@@ -100,6 +104,13 @@ const Assets = (() => {
     partsCache.delete(rec.id);
   }
 
+  function sameBytes(a, b) {
+    if (a.byteLength !== b.byteLength) return false;
+    const x = new Uint8Array(a), y = new Uint8Array(b);
+    for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) return false;
+    return true;
+  }
+
   async function init() {
     const emb = window.__PINEHAVEN_ASSETS || {};
     for (const id of Object.keys(emb)) {
@@ -108,7 +119,41 @@ const Assets = (() => {
       try { await load(rec, 'project'); } catch (e) { console.warn('Could not load project asset', id, e); }
     }
     for (const rec of await dbAll()) {
+      if (!defs.has(rec.id)) continue;
+      const proj = project.get(rec.id);
+      // Already part of this build: the local copy has done its job.
+      const inBuild = rec.removed ? !proj && rec.committed : proj && sameBytes(proj.data, rec.data);
+      if (inBuild) { dbDel(rec.id).catch(() => {}); continue; }
+      localRecs.set(rec.id, rec);
+      if (rec.removed) { custom.delete(rec.id); partsCache.delete(rec.id); continue; }
       try { await load(rec, 'local'); } catch (e) { console.warn('Could not load saved asset', rec.id, e); }
+    }
+  }
+
+  // What an asset is using now, and whether that's waiting to be committed.
+  function state(id) {
+    const rec = localRecs.get(id);
+    const hasProject = project.has(id);
+    if (rec && !rec.removed) return { using: 'local', pending: !rec.committed, hasProject };
+    if (rec && rec.removed) return { using: 'builtin', pending: !rec.committed, removing: true, hasProject };
+    return { using: hasProject ? 'project' : 'builtin', pending: false, hasProject };
+  }
+  // Changes in this browser that the project doesn't have yet.
+  function pending() {
+    const out = [];
+    for (const rec of localRecs.values()) {
+      if (rec.committed) continue;
+      if (rec.removed) out.push({ id: rec.id, kind: 'remove' });
+      else out.push({ id: rec.id, kind: 'write', name: rec.name, ext: extOf(rec.name), data: rec.data });
+    }
+    return out.sort((a, b) => (a.id < b.id ? -1 : 1));
+  }
+  async function markCommitted(ids, sha) {
+    for (const id of ids) {
+      const rec = localRecs.get(id);
+      if (!rec || rec.committed) continue;
+      rec.committed = sha;
+      try { await dbPut(rec); } catch (e) { /* kept in memory for this visit */ }
     }
   }
 
@@ -290,12 +335,31 @@ const Assets = (() => {
     const type = def.kind === 'texture' ? (file.type || 'image/' + (ext === 'jpg' ? 'jpeg' : ext)) : 'model/gltf-binary';
     const rec = { id, name: file.name, type, data, updated: Date.now() };
     await load(rec, 'local'); // throws if it can't be read
+    localRecs.set(id, rec);
     let saved = true;
     try { await dbPut(rec); } catch (e) { saved = false; console.warn('Could not save asset to this browser', e); }
     changed = true;
     return saved;
   }
+  // Back to the built-in version. If the project has a file for it (in this
+  // build, or one you committed), its removal waits to be committed too.
   async function reset(id) {
+    const prior = localRecs.get(id);
+    custom.delete(id);
+    partsCache.delete(id);
+    if (project.has(id) || (prior && !prior.removed && prior.committed)) {
+      const tomb = { id, removed: true, updated: Date.now() };
+      localRecs.set(id, tomb);
+      try { await dbPut(tomb); } catch (e) { /* kept in memory for this visit */ }
+    } else {
+      localRecs.delete(id);
+      try { await dbDel(id); } catch (e) { /* nothing stored */ }
+    }
+    changed = true;
+  }
+  // Drop local changes and use the version built into the game.
+  async function useProject(id) {
+    localRecs.delete(id);
     try { await dbDel(id); } catch (e) { /* nothing stored */ }
     custom.delete(id);
     partsCache.delete(id);
@@ -317,6 +381,7 @@ const Assets = (() => {
       if (!defs.has(a.id)) continue;
       const rec = { id: a.id, name: a.name, type: a.type, data: b64ToBuf(a.b64), updated: Date.now() };
       await load(rec, 'local');
+      localRecs.set(a.id, rec);
       try { await dbPut(rec); } catch (e) { /* ignore */ }
       n++;
     }
@@ -382,8 +447,8 @@ const Assets = (() => {
   }
 
   return {
-    define, list, get, isCustom, info, init, parts, object, rigParts, texture, image,
-    download, replace, reset, exportPack, importPack, saveFile, downloadsCap,
+    define, list, get, isCustom, info, state, pending, markCommitted, init, parts, object, rigParts, texture, image,
+    download, replace, reset, useProject, exportPack, importPack, saveFile, downloadsCap,
     get changed() { return changed; }, YD_PER_M, M_PER_YD,
   };
 })();

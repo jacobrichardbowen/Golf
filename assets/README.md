@@ -14,10 +14,11 @@ run `python3 build.py`. Name each file after the asset it replaces:
 | `golfer.glb` | the body shared by every golfer and the caddy |
 | `tex-grass.png`, `tex-water.png`, `tex-flag.png`, `tex-cloud.png` | textures |
 
-The easiest way to start is the in-game **Workshop**: download the asset you
-want to change (the file name is already right), edit it in Blender, and
-either load it back with **Replace…** (kept in that browser) or drop it in
-here and rebuild (built into `Golf.html` for everyone).
+The easiest way is the in-game **Workshop**: download the asset you want to
+change (the file name is already right), edit it in Blender, load it back
+with **Replace…**, then press **Commit to project**. That writes the file
+here, and the Rebuild game GitHub Action builds it into `Golf.html` for
+everyone. You can also drop files in here by hand and run `python3 build.py`.
 
 Models are glTF binary in meters, +Y up, front facing +Z. See the Workshop
 section of the main README for the notes on trees, the golfer rig and the

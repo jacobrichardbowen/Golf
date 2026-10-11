@@ -17,14 +17,17 @@ ROOT = pathlib.Path(__file__).parent
 SRC = ROOT / "src"
 JS_ORDER = [
     "util.js", "data.js", "physics.js", "course.js", "terrain.js", "audio.js",
-    "assets.js", "world.js", "equipment.js", "character.js", "cart.js", "ui.js",
+    "assets.js", "publish.js", "world.js", "equipment.js", "character.js", "cart.js", "ui.js",
     "workshop.js", "main.js",
 ]
 # three.js example modules (r158) used by the workshop to read and write .glb.
 # They are ES modules; esm_to_script() turns them into plain scripts.
 ADDONS = ["BufferGeometryUtils.js", "TextureUtils.js", "GLTFLoader.js", "GLTFExporter.js"]
 # Custom assets built into the game: assets/<asset-id>.glb|.png|.jpg
-ASSET_TYPES = {".glb": "model/gltf-binary", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg"}
+ASSET_TYPES = {".glb": "model/gltf-binary", ".gltf": "model/gltf+json", ".png": "image/png",
+               ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp"}
+# The GitHub repository the Workshop commits to (owner/name); it can be changed in the Workshop.
+REPO = "jacobrichardbowen/Golf"
 THREE_VERSION = "0.158.0"
 THREE_CDN = f"https://cdn.jsdelivr.net/npm/three@{THREE_VERSION}/build/three.min.js"
 
@@ -91,7 +94,8 @@ def assets_js() -> str:
                 embedded[f.stem] = {"name": f.name, "type": ASSET_TYPES[ext],
                                     "b64": base64.b64encode(f.read_bytes()).decode("ascii")}
                 print(f"embedding assets/{f.name} as '{f.stem}'")
-    return f"window.__PINEHAVEN_ASSETS = {json.dumps(embedded)};\n"
+    return (f"window.__PINEHAVEN_ASSETS = {json.dumps(embedded)};\n"
+            f"window.__PINEHAVEN_REPO = {json.dumps(REPO)};\n")
 
 
 def game_js() -> str:

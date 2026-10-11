@@ -367,3 +367,28 @@ label.btn { display: inline-block; cursor: pointer; }
   .ws-note { font-size: 13px; }
   .sel-card .sw-l { display: none; }
 }
+
+/* Workshop: commit to the project */
+#wsCommitOpen.has { border-color: var(--flag); color: var(--flag); }
+.ws-badge.wait { background: rgba(242,194,48,0.18); color: var(--flag); }
+.ws-commit { position: absolute; inset: 0; background: rgba(6,16,11,0.6); display: grid; place-items: center; padding: var(--gutter); z-index: 5; }
+.ws-commit[hidden] { display: none; }
+.ws-c-sheet { width: min(520px, 100%); max-height: 100%; overflow-y: auto; background: var(--plate-solid); border: 1px solid var(--plate-edge); border-radius: 10px; padding: 18px 20px; display: grid; gap: 10px; }
+.ws-c-sheet h3 { margin: 0; font-family: var(--f-display); font-size: 24px; font-weight: 800; text-transform: uppercase; }
+.ws-c-lead { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.45; }
+.ws-c-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: 14px; }
+.ws-c-list li { display: flex; gap: 8px; align-items: baseline; }
+.ws-c-list li span { color: var(--muted); font-size: 13px; }
+.ws-c-list li.none { color: var(--muted); }
+.ws-field { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+.ws-field input { font: inherit; font-size: 15px; color: var(--chalk); background: rgba(255,255,255,0.06); border: 1px solid var(--plate-edge); border-radius: 6px; padding: 8px 10px; }
+.ws-field input:focus { outline: 2px solid var(--flag); outline-offset: 1px; }
+.ws-gh { border-top: 1px solid var(--plate-edge); padding-top: 8px; }
+.ws-gh summary { cursor: pointer; color: var(--flag); font-weight: 600; font-size: 14px; }
+.ws-gh > * + * { margin-top: 8px; }
+.ws-c-help { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.ws-c-help a, .ws-status a { color: var(--flag); }
+.ws-c-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+.ws-c-actions .btn, .ws-gh .btn { font-size: 15px; padding: 8px 14px; }
+.ws-c-actions .btn:disabled { opacity: 0.4; cursor: default; }
+

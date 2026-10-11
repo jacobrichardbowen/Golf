@@ -1,7 +1,8 @@
 // ---------------------------------------------------------------------------
 // The Workshop: browse every model and texture the game uses, download any of
 // them (as .glb / .png), and swap in your own. The selected asset spins on a
-// turntable drawn with the game's renderer behind the panels.
+// turntable drawn with the game's renderer behind the panels. Changes can be
+// committed to the project's GitHub repository (publish.js).
 // ---------------------------------------------------------------------------
 
 const Workshop = (() => {
@@ -113,9 +114,10 @@ const Workshop = (() => {
   }
 
   function badge(id) {
-    const c = Assets.info(id);
-    if (!c) return '<span class="ws-badge">Built-in</span>';
-    return c.source === 'local' ? '<span class="ws-badge mine">Yours</span>' : '<span class="ws-badge proj">Project</span>';
+    const st = Assets.state(id);
+    if (st.using === 'local') return st.pending ? '<span class="ws-badge mine">Yours · not committed</span>' : '<span class="ws-badge proj">Yours · committed</span>';
+    if (st.removing && st.pending) return '<span class="ws-badge wait">Built-in · not committed</span>';
+    return st.using === 'project' ? '<span class="ws-badge proj">Project</span>' : '<span class="ws-badge">Built-in</span>';
   }
 
   function renderList() {
@@ -137,9 +139,16 @@ const Workshop = (() => {
     $('wsBadge').innerHTML = badge(currentId);
     $('wsNote').textContent = def.note || '';
     const ext = def.kind === 'texture' ? '.png' : '.glb';
-    $('wsFile').textContent = c ? `${c.source === 'local' ? 'Your file' : 'Project file'}: ${c.name} (${fmtSize(c.size)})` : `Built-in. Download it as ${currentId}${ext} to start from it.`;
+    const st = Assets.state(currentId);
+    let file;
+    if (st.using === 'local') file = `Your file: ${c.name} (${fmtSize(c.size)}). ${st.pending ? 'Not in the project yet: use Commit to project.' : 'Committed to the project.'}`;
+    else if (st.using === 'project') file = `In the project: ${c.name} (${fmtSize(c.size)}).`;
+    else if (st.removing) file = st.pending ? 'Built-in. Commit to project to remove the project’s version.' : 'Built-in. The project’s version is removed.';
+    else file = `Built-in. Download it as ${currentId}${ext} to start from it.`;
+    $('wsFile').textContent = file;
     $('wsDownload').textContent = 'Download ' + (c ? c.name.split('.').pop().toUpperCase() : ext.slice(1).toUpperCase());
-    $('wsReset').disabled = !c || c.source !== 'local';
+    $('wsReset').disabled = st.using === 'builtin';
+    $('wsUseProject').hidden = !st.hasProject || st.using === 'project';
     $('wsFileInput').accept = def.kind === 'texture' ? 'image/png,image/jpeg,image/webp' : '.glb,.gltf,model/gltf-binary';
     status('');
   }
@@ -232,9 +241,7 @@ const Workshop = (() => {
     status(`Reading ${file.name}…`);
     try {
       const saved = await Assets.replace(currentId, file);
-      show(currentId);
-      makeThumb(currentId);
-      renderList();
+      afterChange();
       status(saved ? `Using ${file.name}. It’s saved in this browser.`
         : `Using ${file.name}, but this browser won’t let the game keep it. Use Export my assets to keep a copy.`, !saved);
     } catch (e) {
@@ -243,10 +250,86 @@ const Workshop = (() => {
   }
   async function doReset() {
     await Assets.reset(currentId);
+    afterChange();
+    status(Assets.state(currentId).pending ? 'Back to the built-in version. Commit to project to make it permanent.' : 'Back to the built-in version.');
+  }
+  async function doUseProject() {
+    await Assets.useProject(currentId);
+    afterChange();
+    status('Using the version built into the game.');
+  }
+  function afterChange() {
     show(currentId);
     makeThumb(currentId);
     renderList();
-    status('Back to the built-in version.');
+    refreshCommitButton();
+  }
+
+  // ---------- commit to the project ----------
+  function refreshCommitButton() {
+    const n = Assets.pending().length;
+    const b = $('wsCommitOpen');
+    b.textContent = n ? `Commit to project (${n})` : 'Commit to project';
+    b.classList.toggle('has', n > 0);
+  }
+  function renderCommitList() {
+    const items = Assets.pending();
+    $('wsCommitList').innerHTML = items.length
+      ? items.map((c) => `<li><b>${esc(Assets.get(c.id).name)}</b><span>${c.kind === 'write' ? 'use ' + esc(c.name) : 'back to built-in'}</span></li>`).join('')
+      : '<li class="none">Nothing to commit: everything here is already in the project.</li>';
+    $('wsCommitGo').disabled = !items.length;
+    $('wsCommitMsg').placeholder = items.length ? Publish.defaultMessage(items) : '';
+  }
+  const esc = (t) => String(t).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+  function commitStatus(html, bad) {
+    const el = $('wsCommitStatus');
+    el.innerHTML = html;
+    el.classList.toggle('bad', !!bad);
+  }
+  function openCommit() {
+    const s = Publish.settings();
+    $('wsGhRepo').value = s.repo;
+    $('wsGhBranch').value = s.branch;
+    $('wsGhToken').value = s.token;
+    $('wsGh').open = !s.token || !s.repo;
+    $('wsCommitMsg').value = '';
+    renderCommitList();
+    commitStatus('');
+    $('wsCommit').hidden = false;
+  }
+  function closeCommit() { $('wsCommit').hidden = true; }
+  function saveGh() {
+    Publish.save({ repo: $('wsGhRepo').value.trim(), branch: $('wsGhBranch').value.trim(), token: $('wsGhToken').value.trim() });
+  }
+  let committing = false;
+  async function doCommit() {
+    if (committing) return;
+    saveGh();
+    const changes = Assets.pending();
+    if (!changes.length) return;
+    committing = true;
+    $('wsCommitGo').disabled = true;
+    commitStatus('Connecting to GitHub…');
+    try {
+      const r = await Publish.commit(changes, { message: $('wsCommitMsg').value.trim() }, (m) => commitStatus(esc(m)));
+      await Assets.markCommitted(changes.map((c) => c.id), r.sha || 'up-to-date');
+      const repo = Publish.settings().repo;
+      if (r.upToDate) commitStatus(`The project already has these. Nothing new to commit.`);
+      else {
+        commitStatus(`Committed <a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.sha.slice(0, 7))}</a> to ${esc(r.branch)}. GitHub is rebuilding Golf.html now (about a minute)` +
+          (r.isDefault ? `; then it's at <a href="${esc(Publish.downloadUrl(repo))}" target="_blank" rel="noopener">the download link</a>.` : `: <a href="${esc(Publish.actionsUrl(repo))}" target="_blank" rel="noopener">follow it here</a>.`));
+      }
+      renderList();
+      if (currentId) renderDetail();
+      renderCommitList();
+      refreshCommitButton();
+    } catch (e) {
+      commitStatus(esc(e.message || String(e)), true);
+      $('wsCommitGo').disabled = false;
+      if (/token|repository|branch/i.test(e.message || '')) $('wsGh').open = true;
+    } finally {
+      committing = false;
+    }
   }
   async function doExport() {
     const json = Assets.exportPack();
@@ -264,6 +347,7 @@ const Workshop = (() => {
       thumbQueue = Assets.list().map((d) => d.id);
       renderList();
       show(currentId);
+      refreshCommitButton();
       status(`Imported ${n} asset${n === 1 ? '' : 's'}.`);
     } catch (e) { status('Could not import that pack: ' + (e.message || e), true); }
   }
@@ -282,6 +366,14 @@ const Workshop = (() => {
       $('wsDownload').addEventListener('click', doDownload);
       $('wsFileInput').addEventListener('change', (e) => { doReplace(e.target.files[0]); e.target.value = ''; });
       $('wsReset').addEventListener('click', doReset);
+      $('wsUseProject').addEventListener('click', doUseProject);
+      $('wsCommitOpen').addEventListener('click', openCommit);
+      $('wsCommitClose').addEventListener('click', closeCommit);
+      $('wsCommitGo').addEventListener('click', doCommit);
+      $('wsCommit').addEventListener('click', (e) => { if (e.target === $('wsCommit')) closeCommit(); });
+      for (const id of ['wsGhRepo', 'wsGhBranch', 'wsGhToken']) $(id).addEventListener('change', saveGh);
+      $('wsGhForget').addEventListener('click', () => { Publish.forgetToken(); $('wsGhToken').value = ''; commitStatus('Token forgotten.'); });
+      document.addEventListener('keydown', (e) => { if (isOpen && e.key === 'Escape' && !$('wsCommit').hidden) closeCommit(); });
       $('wsExport').addEventListener('click', doExport);
       $('wsImport').addEventListener('change', (e) => { doImport(e.target.files[0]); e.target.value = ''; });
       $('wsDone').addEventListener('click', close);
@@ -291,11 +383,13 @@ const Workshop = (() => {
     isOpen = true;
     document.getElementById('workshop').hidden = false;
     renderList();
+    refreshCommitButton();
     show(currentId || GROUPS.map((g) => Assets.list().find((d) => d.group === g)).find(Boolean).id);
     thumbQueue = Assets.list().map((d) => d.id).filter((id) => !thumbs.has(id));
   }
 
   function close() {
+    closeCommit();
     isOpen = false;
     document.getElementById('workshop').hidden = true;
     if (onClose) onClose(Assets.changed);

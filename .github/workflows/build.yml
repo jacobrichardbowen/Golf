@@ -1,0 +1,64 @@
+# Rebuild Golf.html whenever the game's sources or assets change (including
+# models and textures committed from the in-game Workshop), commit the result
+# to the same branch, and on the default branch publish it as the download at
+# https://github.com/<owner>/<repo>/releases/download/build/Golf.html
+name: Rebuild game
+
+on:
+  push:
+    paths:
+      - 'assets/**'
+      - 'src/**'
+      - 'vendor/**'
+      - 'build.py'
+      - '.github/workflows/build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rebuild-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Build and commit Golf.html
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Build from the branch tip; if someone pushes meanwhile, start over.
+          for attempt in 1 2 3; do
+            git fetch origin "$GITHUB_REF_NAME"
+            git reset --hard "origin/$GITHUB_REF_NAME"
+            python3 build.py
+            if git diff --quiet -- Golf.html dist/golf-artifact.html; then
+              echo "Golf.html is already up to date."
+              exit 0
+            fi
+            source_commit=$(git log -1 --format=%h)
+            git add Golf.html dist/golf-artifact.html
+            git commit -m "Rebuild Golf.html" -m "Built by GitHub Actions from $source_commit."
+            if git push origin "HEAD:$GITHUB_REF_NAME"; then exit 0; fi
+            echo "The branch moved while building; trying again."
+          done
+          exit 1
+
+      - name: Publish the download
+        if: github.ref_name == github.event.repository.default_branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view build >/dev/null 2>&1 || gh release create build --title "Latest build" \
+            --notes "Golf.html from the default branch, rebuilt automatically. Download it and double-click to play."
+          gh release upload build Golf.html --clobber

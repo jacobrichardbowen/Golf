@@ -140,14 +140,15 @@
         <details class="ws-how"><summary>How it works</summary>
           <ol>
             <li>Models are glTF binary (.glb) in meters, +Y up, with the front facing +Z. In Blender: File › Import › glTF 2.0, then File › Export › glTF 2.0 (.glb).</li>
-            <li>Your replacements are saved in this browser. Use <b>Export my assets</b> to back them up or move them to another browser.</li>
-            <li>To build them into the game for good, put the files in the project's <code>assets/</code> folder named by asset (for example <code>tree-pine.glb</code>) and rebuild.</li>
+            <li>Your replacements are saved in this browser straight away. <b>Commit to project</b> puts them in the game's GitHub repository, and GitHub rebuilds Golf.html with them for everyone.</li>
+            <li><b>Export my assets</b> saves them as one file, to back them up or move them to another browser.</li>
           </ol>
         </details>
       </header>
       <div class="ws-list" id="wsList"></div>
     </aside>
     <div class="ws-top">
+      <button class="btn" id="wsCommitOpen">Commit to project</button>
       <button class="btn" id="wsExport">Export my assets</button>
       <label class="btn" for="wsImport">Import pack…</label>
       <input type="file" id="wsImport" accept=".json,application/json" hidden>
@@ -161,11 +162,33 @@
         <button class="btn" id="wsDownload">Download</button>
         <label class="btn primary" for="wsFileInput">Replace…</label>
         <input type="file" id="wsFileInput" hidden>
+        <button class="btn ghost" id="wsUseProject" hidden>Use project version</button>
         <button class="btn ghost" id="wsReset">Reset to built-in</button>
       </div>
       <p class="ws-status" id="wsStatus" role="status"></p>
       <p class="ws-hint">Drag to turn · scroll to zoom</p>
     </section>
+    <div class="ws-commit" id="wsCommit" hidden>
+      <div class="ws-c-sheet" role="dialog" aria-modal="true" aria-labelledby="wsCommitTitle">
+        <h3 id="wsCommitTitle">Commit to the project</h3>
+        <p class="ws-c-lead">Puts your changes into the game's GitHub repository. GitHub then rebuilds Golf.html with them, so everyone who downloads the game gets them.</p>
+        <ul class="ws-c-list" id="wsCommitList"></ul>
+        <label class="ws-field">Message <input id="wsCommitMsg" autocomplete="off"></label>
+        <details class="ws-gh" id="wsGh">
+          <summary>GitHub connection</summary>
+          <label class="ws-field">Repository <input id="wsGhRepo" placeholder="owner/name" autocomplete="off" spellcheck="false"></label>
+          <label class="ws-field">Branch <input id="wsGhBranch" placeholder="the repository's default branch" autocomplete="off" spellcheck="false"></label>
+          <label class="ws-field">Access token <input id="wsGhToken" type="password" placeholder="github_pat_…" autocomplete="off" spellcheck="false"></label>
+          <p class="ws-c-help">Make a <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">fine-grained token</a> with access to this repository only and the permission <b>Contents: Read and write</b>. It's kept in this browser, so only use it on your own computer.</p>
+          <button class="btn ghost" id="wsGhForget">Forget token</button>
+        </details>
+        <p class="ws-status" id="wsCommitStatus" role="status"></p>
+        <div class="ws-c-actions">
+          <button class="btn ghost" id="wsCommitClose">Close</button>
+          <button class="btn primary" id="wsCommitGo">Commit</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div id="help" class="screen help-screen" hidden>

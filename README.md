@@ -12,6 +12,10 @@ out, follow the marker to the next tee.
 offline (three.js is bundled inside the file). An internet connection only
 adds the nicer fonts.
 
+The latest build, including every model committed from the Workshop, is
+always at
+[releases/download/build/Golf.html](https://github.com/jacobrichardbowen/Golf/releases/download/build/Golf.html).
+
 ### Controls
 
 | Action | Keyboard / mouse | Touch |
@@ -66,9 +70,35 @@ turntable, then:
   viewer only allows certain file types to be saved.
 - **Replace…** loads your own file. It's stored in this browser (IndexedDB)
   and used the next time the game loads.
-- **Reset to built-in** goes back to the original.
+- **Reset to built-in** goes back to the original. **Use project version**
+  drops your change and uses the file already built into the game.
+- **Commit to project** puts your changes into this repository (see below),
+  so every new build includes them.
 - **Export my assets** / **Import pack…** move your replacements between
   browsers as one `.json` file.
+
+### Sharing your changes with everyone
+
+**Commit to project** writes each replaced asset to `assets/<asset-id>.<ext>`
+(and deletes the file of any asset you reset to built-in) as one commit on the
+repository's default branch. The **Rebuild game** GitHub Action
+(`.github/workflows/build.yml`) then runs `build.py`, commits the new
+`Golf.html`, and uploads it to the download link above, usually within a
+minute or two. The list badges show which changes are still **not
+committed**.
+
+One-time setup: create a
+[fine-grained personal access token](https://github.com/settings/personal-access-tokens/new)
+with access to this repository only and the permission **Contents: Read and
+write**, then paste it under **GitHub connection** in the commit dialog. It is
+kept in that browser's local storage, so use it only on your own computer, and
+revoke it on GitHub if that computer is lost. A `Golf.html` opened from disk
+shares local storage with other local HTML files in some browsers, which is
+one more reason to keep the token scoped to this one repository.
+
+Committing works from `Golf.html` opened locally. The claude.ai Artifact
+viewer restricts which sites a page can reach, so there use **Export my
+assets** and hand the pack to Claude to commit.
 
 Models are glTF binary in meters, +Y up, front facing +Z (Blender's glTF
 exporter does this by default). Notes for particular assets:
@@ -83,9 +113,9 @@ exporter does this by default). Notes for particular assets:
   (origin at the hub) with a child whose name starts with `spin`.
 - Clubs hang from the grip at the origin with the head pointing down (−Y).
 
-To build replacements into `Golf.html` itself, put the files in an `assets/`
-folder named by asset id (`assets/tree-pine.glb`, `assets/tex-grass.png`, …)
-and run `python3 build.py`. Ids are shown in each download's file name.
+You can also add files to `assets/` by hand, named by asset id
+(`assets/tree-pine.glb`, `assets/tex-grass.png`, …), and run
+`python3 build.py`. Ids are shown in each download's file name.
 
 ## Project layout
 
@@ -100,6 +130,7 @@ src/js/physics.js     ball flight (drag + Magnus lift), bounce, roll, cup captur
 src/js/course.js      the nine holes and where each sits on the property
 src/js/terrain.js     builds the whole course: height, surfaces, water, trees, cart paths
 src/js/assets.js      asset registry: built-in models/textures, custom replacements, glTF in/out
+src/js/publish.js     commits Workshop changes to the GitHub repository
 src/js/world.js       three.js rendering: chunked terrain, trees, water, flags, clubhouse
 src/js/equipment.js   club and bag models, the bag close-up
 src/js/character.js   the golfer rig and its procedural animation
@@ -110,7 +141,8 @@ src/js/audio.js       synthesised sound effects (WebAudio)
 src/js/main.js        game flow, player and camera control, input
 vendor/three.min.js   three.js r158 (MIT, see vendor/THREE-LICENSE)
 vendor/three-addons/  three.js glTF loader/exporter modules, converted to plain scripts by build.py
-assets/               optional: your own models/textures to build in (see Workshop)
+assets/               models/textures that replace the built-in ones (written by the Workshop)
+.github/workflows/    rebuilds Golf.html when sources or assets change, publishes the download
 tests/                headless checks (see below)
 ```
 
@@ -136,6 +168,7 @@ node tests/course-check.js [outDir]   # validates the layout; optional top-down 
 node tests/calibrate.js               # carry, apex and rollout for every club
 node tests/smoke.js [outDir]          # plays hole 1 in headless Chromium: select, walk, swing, bag, cart, hole out
 node tests/workshop.js [outDir]       # Workshop: download, replace, reload, export/import, reset
+node tests/publish.js [outDir]        # Workshop "Commit to project" against a mock of GitHub's API
 node tests/mobile.js [outDir]         # touch layout screenshots, portrait and landscape
 node tests/tour.js [outDir] [holes]   # address-view screenshots from each tee
 ```
