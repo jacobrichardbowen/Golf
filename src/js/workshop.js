@@ -11,7 +11,7 @@ const Workshop = (() => {
   const orbit = { yaw: 0.7, pitch: 0.32, dist: 4, target: new THREE.Vector3(0, 0.5, 0), spin: true };
   const thumbs = new Map();
   let thumbQueue = [];
-  const GROUPS = ['Course', 'Clubs', 'Vehicles', 'Characters', 'Textures'];
+  const GROUPS = ['Course', 'Scenery', 'Course maps', 'Clubs', 'Vehicles', 'Characters', 'Textures'];
 
   const $ = (id) => document.getElementById(id);
   const fmtSize = (n) => (n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB');
@@ -45,7 +45,14 @@ const Workshop = (() => {
       return previewGolfer.root;
     }
     if (def.kind === 'texture') {
-      const img = Assets.image(id) || def.build();
+      let img = Assets.image(id) || def.build();
+      if (typeof HTMLCanvasElement !== 'undefined' && !(img instanceof HTMLCanvasElement)) {
+        // Decoded bitmaps can't be flipped on upload: copy to a canvas first.
+        const cv = document.createElement('canvas');
+        cv.width = img.width; cv.height = img.height;
+        cv.getContext('2d').drawImage(img, 0, 0);
+        img = cv;
+      }
       const tex = new THREE.Texture(img);
       tex.needsUpdate = true;
       tex.colorSpace = id === 'tex-water' ? THREE.NoColorSpace : THREE.SRGBColorSpace;
@@ -62,6 +69,8 @@ const Workshop = (() => {
         mat = new THREE.MeshStandardMaterial({ color: 0x2a5f78, roughness: 0.1, metalness: 0.1, normalMap: tex });
       } else if (id === 'tex-cloud') {
         mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false });
+      } else if (def.map) {
+        mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
       } else {
         mat = new THREE.MeshLambertMaterial({ map: tex, side: THREE.DoubleSide });
       }

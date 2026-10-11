@@ -85,7 +85,8 @@ const Assets = (() => {
   }
   function decodeImage(bytes, type) {
     const blob = new Blob([bytes], { type: type || 'image/png' });
-    if (window.createImageBitmap) return createImageBitmap(blob);
+    // No colour management: map colours have to come back exactly as painted.
+    if (window.createImageBitmap) return createImageBitmap(blob, { colorSpaceConversion: 'none', premultiplyAlpha: 'none' });
     return new Promise((res, rej) => {
       const img = new Image();
       img.onload = () => res(img);
@@ -111,7 +112,21 @@ const Assets = (() => {
     return true;
   }
 
+  // Built-in hole maps ship with the game (src/maps); keyed by asset id.
+  const builtinMaps = new Map();
+  const builtinMapFiles = new Map();
+  const builtinMap = (id) => builtinMaps.get(id) || null;
+
   async function init() {
+    const maps = window.__PINEHAVEN_MAPS || {};
+    for (const def of defs.values()) {
+      if (!def.map) continue;
+      const f = maps[def.id.replace(/^map-/, '')];
+      if (!f) continue;
+      const bytes = b64ToBuf(f.b64);
+      builtinMapFiles.set(def.id, { name: f.name, type: f.type, bytes });
+      try { builtinMaps.set(def.id, await decodeImage(bytes, f.type)); } catch (e) { console.warn('Could not read built-in map', def.id, e); }
+    }
     const emb = window.__PINEHAVEN_ASSETS || {};
     for (const id of Object.keys(emb)) {
       const rec = { id, name: emb[id].name, type: emb[id].type, data: b64ToBuf(emb[id].b64) };
@@ -287,6 +302,25 @@ const Assets = (() => {
     return c && c.image ? c.image : null;
   }
 
+  // Raw RGBA pixels of an image asset (yours, the project's or the built-in one).
+  const pixelCache = new Map();
+  function pixels(id) {
+    const def = defs.get(id);
+    if (!def) return null;
+    const c = custom.get(id);
+    const src = c && c.image ? c.image : def.map ? builtinMap(id) : def.build();
+    if (!src) return null;
+    if (pixelCache.has(id) && pixelCache.get(id).src === src) return pixelCache.get(id).px;
+    const w = src.width, h = src.height;
+    const cv = document.createElement('canvas');
+    cv.width = w; cv.height = h;
+    const g = cv.getContext('2d', { willReadFrequently: true });
+    g.drawImage(src, 0, 0);
+    const px = { w, h, data: g.getImageData(0, 0, w, h).data };
+    pixelCache.set(id, { src, px });
+    return px;
+  }
+
   // ---------- export ----------
   // Deep copy of a hierarchy, converted from yards to meters.
   function toMeters(obj) {
@@ -317,6 +351,10 @@ const Assets = (() => {
   async function download(id) {
     const def = defs.get(id), c = custom.get(id);
     if (c) return { filename: c.name, data: new Blob([c.bytes], { type: c.type }) };
+    if (def.map && builtinMapFiles.has(id)) {
+      const f = builtinMapFiles.get(id);
+      return { filename: id + '.' + extOf(f.name), data: new Blob([f.bytes], { type: f.type }) };
+    }
     if (def.kind === 'texture') return { filename: id + '.png', data: await canvasToPng(def.build()) };
     const buf = await exportGLB(def.build());
     return { filename: id + '.glb', data: new Blob([buf], { type: 'model/gltf-binary' }) };
@@ -447,7 +485,7 @@ const Assets = (() => {
   }
 
   return {
-    define, list, get, isCustom, info, state, pending, markCommitted, init, parts, object, rigParts, texture, image,
+    define, list, get, isCustom, info, state, pending, markCommitted, init, parts, object, rigParts, texture, image, pixels, builtinMap,
     download, replace, reset, useProject, exportPack, importPack, saveFile, downloadsCap,
     get changed() { return changed; }, YD_PER_M, M_PER_YD,
   };

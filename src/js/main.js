@@ -32,7 +32,7 @@ function startGame(saved) {
     return null;
   }
   const camera = World.camera;
-  const course = buildCourse(COURSE);
+  const course = buildCourse(COURSE, { images: (id) => Assets.pixels(id) });
   const HOLES = course.holes;
   const PAR = HOLES.reduce((a, h) => a + h.par, 0);
   UI.setOverview(World.buildCourse(course), course.bounds);

@@ -2,6 +2,8 @@
 // Builds the whole course as one continuous world: an analytic height
 // function, surface classification, water levels, trees, cart paths and the
 // clubhouse. Pure JS so it can be tested from Node; world.js builds meshes.
+// Holes with a `map` are painted as images (maphole.js); they replace the
+// generated land inside their rectangle and blend into it at the edges.
 // ---------------------------------------------------------------------------
 
 const TEE_HALF_W = 5, TEE_FRONT = 6, TEE_BACK = 9;
@@ -31,8 +33,10 @@ function placeHole(def) {
   };
 }
 
-function buildCourse(C) {
+// env.images(id) -> { w, h, data } pixels for map holes (null if unavailable).
+function buildCourse(C, env = {}) {
   const seed = C.seed || 7;
+  const images = env.images || (() => null);
   const nBroad = makePerlin(seed);
   const nBump = makePerlin(seed + 101);
   const nEdge = makePerlin(seed + 202);
@@ -40,7 +44,24 @@ function buildCourse(C) {
   const nForest = makePerlin(seed + 404);
 
   // ---------- holes ----------
-  const holes = C.holes.map((def, index) => {
+  const holes = C.holes.map((def0, index) => {
+    let def = def0;
+    if (def.map) {
+      let mh = null;
+      try { mh = buildMapHole(def, images); } catch (e) { if (typeof console !== 'undefined') console.warn('Map hole failed', def.name, e); }
+      if (mh) {
+        const pin = mh.pin;
+        return {
+          index, def, name: def.name, par: def.par, line: mh.line, length: mh.line.length, yards: Math.round(mh.line.length),
+          tee: { x: mh.tee.x, z: mh.tee.z }, teeDir: mh.teeDir,
+          green: { x: mh.green.x, z: mh.green.z, r: mh.green.r },
+          hw: mh.hw, fwStart: 0, tilt: [0, 0], bunkers: [], waters: [], mounds: [],
+          pinOffset: [pin.x - mh.green.x, pin.z - mh.green.z], map: mh, bbox: mh.bbox,
+        };
+      }
+      // No images (or they failed): play the generated stand-in instead.
+      def = Object.assign({}, def.fallback, { name: def.name, par: def.par, seed: def.seed, at: def.at, wind: def.wind });
+    }
     const w = placeHole(def);
     const line = makePolyline(w.path);
     const last = w.path[w.path.length - 1];
@@ -61,6 +82,7 @@ function buildCourse(C) {
     h.bbox = { minX: minX - m, maxX: maxX + m, minZ: minZ - m, maxZ: maxZ + m };
     return h;
   });
+  const maps = holes.filter((h) => h.map).map((h) => h.map);
   const allBunkers = holes.flatMap((h) => h.bunkers);
   const allWaters = holes.flatMap((h) => h.waters);
   const allMounds = holes.flatMap((h) => h.mounds);
@@ -77,13 +99,13 @@ function buildCourse(C) {
   // ---------- spatial index ----------
   const grid = new Map();
   const ckey = (ix, iz) => ix * 100003 + iz;
-  const EMPTY = { holes: [], bunkers: [], waters: [], mounds: [], paths: [] };
+  const EMPTY = { holes: [], bunkers: [], waters: [], mounds: [], paths: [], maps: [] };
   function register(kind, obj, minX, maxX, minZ, maxZ) {
     for (let ix = Math.floor(minX / CELL); ix <= Math.floor(maxX / CELL); ix++)
       for (let iz = Math.floor(minZ / CELL); iz <= Math.floor(maxZ / CELL); iz++) {
         const k = ckey(ix, iz);
         let cell = grid.get(k);
-        if (!cell) grid.set(k, (cell = { holes: [], bunkers: [], waters: [], mounds: [], paths: [] }));
+        if (!cell) grid.set(k, (cell = { holes: [], bunkers: [], waters: [], mounds: [], paths: [], maps: [] }));
         if (!cell[kind].includes(obj)) cell[kind].push(obj);
       }
   }
@@ -94,6 +116,7 @@ function buildCourse(C) {
   for (const b of allBunkers) { const r = b._bound * 1.7; register('bunkers', b, b.x - r, b.x + r, b.z - r, b.z + r); }
   for (const w of allWaters) { const r = w._bound * 1.45; register('waters', w, w.x - r, w.x + r, w.z - r, w.z + r); }
   for (const m of allMounds) { const r = m.r * 2.6; register('mounds', m, m.x - r, m.x + r, m.z - r, m.z + r); }
+  for (const mh of maps) register('maps', mh, mh.bbox.minX, mh.bbox.maxX, mh.bbox.minZ, mh.bbox.maxZ);
 
   // ---------- per-hole helpers ----------
   const greenEdge = (h, x, z) => h.green.r * (1 + 0.1 * nEdge(x / 8 + 40, z / 8));
@@ -125,6 +148,7 @@ function buildCourse(C) {
   }
 
   for (const h of holes) {
+    if (h.map) continue;
     h.teeH = rawH(h.tee.x, h.tee.z) + 0.5;
     h.green.y = rawH(h.green.x, h.green.z);
   }
@@ -139,6 +163,7 @@ function buildCourse(C) {
     let h = rawH(x, z);
     const cell = cellAt(x, z);
     for (const ho of cell.holes) {
+      if (ho.map) continue;
       // Tee box: a flat raised pad.
       const tl = teeLocal(ho, x, z);
       if (Math.abs(tl.side) < 16 && tl.along > -22 && tl.along < 20) {
@@ -182,7 +207,7 @@ function buildCourse(C) {
     w.level = lo - 0.45;
   }
 
-  function H(x, z) {
+  function procH(x, z) {
     let h = dryH(x, z);
     for (const w of cellAt(x, z).waters) {
       if (Math.abs(x - w.x) > w._bound * 1.4 || Math.abs(z - w.z) > w._bound * 1.4) continue;
@@ -195,6 +220,33 @@ function buildCourse(C) {
     return h;
   }
 
+  // Painted holes take over inside their rectangle, fading in at the edges.
+  function H(x, z) {
+    for (const mh of cellAt(x, z).maps) {
+      const w = mh.weight(x, z);
+      if (w > 0) return w >= 1 ? mh.height(x, z) : lerp(procH(x, z), mh.height(x, z), w);
+    }
+    return procH(x, z);
+  }
+  // Seat each painted hole on the land around it.
+  for (const mh of maps) {
+    let sum = 0, n = 0;
+    const W = mh.W, Hh = mh.H, ins = mh.margin / mh.s;
+    for (let k = 0; k <= 40; k++) {
+      const f = k / 40;
+      for (const [u, v] of [[f * W, ins], [f * W, Hh - ins], [ins, f * Hh], [W - ins, f * Hh]]) {
+        const p = mh.toWorld(u, v);
+        sum += procH(p.x, p.z) - mh.height(p.x, p.z);
+        n++;
+      }
+    }
+    mh.setOffset(sum / n);
+  }
+  const mapAt = (x, z, min) => {
+    for (const mh of cellAt(x, z).maps) if (mh.weight(x, z) > min) return mh;
+    return null;
+  };
+
   function normal(x, z) {
     const e = 0.2;
     const hx = (H(x + e, z) - H(x - e, z)) / (2 * e);
@@ -204,6 +256,11 @@ function buildCourse(C) {
   }
 
   function waterLevel(x, z) {
+    const mh = mapAt(x, z, 0.5);
+    if (mh) {
+      const L = mh.waterLevel(x, z);
+      return L > -Infinity && H(x, z) < L ? L : -Infinity;
+    }
     for (const w of cellAt(x, z).waters) {
       if (Math.abs(x - w.x) > w._bound * 1.4 || Math.abs(z - w.z) > w._bound * 1.4) continue;
       if (waterDist(w, x, z) < 1.25 && H(x, z) < w.level) return w.level;
@@ -238,6 +295,8 @@ function buildCourse(C) {
     return false;
   };
   const sidePaths = holes.map((h) => {
+    // Painted holes draw their own paths: just link up to their tee and green.
+    if (h.map) return [[h.tee.x, h.tee.z], [h.green.x, h.green.z]];
     const side = h.def.cartSide || 1;
     const pts = [];
     const L = h.length;
@@ -254,7 +313,7 @@ function buildCourse(C) {
   });
   const clubDoor = [club.x - 6, club.z - 22];
   for (let i = 0; i < holes.length; i++) {
-    addPath(sidePaths[i]);
+    if (!holes[i].map) addPath(sidePaths[i]);
     const from = sidePaths[i][sidePaths[i].length - 1];
     const to = i + 1 < holes.length ? sidePaths[i + 1][0] : clubDoor;
     addPath([from, [(from[0] + to[0]) / 2, (from[1] + to[1]) / 2], to]);
@@ -272,6 +331,10 @@ function buildCourse(C) {
   function surface(x, z, h) {
     if (!inBounds(x, z)) return S_OOB;
     const cell = cellAt(x, z);
+    for (const mh of cell.maps) {
+      const w = mh.weight(x, z);
+      if (w > 0 && w > 0.5 + 0.3 * nEdge(x / 9 + 31, z / 9 - 17)) return mh.surface(x, z);
+    }
     for (const w of cell.waters) {
       if (Math.abs(x - w.x) > w._bound * 1.4 || Math.abs(z - w.z) > w._bound * 1.4) continue;
       if (waterDist(w, x, z) < 1.25 && (h === undefined ? H(x, z) : h) < w.level) return S_WATER;
@@ -309,6 +372,7 @@ function buildCourse(C) {
 
   // Which hole's corridor (if any) a point belongs to: used for fairway stripes.
   function stripeS(x, z) {
+    if (mapAt(x, z, 0.5)) return null;
     let best = null, bd = Infinity;
     for (const ho of cellAt(x, z).holes) {
       const q = ho.line.query(x, z);
@@ -319,21 +383,29 @@ function buildCourse(C) {
 
   // ---------- obstacles (character / cart collisions) ----------
   const obstacles = [{ x: club.x, z: club.z, hx: 15, hz: 9 }];
+  // Buildings on painted holes (bridges and other decks can be walked on).
+  for (const mh of maps)
+    for (const p of mh.props) {
+      if (p.deck || p.open) continue;
+      const c = Math.abs(Math.cos(p.yaw * DEG)), sn = Math.abs(Math.sin(p.yaw * DEG));
+      obstacles.push({ x: p.x, z: p.z, hx: (p.w * c + p.d * sn) / 2 * 0.9, hz: (p.w * sn + p.d * c) / 2 * 0.9, prop: p });
+    }
 
   // ---------- trees ----------
   const rnd = mulberry32(seed * 31 + 7);
   const trees = [];
   const TGRID = 10;
   const tgrid = new Map();
-  function addTree(x, z, kind, height) {
+  // `wide` widens the crown (painted trees can be broader than the models).
+  function addTree(x, z, kind, height, wide = 1) {
     const y0 = H(x, z) - 0.2;
     const pine = kind === 0;
     const t = {
-      x, z, y0, kind, height,
+      x, z, y0, kind, height, wide,
       trunkR: 0.22 + height * 0.018,
       trunkH: height * (pine ? 0.3 : 0.42),
       cy: y0 + height * (pine ? 0.58 : 0.66),
-      cr: height * (pine ? 0.24 : 0.36),
+      cr: height * (pine ? 0.24 : 0.36) * wide,
       ch: height * (pine ? 0.44 : 0.34),
       top: y0 + height,
       rot: rnd() * TAU,
@@ -355,6 +427,7 @@ function buildCourse(C) {
       const x = gx + (rnd() - 0.5) * SP * 0.9;
       const z = gz + (rnd() - 0.5) * SP * 0.9;
       const cell = cellAt(x, z);
+      if (mapAt(x, z, 0.02)) continue; // painted holes plant their own
       // Open forest away from the holes, with a few meadows.
       let dens = 0.72 * smoothstep(-0.35, 0.1, nForest(x / 110, z / 110));
       let near = false;
@@ -382,6 +455,27 @@ function buildCourse(C) {
       addTree(x, z, pine ? 0 : 1, pine ? 10 + rnd() * 8 : 8 + rnd() * 6);
     }
   }
+  // Boulders share the trees' collision grid (kind 2): a squat solid trunk, no crown.
+  function addRock(x, z, r, rot) {
+    const y0 = H(x, z) - r * 0.35;
+    const t = { x, z, y0, kind: 2, height: r * 1.3, r, wide: 1, trunkR: r * 0.85, trunkH: r * 1.15 + 0.3, cy: y0, cr: 0.001, ch: 0.001, top: y0 + r * 1.3, rot, tint: 0 };
+    trees.push(t);
+    for (let ix = Math.floor((x - r) / TGRID); ix <= Math.floor((x + r) / TGRID); ix++)
+      for (let iz = Math.floor((z - r) / TGRID); iz <= Math.floor((z + r) / TGRID); iz++) {
+        const k = ckey(ix, iz);
+        let cell = tgrid.get(k);
+        if (!cell) tgrid.set(k, (cell = []));
+        cell.push(t);
+      }
+  }
+  for (const mh of maps) {
+    for (const t of mh.trees) {
+      if (Math.abs(t.x - club.x) < 36 && Math.abs(t.z - club.z) < 30) continue;
+      if (mh.weight(t.x, t.z) < 0.35) continue;
+      addTree(t.x, t.z, t.kind, t.height, t.wide);
+    }
+    for (const b of mh.boulders) if (mh.weight(b.x, b.z) > 0.35) addRock(b.x, b.z, b.r, b.rot);
+  }
   const nearTrees = (x, z) => tgrid.get(ckey(Math.floor(x / TGRID), Math.floor(z / TGRID))) || null;
 
   for (const h of holes) {
@@ -394,7 +488,18 @@ function buildCourse(C) {
   return {
     holes, bounds, trees, paths, obstacles, clubhouse: Object.assign({ y: clubPadH }, club),
     H, normal, surface, waterLevel, inBounds, nearTrees, stripeS, pathDist,
-    waters: allWaters, bunkers: allBunkers,
+    waters: allWaters, bunkers: allBunkers, maps,
+    // The painted colour of the ground (and how much of it to use), or null.
+    paintColor(x, z) {
+      for (const mh of cellAt(x, z).maps) {
+        if (!mh.paint) continue;
+        const w = mh.weight(x, z);
+        if (w <= 0) continue;
+        const c = mh.paint(x, z);
+        if (c) return [c[0], c[1], c[2], w];
+      }
+      return null;
+    },
     // The physics needs a "field" with the pin of the hole being played.
     fieldFor(hole) { return Object.assign(Object.create(this), { pin: hole.pin, hole }); },
   };

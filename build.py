@@ -16,8 +16,8 @@ import re
 ROOT = pathlib.Path(__file__).parent
 SRC = ROOT / "src"
 JS_ORDER = [
-    "util.js", "data.js", "physics.js", "course.js", "terrain.js", "audio.js",
-    "assets.js", "publish.js", "world.js", "equipment.js", "character.js", "cart.js", "ui.js",
+    "util.js", "data.js", "physics.js", "course.js", "terrain.js", "maphole.js", "audio.js",
+    "assets.js", "publish.js", "world.js", "scenery.js", "equipment.js", "character.js", "cart.js", "ui.js",
     "workshop.js", "main.js",
 ]
 # three.js example modules (r158) used by the workshop to read and write .glb.
@@ -94,7 +94,15 @@ def assets_js() -> str:
                 embedded[f.stem] = {"name": f.name, "type": ASSET_TYPES[ext],
                                     "b64": base64.b64encode(f.read_bytes()).decode("ascii")}
                 print(f"embedding assets/{f.name} as '{f.stem}'")
+    # The built-in maps painted holes are made from (src/maps/<name>.png|jpg).
+    maps = {}
+    for f in sorted((SRC / "maps").glob("*")):
+        ext = f.suffix.lower()
+        if ext in ASSET_TYPES:
+            maps[f.stem] = {"name": f.name, "type": ASSET_TYPES[ext],
+                            "b64": base64.b64encode(f.read_bytes()).decode("ascii")}
     return (f"window.__PINEHAVEN_ASSETS = {json.dumps(embedded)};\n"
+            f"window.__PINEHAVEN_MAPS = {json.dumps(maps)};\n"
             f"window.__PINEHAVEN_REPO = {json.dumps(REPO)};\n")
 
 

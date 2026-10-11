@@ -25,21 +25,44 @@ const COURSE = {
   cartStart: { x: 26, z: 26, heading: 0 },
   holes: [
     {
-      name: 'First Light', par: 4, seed: 11, at: [0, 0, 0], wind: [2, 7],
-      path: [[0, 0], [0, -235], [-14, -372]],
-      fairway: { start: 45, width: 36 },
-      green: { r: 15, tilt: [0.006, -0.016] },
-      pin: [3, -4],
-      bunkers: [
-        { x: 22, z: -240, rx: 8, rz: 15, rot: 10 },
-        { x: -37, z: -366, rx: 6, rz: 11, rot: -10 },
-        { x: 4, z: -350, rx: 9, rz: 4.5, rot: -25 },
-      ],
-      water: [],
-      mounds: [{ x: -14, z: -372, r: 28, h: 1.5 }],
+      // Painted: see src/maps/ and "Painted holes" in the README. Pixel
+      // coordinates below are in the surface map (760 x 1024).
+      name: 'Castle Falls', par: 4, seed: 11, at: [0, 0, 0], wind: [2, 7],
+      map: {
+        surface: 'map-castle-falls-surface', height: 'map-castle-falls-height', ground: 'map-castle-falls-ground',
+        scale: 0.32,           // yards per pixel
+        tee: [492, 932],       // the pixel placed at `at`
+        pin: [398, 92],
+        heights: [-5.3, 3.7],  // yards for black and white in the height map
+        line: [[492, 932], [496, 800], [478, 680], [468, 540], [438, 410], [432, 300], [414, 200], [398, 92]],
+        // Buildings and bridges: centre pixel, footprint in yards, turn in degrees.
+        props: [
+          { asset: 'castle', at: [145, 36], size: [58, 32] },
+          { asset: 'tower', at: [658, 240], size: [26, 28] },
+          { asset: 'house', at: [128, 795], size: [22, 20] },
+          { asset: 'house', at: [72, 848], size: [19, 14], rot: 90 },
+          { asset: 'house', at: [95, 940], size: [21, 26] },
+          { asset: 'bridge', at: [210, 518], size: [36, 12], deck: true },
+        ],
+        fences: [
+          [[422, 0], [450, 10], [480, 24], [500, 40], [515, 55], [528, 75], [535, 95], [537, 120], [535, 145], [530, 165], [522, 185], [515, 205], [515, 222], [525, 236], [538, 243]],
+          [[598, 238], [594, 258], [600, 280], [612, 296], [625, 312], [635, 330], [642, 352]],
+          [[603, 745], [598, 770], [592, 795], [588, 815], [590, 840], [597, 860], [605, 880], [613, 900], [623, 920], [633, 940], [642, 955], [650, 968]],
+        ],
+      },
+      // Played instead if the painted maps can't be loaded.
+      fallback: {
+        path: [[0, 0], [0, -150], [-30, -270]],
+        fairway: { start: 45, width: 36 },
+        green: { r: 15, tilt: [0.006, -0.016] },
+        pin: [3, -4],
+        bunkers: [{ x: 22, z: -160, rx: 8, rz: 13, rot: 10 }, { x: -50, z: -262, rx: 6, rz: 10, rot: -10 }],
+        water: [],
+        mounds: [],
+      },
     },
     {
-      name: 'Glass Pond', par: 3, seed: 23, at: [-35, -400, 270], wind: [3, 10],
+      name: 'Glass Pond', par: 3, seed: 23, at: [-38, -338, 270], wind: [3, 10],
       path: [[0, 0], [6, -162]],
       fairway: { start: 128, width: 26 },
       green: { r: 14, tilt: [-0.008, -0.012] },
@@ -53,7 +76,7 @@ const COURSE = {
     },
     {
       name: 'Long Way Round', par: 5, seed: 37, at: [-228, -372, 180], wind: [4, 12],
-      path: [[0, 0], [0, -250], [-55, -400], [-70, -525]],
+      path: [[0, 0], [0, -250], [-40, -400], [-62, -525]],
       fairway: { start: 50, width: 40 },
       green: { r: 16, tilt: [0.010, -0.010] },
       pin: [-5, -5],

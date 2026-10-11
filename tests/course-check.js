@@ -32,8 +32,9 @@ function writePng(file, w, h, rgb) {
   fs.writeFileSync(file, Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', zlib.deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]));
 }
 
+const { mapImages } = require('./png');
 const t0 = Date.now();
-const course = G.buildCourse(G.COURSE);
+const course = G.buildCourse(G.COURSE, { images: mapImages(path.join(__dirname, '..')) });
 const buildMs = Date.now() - t0;
 const b = course.bounds;
 let problems = 0, par = 0;
@@ -47,6 +48,11 @@ course.holes.forEach((h, i) => {
   for (const w of h.waters) if (!isFinite(w.level)) issues.push('bad water level');
   const next = course.holes[i + 1];
   const walk = next ? Math.hypot(next.tee.x - h.green.x, next.tee.z - h.green.z) : 0;
+  if (h.def.map && !h.map) issues.push('painted maps did not load (playing the fallback)');
+  if (h.map) {
+    const m = h.map;
+    console.log(`   painted: ${m.W}x${m.H}px at ${m.s}yd/px, ${m.trees.length} trees, ${m.boulders.length} boulders, ${m.props.length} props, height offset ${m.offset.toFixed(2)}yd, fairway half-width ${m.hw.toFixed(1)}yd`);
+  }
   console.log(`#${i + 1} ${h.name.padEnd(16)} par ${h.par} ${String(h.yards).padStart(3)}yd  tee (${h.tee.x.toFixed(0)},${h.tee.z.toFixed(0)})  green (${h.green.x.toFixed(0)},${h.green.z.toFixed(0)})  walk to next ${walk.toFixed(0)}yd  ${issues.join('; ') || 'ok'}`);
   problems += issues.length;
 });
@@ -72,6 +78,30 @@ for (let i = 0; i < course.holes.length; i++)
       problems++;
     }
   }
+
+// Other holes must stay out of painted holes (their centre line plus half a
+// fairway and some rough), except where play hands over from one to the next.
+for (const [mi, mh] of course.holes.entries()) {
+  if (!mh.map) continue;
+  const m = mh.map;
+  course.holes.forEach((h, j) => {
+    if (j === mi) return;
+    let worst = Infinity, at = null;
+    for (const p of samples[j]) {
+      if (j === mi + 1 && p.s < 45) continue;
+      if (j === mi - 1 && p.s > h.length - 45) continue;
+      const q = m.toImage(p.x, p.z);
+      const dx = Math.max(-q.u, q.u - m.W, 0) * m.s, dz = Math.max(-q.v, q.v - m.H, 0) * m.s;
+      const inside = q.u > 0 && q.v > 0 && q.u < m.W && q.v < m.H;
+      const d = inside ? -Math.min(q.u, m.W - q.u, q.v, m.H - q.v) * m.s : Math.hypot(dx, dz);
+      if (d < worst) { worst = d; at = p; }
+    }
+    if (worst < h.hw + 6) {
+      console.log(`  ! hole ${j + 1} comes within ${worst.toFixed(0)}yd of painted hole ${mi + 1} (need ${(h.hw + 6).toFixed(0)}) near (${at.x.toFixed(0)},${at.z.toFixed(0)})`);
+      problems++;
+    }
+  });
+}
 
 // Rough painting cost estimate.
 const t1 = Date.now();

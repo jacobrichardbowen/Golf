@@ -105,6 +105,9 @@ exporter does this by default). Notes for particular assets:
 
 - Trees are scaled to the course's tree heights, so model them any size.
   Materials named `leaves`/`foliage` get each tree's colour variation.
+  The course has thousands of trees, so only those within about 120 yards
+  use your model; farther ones are flat cards with pictures of it, taken when
+  the game loads.
 - The golfer rig is one model shared by all three golfers and the caddy. Keep
   the named joint empties (`hips`, `thigh.L`, `knee.L`, …, `arm.R`, `elbow.R`)
   and parent meshes to them; materials named `skin`, `shirt`, `pants`, `hair`,
@@ -129,9 +132,12 @@ src/js/data.js        clubs, surfaces (bounce, friction, lie) and the golfers
 src/js/physics.js     ball flight (drag + Magnus lift), bounce, roll, cup capture
 src/js/course.js      the nine holes and where each sits on the property
 src/js/terrain.js     builds the whole course: height, surfaces, water, trees, cart paths
+src/js/maphole.js     turns painted hole images into height, surfaces, trees and water
+src/maps/             the images painted holes are built from
 src/js/assets.js      asset registry: built-in models/textures, custom replacements, glTF in/out
 src/js/publish.js     commits Workshop changes to the GitHub repository
 src/js/world.js       three.js rendering: chunked terrain, trees, water, flags, clubhouse
+src/js/scenery.js     castle, tower, houses, bridge, fences and boulders for painted holes
 src/js/equipment.js   club and bag models, the bag close-up
 src/js/character.js   the golfer rig and its procedural animation
 src/js/cart.js        the golf cart model and driving physics
@@ -142,6 +148,7 @@ src/js/main.js        game flow, player and camera control, input
 vendor/three.min.js   three.js r158 (MIT, see vendor/THREE-LICENSE)
 vendor/three-addons/  three.js glTF loader/exporter modules, converted to plain scripts by build.py
 assets/               models/textures that replace the built-in ones (written by the Workshop)
+tools/                paint_to_map.py: turns an illustration into painted hole images
 .github/workflows/    rebuilds Golf.html when sources or assets change, publishes the download
 tests/                headless checks (see below)
 ```
@@ -160,6 +167,61 @@ water, all in yards with play heading towards −Z) and then placed on the
 property with `at: [x, z, heading]`. Run `node tests/course-check.js out/` to
 check that holes don't overlap and to render a map of the layout. Tune club
 distances in `src/js/data.js`; the swing meter recalibrates automatically.
+
+### Painted holes
+
+A hole can also be built from pictures instead of ellipses. Hole 1, Castle
+Falls, is made from the illustration and height map in
+`tools/maps/castle-falls-source.png`. A painted hole uses three images of the
+same area, kept in `src/maps/`:
+
+- **surface** (`<name>-surface.png`): one flat colour per kind of ground,
+  from the table below. The fringe around greens is added automatically.
+- **height** (`<name>-height.png`): greyscale, light = high, any resolution.
+  Trees and buildings drawn into it are recognised and taken out of the
+  ground shape; a tree is planted at each one, sized by its crown.
+- **ground** (`<name>-ground.jpg`, optional): a painting drawn onto the ground
+  as its colour.
+
+| Colour (RGB)    | Ground                              |
+|-----------------|-------------------------------------|
+| 110, 200, 60    | fairway                             |
+| 180, 255, 150   | green                               |
+| 255, 255, 80    | tee                                 |
+| 60, 130, 40     | rough                               |
+| 20, 70, 30      | forest: deep rough, filled with trees |
+| 130, 140, 40    | long grass: deep rough, no trees    |
+| 240, 210, 150   | bunker                              |
+| 30, 90, 220     | water                               |
+| 160, 90, 40     | path                                |
+| 128, 128, 128   | rocks: deep rough with boulders     |
+| 0, 0, 0         | out of bounds                       |
+
+The game keeps the ground playable whatever the height map says: greens are
+fitted to a plane no steeper than 2%, tees are flattened, bunkers are dished
+below their surroundings, water lies level at the height of its banks, and a
+bridge's deck is raised to meet both ends. The hole blends into the land
+around it over its outer 14 yards.
+
+The hole's `map` entry in `course.js` gives the image ids and how to read
+them, all in pixels of the surface map: `scale` (yards per pixel), `tee` (the
+pixel placed at `at`), `pin`, `heights` (yards for black and white), `line`
+(the line of play, used for the yardage and the aim), `props` (buildings and
+bridges: centre pixel, footprint in yards, turn in degrees) and `fences`.
+`fallback` is a plain hole played if the images can't be loaded.
+
+To make one from an illustration, paint a top-down view and a matching height
+map, write a hints file like `tools/maps/castle-falls.json` (where the tee and
+green are, the flag and markers to paint out, paths and buildings), and run
+
+```
+python3 tools/paint_to_map.py tools/maps/castle-falls.json src/maps
+```
+
+(needs numpy and Pillow). Or skip the tool and paint the surface map
+yourself. The three images, and the castle, tower, house, bridge, fence and
+boulder models, can be replaced in the Workshop (groups **Course maps** and
+**Scenery**) and committed like any other asset.
 
 ### Checks
 

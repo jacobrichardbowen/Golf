@@ -457,10 +457,14 @@ const World = (() => {
           k *= 1 + 0.10 * nMottle(x / 6 + 50, z / 6) + 0.05 * (hash2(gx >> 1, gz >> 1) - 0.5);
         }
         if (s !== S_SAND && s !== S_WATER && s !== S_PATH) k *= 1 + 0.05 * nMottle(x / 15 - 20, z / 15 + 20);
+        r *= k; gg *= k; bb *= k;
+        // Painted holes bring their own picture of the ground.
+        const pc = course.paintColor(x, z);
+        if (pc) { r = lerp(r, pc[0], pc[3]); gg = lerp(gg, pc[1], pc[3]); bb = lerp(bb, pc[2], pc[3]); }
         const i = (py * w + px) * 4;
-        data[i] = clamp(r * k, 0, 255);
-        data[i + 1] = clamp(gg * k, 0, 255);
-        data[i + 2] = clamp(bb * k, 0, 255);
+        data[i] = clamp(r, 0, 255);
+        data[i + 1] = clamp(gg, 0, 255);
+        data[i + 2] = clamp(bb, 0, 255);
         data[i + 3] = 255;
       }
     }
@@ -553,6 +557,87 @@ const World = (() => {
   }
   const isLeaf = (p) => /leaf|leaves|foliage|needle|crown|canopy/i.test((p.material && p.material.name) || p.name || '');
 
+  // A far stand-in for a custom tree, which can be thousands of triangles:
+  // the model drawn from the front, the side and above onto three cards.
+  function impostorParts(parts) {
+    const box = new THREE.Box3();
+    let ySum = 0, yN = 0;
+    for (const p of parts) {
+      p.geometry.computeBoundingBox();
+      box.union(p.geometry.boundingBox);
+      const ys = p.geometry.attributes.position;
+      for (let i = 0; i < ys.count; i++) ySum += ys.getY(i);
+      yN += ys.count;
+    }
+    const cx = (box.min.x + box.max.x) / 2, cz = (box.min.z + box.max.z) / 2;
+    const half = Math.max(box.max.x - box.min.x, box.max.z - box.min.z) * 0.52 + 1e-3;
+    const tall = box.max.y - box.min.y;
+    const y0 = box.min.y - tall * 0.02, y1 = box.max.y + tall * 0.02;
+    // The top card sits at the middle of the model's bulk (the crown, for most trees).
+    const yc = clamp(ySum / Math.max(1, yN), box.min.y + tall * 0.4, box.max.y - tall * 0.1);
+
+    // Three views in a 2 x 2 atlas: front (from +Z), side (from +X), top.
+    const N = 256;
+    const rt = new THREE.WebGLRenderTarget(2 * N, 2 * N, { generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter });
+    const sc = new THREE.Scene();
+    // three.js lights are in physical units: an intensity of PI lights a surface at its full colour.
+    sc.add(new THREE.AmbientLight(0xffffff, 2.6));
+    const key = new THREE.DirectionalLight(0xffffff, 1.8);
+    key.position.set(0.4, 1, 0.8);
+    sc.add(key);
+    const turn = new THREE.Group(), model = new THREE.Group();
+    model.position.set(-cx, 0, -cz);
+    turn.add(model);
+    sc.add(turn);
+    for (const p of parts) {
+      const m = p.material;
+      model.add(new THREE.Mesh(p.geometry, new THREE.MeshLambertMaterial({
+        color: m.color, map: m.map || null, vertexColors: !!m.vertexColors, side: THREE.DoubleSide,
+        alphaTest: m.alphaTest || (m.transparent ? 0.5 : 0),
+      })));
+    }
+    const sideCam = new THREE.OrthographicCamera(-half, half, y1, y0, -50, 50);
+    const topCam = new THREE.OrthographicCamera(-half, half, half, -half, 0.01, tall * 3 + 10);
+    topCam.position.set(0, y1 + 1, 0);
+    topCam.up.set(0, 0, -1);   // screen up = -Z
+    topCam.lookAt(0, y0, 0);
+    const prevTarget = renderer.getRenderTarget();
+    const prevClear = renderer.getClearColor(new THREE.Color()), prevAlpha = renderer.getClearAlpha();
+    // Transparent, but leaf-coloured so filtering doesn't darken the edges.
+    renderer.setClearColor(0x2e4a24, 0);
+    rt.scissorTest = true;
+    for (const [i, j, yaw, cam] of [[0, 0, 0, sideCam], [1, 0, -Math.PI / 2, sideCam], [0, 1, 0, topCam], [1, 1, 0, null]]) {
+      rt.viewport.set(i * N, j * N, N, N);
+      rt.scissor.set(i * N, j * N, N, N);
+      turn.rotation.y = yaw;   // -90 degrees brings the model's +X side to the front
+      turn.visible = !!cam;
+      renderer.setRenderTarget(rt);
+      renderer.render(sc, cam || sideCam);
+    }
+    renderer.setRenderTarget(prevTarget);
+    renderer.setClearColor(prevClear, prevAlpha);
+    model.traverse((o) => { if (o.isMesh) o.material.dispose(); });
+
+    // Each card is drawn from both sides and lit as if facing up (a two-sided
+    // material would flip the normal on the back and turn half the cards dark).
+    const pos = [
+      cx - half, y0, cz, cx + half, y0, cz, cx + half, y1, cz, cx - half, y1, cz,                     // faces +Z
+      cx, y0, cz + half, cx, y0, cz - half, cx, y1, cz - half, cx, y1, cz + half,                     // faces +X
+      cx - half, yc, cz + half, cx + half, yc, cz + half, cx + half, yc, cz - half, cx - half, yc, cz - half, // faces up
+    ];
+    const uv = [0, 0, 0.5, 0, 0.5, 0.5, 0, 0.5, 0.5, 0, 1, 0, 1, 0.5, 0.5, 0.5, 0, 0.5, 0.5, 0.5, 0.5, 1, 0, 1];
+    const idx = [];
+    for (let k = 0; k < 12; k += 4) idx.push(k, k + 1, k + 2, k, k + 2, k + 3, k, k + 2, k + 1, k, k + 3, k + 2);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    geo.setAttribute('normal', new THREE.Float32BufferAttribute(new Array(12).fill([0, 1, 0]).flat(), 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    geo.setIndex(idx);
+    const mat = new THREE.MeshLambertMaterial({ map: rt.texture, alphaTest: 0.3 });
+    mat.name = 'tree-far';
+    return [{ geometry: geo, material: mat, name: 'tree-far' }];
+  }
+
   function buildTrees(group) {
     const b = course.bounds;
     const all = course.trees.slice();
@@ -568,7 +653,11 @@ const World = (() => {
       }
     const ids = ['tree-pine', 'tree-oak'];
     const nearParts = ids.map((id) => Assets.parts(id));
-    const farParts = ids.map((id, k) => (Assets.isCustom(id) ? nearParts[k] : flattenFar(k)));
+    const farParts = ids.map((id, k) => (Assets.isCustom(id) ? impostorParts(nearParts[k]) : flattenFar(k)));
+    // Kind 2: boulders on painted holes.
+    const rockParts = Assets.parts('boulder');
+    nearParts.push(rockParts);
+    farParts.push(rockParts);
     function flattenFar(k) {
       const ps = [];
       const g = farTree(k);
@@ -577,8 +666,10 @@ const World = (() => {
       return ps;
     }
     // Bucket trees into tiles: off-screen tiles are culled, distant ones
-    // switch to simple shapes and only nearby trees cast shadows.
-    const TILE = 160;
+    // switch to simple shapes and only nearby trees cast shadows. Custom trees
+    // are heavier, so they switch to their stand-ins sooner.
+    const heavy = ids.some((id) => Assets.isCustom(id));
+    const TILE = heavy ? 64 : 160, FAR = heavy ? 120 : 250;
     const tiles = new Map();
     for (const t of all) {
       const k = Math.floor(t.x / TILE) + ':' + Math.floor(t.z / TILE);
@@ -590,7 +681,7 @@ const World = (() => {
     const col = new THREE.Color();
     function tileMeshes(list, partsByKind, shadows) {
       const g = new THREE.Group();
-      for (let kind = 0; kind < 2; kind++) {
+      for (let kind = 0; kind < 3; kind++) {
         const trees = list.filter((t) => t.kind === kind);
         if (!trees.length) continue;
         for (const part of partsByKind[kind]) {
@@ -598,8 +689,11 @@ const World = (() => {
           const tint = isLeaf(part);
           trees.forEach((t, i) => {
             q.setFromAxisAngle(up, t.rot);
-            const w = 0.9 + (t.tint || 0) * 0.2;
-            m.compose(p.set(t.x, t.y0, t.z), q, s.set(t.height * w, t.height, t.height * w));
+            if (kind === 2) m.compose(p.set(t.x, t.y0, t.z), q, s.set(t.r, t.r, t.r));
+            else {
+              const w = (0.9 + (t.tint || 0) * 0.2) * (t.wide || 1);
+              m.compose(p.set(t.x, t.y0, t.z), q, s.set(t.height * w, t.height, t.height * w));
+            }
             im.setMatrixAt(i, m);
             if (tint) im.setColorAt(i, col.setRGB(0.82 + t.tint * 0.3, 0.88 + t.tint * 0.22, 0.85 + t.tint * 0.15));
           });
@@ -622,8 +716,106 @@ const World = (() => {
       near.position.set(-cx, -lod.position.y, -cz);
       far.position.copy(near.position);
       lod.addLevel(near, 0);
-      lod.addLevel(far, 250);
+      lod.addLevel(far, FAR);
       group.add(lod);
+    }
+  }
+
+  // ---------- painted holes: water, buildings, fences ---------------------------
+  function buildPainted(mh, group) {
+    // Water: a sheet following the river's level, tucked under its banks.
+    if (mh.hasWater) {
+      const step = Math.max(1, Math.round(1.2 / mh.s));
+      const nu = Math.floor(mh.W / step) + 1, nv = Math.floor(mh.H / step) + 1;
+      const lvl = (u, v) => mh.levelGrid[Math.min(mh.H - 1, v) * mh.W + Math.min(mh.W - 1, u)];
+      const pos = [], idx = [], vid = new Int32Array(nu * nv).fill(-1);
+      const vert = (i, j) => {
+        const k = j * nu + i;
+        if (vid[k] >= 0) return vid[k];
+        const u = Math.min(mh.W - 1, i * step), v = Math.min(mh.H - 1, j * step);
+        const L = lvl(u, v);
+        if (isNaN(L)) return -1;
+        const w = mh.toWorld(u + 0.5, v + 0.5);
+        vid[k] = pos.length / 3;
+        pos.push(w.x, L + mh.offset, w.z);
+        return vid[k];
+      };
+      for (let j = 0; j < nv - 1; j++)
+        for (let i = 0; i < nu - 1; i++) {
+          const a = vert(i, j), b = vert(i + 1, j), cc = vert(i, j + 1), d = vert(i + 1, j + 1);
+          if (a < 0 || b < 0 || cc < 0 || d < 0) continue;
+          idx.push(a, cc, b, b, cc, d);
+        }
+      if (idx.length) {
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+        geo.setIndex(idx);
+        geo.computeVertexNormals();
+        const uv = new Float32Array((pos.length / 3) * 2);
+        for (let k = 0; k < pos.length / 3; k++) { uv[k * 2] = pos[k * 3] / 24; uv[k * 2 + 1] = pos[k * 3 + 2] / 24; }
+        geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+        const wm = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
+          color: 0x2d6a86, roughness: 0.1, metalness: 0.1, transparent: true, opacity: 0.72,
+          normalMap: waterNormal, normalScale: new THREE.Vector2(0.4, 0.4), envMapIntensity: 1.1, depthWrite: false,
+        }));
+        wm.receiveShadow = true;
+        wm.renderOrder = 1;
+        group.add(wm);
+      }
+    }
+    // Buildings and bridges, scaled to their footprints.
+    for (const p of mh.props) {
+      const obj = Assets.object(p.asset);
+      obj.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+      obj.updateMatrixWorld(true);
+      const box = new THREE.Box3().setFromObject(obj);
+      const bw = Math.max(0.01, box.max.x - box.min.x), bd = Math.max(0.01, box.max.z - box.min.z);
+      const k = Math.min(p.w / bw, p.d / bd);
+      const holder = new THREE.Group();
+      obj.scale.multiplyScalar(k);
+      obj.position.set(-(box.min.x + box.max.x) / 2 * k, 0, -(box.min.z + box.max.z) / 2 * k);
+      holder.add(obj);
+      let y;
+      if (p.deckY0 !== undefined) y = p.deckY0 + mh.offset + 0.06; // the deck sits on the raised ground
+      else {
+        // Settle onto the lowest ground under the footprint.
+        y = Infinity;
+        const c = Math.cos(p.yaw * DEG), sn = Math.sin(p.yaw * DEG);
+        for (const [a, b] of [[0, 0], [-0.45, -0.45], [0.45, -0.45], [-0.45, 0.45], [0.45, 0.45]]) {
+          const lx = a * p.w, lz = b * p.d;
+          y = Math.min(y, course.H(p.x + lx * c - lz * sn, p.z + lx * sn + lz * c));
+        }
+        y -= box.min.y * k;
+      }
+      holder.position.set(p.x, y, p.z);
+      holder.rotation.y = -p.yaw * DEG;
+      group.add(holder);
+    }
+    // Fences: lengths of the fence model along each line, instanced per part.
+    const segs = [];
+    for (const line of mh.fences) {
+      for (let i = 0; i + 1 < line.length; i++) {
+        const a = line[i], b = line[i + 1];
+        const L = Math.hypot(b.x - a.x, b.z - a.z);
+        const n = Math.max(1, Math.round(L / FENCE_LEN));
+        for (let k = 0; k < n; k++) {
+          const x = a.x + ((b.x - a.x) * k) / n, z = a.z + ((b.z - a.z) * k) / n;
+          segs.push({ x, z, y: course.H(x, z), len: L / n, ang: Math.atan2(-(b.z - a.z), b.x - a.x) });
+        }
+      }
+    }
+    if (segs.length) {
+      const mm = new THREE.Matrix4(), qq = new THREE.Quaternion(), ss = new THREE.Vector3(), pp = new THREE.Vector3(), upv = new THREE.Vector3(0, 1, 0);
+      for (const part of Assets.parts('fence')) {
+        const im = new THREE.InstancedMesh(part.geometry, part.material, segs.length);
+        segs.forEach((g, i) => {
+          qq.setFromAxisAngle(upv, g.ang);
+          im.setMatrixAt(i, mm.compose(pp.set(g.x, g.y, g.z), qq, ss.set(g.len / FENCE_LEN, 1, 1)));
+        });
+        im.castShadow = true;
+        im.computeBoundingSphere();
+        group.add(im);
+      }
     }
   }
 
@@ -880,6 +1072,7 @@ const World = (() => {
     og.fillStyle = '#e8e2d2';
     og.fillRect((cl.x - 15 - b.minX) * LO_PPY, (cl.z - 9 - b.minZ) * LO_PPY, 30 * LO_PPY, 18 * LO_PPY);
 
+    for (const mh of c.maps) buildPainted(mh, group);
     buildTrees(group);
     for (const h of c.holes) { buildPin(h, group); buildTeeMarkers(h, group); buildSlope(h, group); }
     buildClubhouse(group);
