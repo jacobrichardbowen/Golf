@@ -2,3 +2,4 @@ tmp-shots/
 node_modules/
 __pycache__/
 .DS_Store
+*.blend1
