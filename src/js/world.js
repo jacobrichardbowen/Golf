@@ -5,7 +5,9 @@
 // registered with Assets so the Workshop can swap them.
 // ---------------------------------------------------------------------------
 
-const SUN_DIR = new THREE.Vector3(0.55, 0.62, 0.42).normalize();
+// A late-afternoon sun, low and warm, ahead and to the left down the first hole.
+const SUN_DIR = new THREE.Vector3(-0.52, 0.5, -0.69).normalize();
+const SUN_HAZE = new THREE.Color(0xffd9a8).multiplyScalar(1.12); // haze looking into the sun (linear)
 const SKY = { top: 0x3f7fd0, horizon: 0xbcd7ec, ground: 0x7d9a76 };
 const CHUNK = 128;          // terrain chunk size, yards
 const LO_PPY = 1;           // first-pass texture density, px per yard
@@ -237,7 +239,7 @@ Assets.define('clubhouse', { kind: 'model', group: 'Course', name: 'Clubhouse', 
   note: 'Real size (the default is about 27 × 16 m). Ground level at the origin; the entrance faces −Z, towards the course.' });
 
 const World = (() => {
-  let renderer, scene, camera, sun, hemi;
+  let renderer, scene, camera, sun, hemi, post = null, postOn = true, motes = null;
   let course = null;
   let detailTex, waterNormal;
   const ball = {}, guides = {};
@@ -273,6 +275,11 @@ const World = (() => {
 
   // ---------- one-time scene setup -----------------------------------------
   function init(canvas) {
+    Atmosphere.patchShaders();
+    const A = Atmosphere.shared;
+    Object.assign(A.sun, { x: SUN_DIR.x, y: SUN_DIR.y, z: SUN_DIR.z });
+    Object.assign(A.sunHaze, { x: SUN_HAZE.r, y: SUN_HAZE.g, z: SUN_HAZE.b });
+    Object.assign(A.haze, { x: 0.0006, y: 0.018, z: 0 });
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -280,6 +287,7 @@ const World = (() => {
     renderer.toneMappingExposure = 1.0;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    post = Atmosphere.createPost(renderer);
 
     scene = new THREE.Scene();
     scene.fog = new THREE.Fog(SKY.horizon, 320, 2300);
@@ -299,16 +307,22 @@ const World = (() => {
         horizon: { value: new THREE.Color(SKY.horizon) },
         ground: { value: new THREE.Color(SKY.ground) },
         sunDir: { value: SUN_DIR },
+        sunHaze: { value: SUN_HAZE },
+        skyAlpha: { value: 1 },
       },
       vertexShader: `varying vec3 vDir;
         void main(){ vec4 wp = modelMatrix * vec4(position,1.0); vDir = wp.xyz - cameraPosition;
           gl_Position = projectionMatrix * viewMatrix * wp; gl_Position.z = gl_Position.w; }`,
-      fragmentShader: `uniform vec3 top; uniform vec3 horizon; uniform vec3 ground; uniform vec3 sunDir; varying vec3 vDir;
+      fragmentShader: `uniform vec3 top; uniform vec3 horizon; uniform vec3 ground; uniform vec3 sunDir; uniform vec3 sunHaze; uniform float skyAlpha; varying vec3 vDir;
         void main(){ vec3 d = normalize(vDir); float h = d.y;
-          vec3 c = h > 0.0 ? mix(horizon, top, pow(clamp(h,0.0,1.0), 0.55)) : mix(horizon, ground, pow(clamp(-h*4.0,0.0,1.0), 0.6));
           float s = max(dot(d, sunDir), 0.0);
-          c += vec3(1.0, 0.92, 0.75) * (pow(s, 1200.0) * 6.0 + pow(s, 14.0) * 0.18);
-          gl_FragColor = vec4(c, 1.0);
+          // The horizon warms towards the sun, matching the haze on the ground.
+          vec3 hz = mix(horizon, sunHaze, pow(s, 5.0));
+          vec3 c = h > 0.0 ? mix(hz, top, pow(clamp(h,0.0,1.0), 0.5)) : mix(hz, ground, pow(clamp(-h*4.0,0.0,1.0), 0.6));
+          c += sunHaze * (pow(s, 24.0) * 0.22 + pow(s, 200.0) * 0.9);
+          c += vec3(1.0, 0.9, 0.72) * smoothstep(0.99962, 0.99985, s) * 16.0;
+          // With post-processing on, alpha 0 marks open sky for the sun shafts.
+          gl_FragColor = vec4(c, skyAlpha);
           #include <tonemapping_fragment>
           #include <colorspace_fragment>
         }`,
@@ -357,9 +371,9 @@ const World = (() => {
       scene.add(sp);
     }
 
-    hemi = new THREE.HemisphereLight(0xd8ecff, 0x56703a, 1.25);
+    hemi = new THREE.HemisphereLight(0xd2e4ff, 0x5e7040, 1.3);
     scene.add(hemi);
-    sun = new THREE.DirectionalLight(0xfff1dc, 2.6);
+    sun = new THREE.DirectionalLight(0xffe8c8, 3.1);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
     const sc = sun.shadow.camera;
@@ -367,6 +381,9 @@ const World = (() => {
     sun.shadow.bias = -0.0004;
     sun.shadow.normalBias = 0.04;
     scene.add(sun, sun.target);
+
+    motes = Atmosphere.createMotes();
+    scene.add(motes);
 
     buildBall();
     buildGuides();
@@ -1237,6 +1254,11 @@ const World = (() => {
     scene.userData.sky.position.copy(camera.position);
     sun.target.position.copy(focus);
     sun.position.copy(focus).addScaledVector(SUN_DIR, 300);
+    // Cloud shadows drift with the wind (wrapped to keep the numbers small).
+    const cl = Atmosphere.shared.cloud, WRAP = 240 * 64;
+    cl.x = (cl.x - (wind.x * 0.5 + 1.6) * dt) % WRAP;
+    cl.y = (cl.y - (wind.z * 0.5 + 0.7) * dt) % WRAP;
+    motes.update(dt, camera, SUN_DIR, renderer.domElement.height || 600);
     waterNormal.offset.set(time * 0.012, time * 0.02);
     updateSplashes(dt);
     if (guides.ring.visible) {
@@ -1262,7 +1284,17 @@ const World = (() => {
     for (const s of slopes) if (s && s.visible) s.material.opacity = 0.42 + 0.12 * Math.sin(time * 3);
   }
 
-  function render() { renderer.render(scene, camera); }
+  const CLOUD_SHADOW = 0.3;
+  function render() {
+    // Cloud shadows only in the game's own view (not the Workshop's turntable).
+    Atmosphere.shared.cloud.z = CLOUD_SHADOW;
+    scene.userData.sky.material.uniforms.skyAlpha.value = postOn ? 0 : 1;
+    if (postOn) post.render(scene, camera, SUN_DIR);
+    else renderer.render(scene, camera);
+    Atmosphere.shared.cloud.z = 0;
+  }
+  // Bloom, sun shafts and grading can be switched off (slow devices do it automatically).
+  function setPost(on) { postOn = !!on; }
 
   // Adaptive resolution: drop the pixel ratio when frames run slow.
   const maxRatio = Math.min(window.devicePixelRatio || 1, 2);
@@ -1270,6 +1302,7 @@ const World = (() => {
   function adapt(dt) {
     if (dt > 1 / 38) { slowT += dt; fastT = 0; } else if (dt < 1 / 57) { fastT += dt; slowT = 0; }
     if (slowT > 1.5 && ratio > 0.6) { ratio = Math.max(0.6, ratio * 0.85); slowT = 0; apply(); }
+    else if (slowT > 3 && postOn) { postOn = false; slowT = 0; } // still slow at the lowest resolution
     else if (fastT > 5 && ratio < maxRatio) { ratio = Math.min(maxRatio, ratio * 1.12); fastT = 0; apply(); }
     function apply() {
       const w = renderer.domElement.clientWidth, h = renderer.domElement.clientHeight;
@@ -1280,9 +1313,9 @@ const World = (() => {
   function add(obj) { scene.add(obj); }
 
   return {
-    init, buildCourse, paintTick, resize, render, update, add, adapt, setBall, trailReset, trailPush, trailFade,
+    init, buildCourse, paintTick, resize, render, update, add, adapt, setBall, trailReset, trailPush, trailFade, setPost,
     setGuides, hideGuides, showSlope, setPinVisible, splash,
-    get camera() { return camera; }, get renderer() { return renderer; }, get scene() { return scene; },
+    get camera() { return camera; }, get renderer() { return renderer; }, get scene() { return scene; }, get post() { return postOn; }, get postParams() { return post.params; },
     get paintedChunks() { return chunks.filter((c) => c.hi).length; }, get chunkCount() { return chunks.length; },
   };
 })();

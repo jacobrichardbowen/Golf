@@ -69,13 +69,13 @@ function spinLieFactor(club, surf) {
   return base;
 }
 
-// The cast. Heights in yards (6 ft = 2 yd).
+// The cast. Heights in yards (6 ft = 2 yd); `body` is the model each one wears.
 const CHARACTERS = [
-  { id: 'surlaw', name: 'G. Surlaw', height: 2.0, heightLabel: '6′0″', look: 'White hair, gray shirt, cyan-blue pants',
+  { id: 'surlaw', name: 'G. Surlaw', body: 'golfer-surlaw', height: 2.0, heightLabel: '6′0″', look: 'White hair, gray shirt, cyan-blue pants',
     hair: 0xebe9e2, shirt: 0x8d9296, pants: 0x27b5d8, skin: 0xe2b18f, shoe: 0xf4f4f0 },
-  { id: 'froth', name: 'F. Froth', height: 1.667, heightLabel: '5′0″', look: 'Brown hair, forest green shirt, gold pants',
+  { id: 'froth', name: 'F. Froth', body: 'golfer-froth', height: 1.667, heightLabel: '5′0″', look: 'Brown hair, forest green shirt, gold pants',
     hair: 0x6b4426, shirt: 0x2c5a33, pants: 0xd4a52f, skin: 0xd9a27c, shoe: 0xf4f4f0 },
-  { id: 'mcbeaty', name: 'W. McBeaty', height: 1.333, heightLabel: '4′0″', look: 'Orange hair, red shirt, white pants',
+  { id: 'mcbeaty', name: 'W. McBeaty', body: 'golfer', height: 1.333, heightLabel: '4′0″', look: 'Orange hair, red shirt, white pants',
     hair: 0xe2702a, shirt: 0xc8302c, pants: 0xf5f5f0, skin: 0xf0c3a2, shoe: 0x3a3a3a },
 ];
 // The caddy uses McBeaty's build, dressed all in white.

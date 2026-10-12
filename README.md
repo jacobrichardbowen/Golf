@@ -39,11 +39,11 @@ show the slope. Moving takes you back from the ball camera to your golfer.
 
 ### Golfers, clubs and the caddy
 
-| Golfer | Height | Look |
-| --- | --- | --- |
-| G. Surlaw | 6′0″ | white hair, gray shirt, cyan-blue pants |
-| F. Froth | 5′0″ | brown hair, forest green shirt, gold pants |
-| W. McBeaty | 4′0″ | orange hair, red shirt, white pants |
+| Golfer | Height | Build | Look |
+| --- | --- | --- | --- |
+| G. Surlaw | 6′0″ | human: tall and lean, walrus moustache | white hair, gray shirt, cyan-blue pants |
+| F. Froth | 5′0″ | dwarf: stocky, broad, bearded | brown hair, forest green shirt, gold pants |
+| W. McBeaty | 4′0″ | his own model | orange hair, red shirt, white pants |
 
 | Club | Full carry | Its niche |
 | --- | --- | --- |
@@ -108,10 +108,12 @@ exporter does this by default). Notes for particular assets:
   The course has thousands of trees, so only those within about 120 yards
   use your model; farther ones are flat cards with pictures of it, taken when
   the game loads.
-- The golfer rig is one model shared by all three golfers and the caddy. Keep
-  the named joint empties (`hips`, `thigh.L`, `knee.L`, …, `arm.R`, `elbow.R`)
-  and parent meshes to them; materials named `skin`, `shirt`, `pants`, `hair`,
-  `shoe` and `eye` are recoloured per golfer.
+- Each body type is its own rig: G. Surlaw's (human, `golfer-surlaw`),
+  F. Froth's (dwarf, `golfer-froth`), and one W. McBeaty and the caddy share
+  (`golfer`). Each has its own proportions; keep the named joint empties
+  (`hips`, `thigh.L`, `knee.L`, …, `arm.R`, `elbow.R`) and parent meshes to
+  them. Materials named `skin`, `shirt`, `pants`, `hair`, `shoe` and `eye`
+  are recoloured per golfer.
 - The cart's wheels roll and steer if they're named `wheel.FL` … `wheel.RR`
   (origin at the hub) with a child whose name starts with `spin`.
 - Clubs hang from the grip at the origin with the head pointing down (−Y).
@@ -136,10 +138,11 @@ src/js/maphole.js     turns painted hole images into height, surfaces, trees and
 src/maps/             the images painted holes are built from
 src/js/assets.js      asset registry: built-in models/textures, custom replacements, glTF in/out
 src/js/publish.js     commits Workshop changes to the GitHub repository
+src/js/atmosphere.js  haze, cloud shadows, dust motes; bloom, sun shafts and colour grading
 src/js/world.js       three.js rendering: chunked terrain, trees, water, flags, clubhouse
 src/js/scenery.js     castle, tower, houses, bridge, fences and boulders for painted holes
 src/js/equipment.js   club and bag models, the bag close-up
-src/js/character.js   the golfer rig and its procedural animation
+src/js/character.js   the golfer bodies (rigs) and their procedural animation
 src/js/cart.js        the golf cart model and driving physics
 src/js/workshop.js    the Workshop screen
 src/js/ui.js          HUD, swing meter, markers, radar, course map, scorecard
@@ -235,5 +238,5 @@ node tests/mobile.js [outDir]         # touch layout screenshots, portrait and l
 node tests/tour.js [outDir] [holes]   # address-view screenshots from each tee
 ```
 
-`Golf.html?hq` keeps full resolution (otherwise it lowers resolution on slow
-devices).
+`Golf.html?hq` keeps full resolution and every effect (otherwise slow devices
+first lower the resolution, then switch off bloom and the sun shafts).

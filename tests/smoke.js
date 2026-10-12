@@ -64,6 +64,7 @@ const errors = [];
   await shot('04-address.png');
 
   // A real three-press swing.
+  const stance = await G(() => ({ ...window.__golf.player }));
   await page.keyboard.press('Space');
   await page.waitForFunction(() => window.__golf.meter.p > 0.85, null, { timeout: 120000 });
   await page.keyboard.press('Space');
@@ -75,6 +76,11 @@ const errors = [];
   await shot('06-impact.png');
   await waitGame(1.6);
   await shot('07-ballcam.png');
+  // The golfer stays where he stood through the follow-through.
+  const after = await G(() => ({ ...window.__golf.player }));
+  const slid = Math.hypot(after.x - stance.x, after.z - stance.z);
+  console.log('golfer moved during the swing:', slid.toFixed(2), 'yds');
+  if (slid > 0.1) errors.push(`golfer slid ${slid.toFixed(2)} yds during the swing`);
   await page.keyboard.down('Space'); // fast-forward the ball
   await page.waitForFunction(() => window.__golf.ballState === 'rest', null, { timeout: 600000 });
   await page.keyboard.up('Space');
@@ -145,6 +151,7 @@ const errors = [];
       const rec = api.recommendedClub(); api.leaveShot();
       window.__golf.clubIndex = rec; api.enterShot();
     });
+    const strokesBefore = await G(() => window.__golf.strokes);
     const info = await G(() => {
       const g = window.__golf, h = window.__golfApi.course.holes[g.hole];
       const d = Math.hypot(h.pin.x - g.ball.p.x, h.pin.z - g.ball.p.z);
@@ -155,7 +162,8 @@ const errors = [];
       window.__golfApi.swingNow(Math.max(0.05, p), 0);
       return { d: d.toFixed(1), putt };
     });
-    await page.waitForFunction(() => window.__golf.ballState === 'moving', null, { timeout: 120000 });
+    // Wait for the stroke rather than for 'moving': a tap-in can drop within a single frame.
+    await page.waitForFunction((n) => window.__golf.strokes > n, strokesBefore, { timeout: 120000 });
     if (i === 1) { await waitGame(0.1); await shot('12-approach.png'); }
     await page.keyboard.down('Space');
     await page.waitForFunction(() => ['rest', 'holed', 'tee'].includes(window.__golf.ballState), null, { timeout: 600000 });

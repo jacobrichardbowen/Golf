@@ -364,7 +364,9 @@ function startGame(saved) {
     const rot = Math.PI - face;
     const o = golfer.addressOffset(club().kind, club().putter);
     const c = Math.cos(rot), s = Math.sin(rot);
-    const x = G.ball.p.x - (o.x * c + o.z * s), z = G.ball.p.z - (-o.x * s + o.z * c);
+    // Once the ball is struck, stay where it was hit rather than following it.
+    const b = G.shotPhase === 'down' && G.swing.fired && G.shot ? G.shot.start : G.ball.p;
+    const x = b.x - (o.x * c + o.z * s), z = b.z - (-o.x * s + o.z * c);
     return { x, z, face };
   }
 
@@ -545,7 +547,7 @@ function startGame(saved) {
   function updateCaddy(dt) {
     const c = G.cad, P = G.player;
     if (c.riding) {
-      const s = cart.seatPose(caddy.scale, true);
+      const s = cart.seatPose(caddy.seatScale, true);
       Object.assign(c, { x: s.x, z: s.z, y: s.y, yaw: s.yaw, speed: 0 });
       caddy.root.position.set(s.x, s.y, s.z);
       caddy.root.rotation.set(0, Math.PI - s.yaw, 0);
@@ -966,7 +968,7 @@ function startGame(saved) {
         UI.toast(e.type === 'green' ? 'Keep the cart off the green!' : 'Carts and bunkers don’t mix', 'The greenkeeper is watching', 2000, true);
       }
     }
-    const s = cart.seatPose(gScale());
+    const s = cart.seatPose(golfer.seatScale);
     Object.assign(G.player, { x: s.x, z: s.z, y: s.y, yaw: s.yaw, vx: 0, vz: 0, speed: 0 });
     Sound.engine(Math.abs(cart.st.speed) / 13);
     if (G.time - G.lastMouse > 1.2) G.cartLook *= Math.exp(-dt * 1.8);
@@ -1074,7 +1076,7 @@ function startGame(saved) {
       const yaw = cart.st.yaw + G.cartLook;
       const d = dirFromYaw(yaw);
       if (G.fp) {
-        const e = cart.eyePose(s);
+        const e = cart.eyePose(golfer.eyeScale);
         cam.tPos.set(e.x, e.y, e.z);
         cam.tLook.set(e.x + d.x * 10, e.y - 0.8 - G.camPitch * 4, e.z + d.z * 10);
         rate = lookRate = 60;
@@ -1119,7 +1121,7 @@ function startGame(saved) {
     const P = G.player;
     let pose;
     if (G.mode === 'cart') {
-      const s = cart.seatPose(golfer.scale);
+      const s = cart.seatPose(golfer.seatScale);
       golfer.root.position.set(s.x, s.y, s.z);
       golfer.root.rotation.set(0, Math.PI - s.yaw, 0);
       pose = { mode: 'seated' };

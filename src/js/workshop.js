@@ -40,7 +40,7 @@ const Workshop = (() => {
     const def = Assets.get(id);
     previewGolfer = null;
     if (def.kind === 'rig') {
-      previewGolfer = Golfer.create(CHARACTERS[1]);
+      previewGolfer = Golfer.create(Golfer.styleFor(id));
       previewGolfer.update(0.016, { mode: 'idle', snap: true });
       return previewGolfer.root;
     }
