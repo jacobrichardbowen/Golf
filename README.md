@@ -151,7 +151,7 @@ src/js/main.js        game flow, player and camera control, input
 vendor/three.min.js   three.js r158 (MIT, see vendor/THREE-LICENSE)
 vendor/three-addons/  three.js glTF loader/exporter modules, converted to plain scripts by build.py
 assets/               models/textures that replace the built-in ones (written by the Workshop)
-tools/                paint_to_map.py: turns an illustration into painted hole images
+tools/                paint_to_map.py (illustration -> painted hole images), blender/ (course starter)
 .github/workflows/    rebuilds Golf.html when sources or assets change, publishes the download
 tests/                headless checks (see below)
 ```
@@ -225,6 +225,16 @@ python3 tools/paint_to_map.py tools/maps/castle-falls.json src/maps
 yourself. The three images, and the castle, tower, house, bridge, fence and
 boulder models, can be replaced in the Workshop (groups **Course maps** and
 **Scenery**) and committed like any other asset.
+
+### Building a course in Blender
+
+`tools/blender/course-starter.blend` is an example par 4 set up the way the
+game reads a course: a terrain mesh whose faces carry surface materials
+(`green`, `fairway`, `tee`, `rough`, `deep rough`, `forest`, `sand`, `water`,
+`path`, `out of bounds`), empties named `tee` and `pin`, a `line` curve for
+the line of play, a `water` plane, trees named `pine…`/`oak…`, and other
+objects as scenery. The "READ ME" text inside the file has the details.
+`tools/blender/make_starter.py` regenerates it (needs `pip install bpy`).
 
 ### Checks
 
