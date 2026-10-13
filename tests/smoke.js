@@ -63,14 +63,25 @@ const errors = [];
   await waitGame(1.5);
   await shot('04-address.png');
 
-  // A real three-press swing.
+  // Look at the club in the close-up, open the face a touch, then come back.
+  await page.keyboard.press('KeyQ');
+  await waitGame(0.8);
+  await page.keyboard.down('KeyD');
+  await waitGame(0.3);
+  await page.keyboard.up('KeyD');
+  const setup = await G(() => ({ view: window.__golf.setupView, face: window.__golf.setup.face, hint: document.getElementById('meterHint').innerText }));
+  console.log('setup:', JSON.stringify(setup));
+  if (!setup.view || !(setup.face > 0)) errors.push('club close-up did not open the face');
+  await shot('04b-setup.png');
+  await page.keyboard.press('KeyQ');
+  await waitGame(0.6);
+
+  // Hold to wind up, let go to swing.
   const stance = await G(() => ({ ...window.__golf.player }));
-  await page.keyboard.press('Space');
-  await page.waitForFunction(() => window.__golf.meter.p > 0.85, null, { timeout: 120000 });
-  await page.keyboard.press('Space');
-  await shot('05-backswing.png'); // the club stays at the top while the marker returns
-  await page.waitForFunction(() => window.__golf.meter.p < 0.02, null, { timeout: 120000 });
-  await page.keyboard.press('Space');
+  await page.keyboard.down('Space');
+  await page.waitForFunction(() => window.__golf.swing.p > 0.85, null, { timeout: 120000 });
+  await shot('05-backswing.png'); // he holds at the top while the key is down
+  await page.keyboard.up('Space');
   await page.waitForFunction(() => window.__golf.ballState === 'moving', null, { timeout: 60000 });
   await waitGame(0.15);
   await shot('06-impact.png');

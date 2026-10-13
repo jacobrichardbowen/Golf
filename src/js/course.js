@@ -36,9 +36,10 @@ const COURSE = {
         heights: [-5.3, 3.7],  // yards for black and white in the height map
         line: [[492, 932], [496, 800], [478, 680], [468, 540], [438, 410], [432, 300], [414, 200], [398, 92]],
         // Buildings and bridges: centre pixel, footprint in yards, turn in degrees.
+        // flags: [x, z] spots across the footprint (-0.5..0.5) for a flag on the roof there.
         props: [
-          { asset: 'castle', at: [145, 36], size: [58, 32] },
-          { asset: 'tower', at: [658, 240], size: [26, 28] },
+          { asset: 'castle', at: [145, 36], size: [58, 32], flags: [[-0.16, 0.21], [0.16, 0.21], [0, -0.26]] },
+          { asset: 'tower', at: [658, 240], size: [26, 28], flags: [[-0.025, 0]] },
           { asset: 'house', at: [128, 795], size: [22, 20] },
           { asset: 'house', at: [72, 848], size: [19, 14], rot: 90 },
           { asset: 'house', at: [95, 940], size: [21, 26] },

@@ -17,7 +17,7 @@ ROOT = pathlib.Path(__file__).parent
 SRC = ROOT / "src"
 JS_ORDER = [
     "util.js", "data.js", "physics.js", "course.js", "terrain.js", "maphole.js", "audio.js",
-    "assets.js", "publish.js", "atmosphere.js", "world.js", "scenery.js", "equipment.js", "character.js", "cart.js", "ui.js",
+    "assets.js", "publish.js", "atmosphere.js", "wind.js", "world.js", "scenery.js", "equipment.js", "character.js", "cart.js", "ui.js",
     "workshop.js", "main.js",
 ]
 # three.js example modules (r158) used by the workshop to read and write .glb.

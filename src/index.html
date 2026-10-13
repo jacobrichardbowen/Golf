@@ -34,10 +34,6 @@
           <button class="mini" id="muteBtn" title="Sound on/off (N)">Sound</button>
           <button class="mini" id="helpBtn" title="How to play (H)">?</button>
         </div>
-        <section class="plate wind-plate" aria-label="Wind">
-          <div class="wind-dial"><div class="wind-arrow" id="windArrow"></div></div>
-          <div class="wind-read"><b id="windSpeed">0</b><span>mph</span></div>
-        </section>
       </div>
       <canvas id="minimap" aria-label="Radar map"></canvas>
     </div>
@@ -53,23 +49,17 @@
         </dl>
       </section>
 
-      <div class="meter" id="meter" aria-label="Swing meter">
-        <div class="meter-track" id="meterTrack">
-          <div class="meter-acc"></div>
-          <div class="meter-perfect"></div>
-          <div class="meter-fill" id="meterFill"></div>
-          <div class="meter-lock" id="meterLock"></div>
-          <div class="meter-snap"></div>
-          <div class="meter-ticks" id="meterTicks"></div>
-          <div class="meter-mark" id="meterMark"></div>
-        </div>
-        <div class="meter-hint" id="meterHint">Press <kbd>Space</kbd> to swing</div>
+      <div class="meter" id="meter">
+        <div class="meter-hint" id="meterHint">Hold <kbd>Space</kbd> to wind up, let go to hit</div>
       </div>
 
       <div class="controls">
         <div class="aim-btns">
           <button class="ctl" id="aimLeft" aria-label="Aim left">◀</button>
           <button class="ctl" id="aimRight" aria-label="Aim right">▶</button>
+          <button class="ctl" id="setUp" aria-label="Push the club out">▲</button>
+          <button class="ctl" id="setDown" aria-label="Pull the club in">▼</button>
+          <button class="ctl ctl-text" id="setupBtn" aria-label="Look at the club behind the ball">Setup</button>
           <button class="ctl ctl-text" id="viewBtn" aria-label="Change shot camera">View</button>
           <button class="ctl ctl-text" id="backBtn" aria-label="Step away from the ball">Back</button>
         </div>
@@ -197,8 +187,9 @@
       <ol class="steps">
         <li><b>Walk</b> with <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> and look around with the mouse (click the course to capture it). Hold <kbd>Shift</kbd> to run. On touch screens, use the stick on the left and drag on the right.</li>
         <li><b>Change clubs</b> at your bag: your caddy carries it and sets it down whenever he stops (it rides on the cart while you drive). Walk up to it, press <kbd>E</kbd> and click a club. Near the cart you can leave the bag strapped on the back instead.</li>
-        <li><b>Play a shot:</b> walk up to your ball and press <kbd>E</kbd>. Aim with <kbd>A</kbd> <kbd>D</kbd> or the mouse, then press <kbd>Space</kbd> three times: start, set power, stop on the white line.</li>
-        <li><b>Early</b> on the third press hooks the ball left; <b>late</b> slices it right. The driver's meter is fastest and curves most; the wedge and putter are slow and forgiving.</li>
+        <li><b>Play a shot:</b> walk up to your ball and press <kbd>E</kbd>. Aim with <kbd>A</kbd> <kbd>D</kbd> or the mouse. <b>Hold</b> <kbd>Space</kbd> and your golfer winds up; let go and he swings. How far back he gets is how hard he hits. Hang at the top too long and he tenses up.</li>
+        <li><b>Shape it:</b> press <kbd>Q</kbd> for a close look at the club behind the ball. <kbd>A</kbd> <kbd>D</kbd> turn the face: open starts the ball right and curves it right, closed the other way. <kbd>W</kbd> <kbd>S</kbd> push the club out or pull it in: off the heel it fades, off the toe it draws, and either costs a little distance.</li>
+        <li><b>Read the wind</b> from the world: streaks in the air, the flags on every tee, around the course and on your caddy's back.</li>
         <li><b>Drive the cart:</b> press <kbd>E</kbd> next to it to hop in, <kbd>W</kbd> <kbd>S</kbd> to drive, <kbd>A</kbd> <kbd>D</kbd> to steer, <kbd>Space</kbd> to brake, <kbd>E</kbd> to get out.</li>
         <li><b>Hole out</b>, then follow the marker to the next tee.</li>
       </ol>
@@ -208,9 +199,10 @@
         <div><dt><kbd>Space</kbd> hold</dt><dd>Fast-forward while the camera follows the ball</dd></div>
         <div><dt><kbd>M</kbd> / <kbd>C</kbd></dt><dd>Course map / scorecard</dd></div>
         <div><dt><kbd>N</kbd></dt><dd>Sound on or off</dd></div>
+        <div><dt><kbd>Q</kbd></dt><dd>Close look at the club: face and position</dd></div>
         <div><dt><kbd>Esc</kbd></dt><dd>Cancel a swing, step away, or close a panel</dd></div>
       </dl>
-      <p class="note">Wind, slope and lie all matter. Rough costs distance, bunkers more (wedges cope best). Water and out of bounds cost a stroke. On the green, arrows show which way it breaks.</p>
+      <p class="note">Wind, slope and lie all matter. Rough costs distance, bunkers more (wedges cope best). Water and out of bounds cost a stroke. On the green, read the slope from the ground itself.</p>
       <button class="btn primary" id="helpClose">Got it</button>
     </div>
   </div>

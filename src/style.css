@@ -1,5 +1,5 @@
 /* Layout: full-bleed 3D course; broadcast-style HUD plates pinned to the corners,
-   swing meter centred in a bottom dock; paper scorecard between holes. */
+   shot hints centred in a bottom dock; paper scorecard between holes. */
 :root {
   --plate: rgba(12, 28, 21, 0.80);
   --plate-solid: #0f2219;
@@ -33,7 +33,7 @@ kbd { font-family: var(--f-display); font-weight: 600; font-size: 0.9em; padding
 
 /* ---------- HUD ---------- */
 #hud { position: absolute; inset: 0; pointer-events: none; }
-#hud button, #hud canvas, #hud .meter { pointer-events: auto; }
+#hud button, #hud canvas { pointer-events: auto; }
 .plate { background: var(--plate); border: 1px solid var(--plate-edge); border-radius: 6px; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
 .lbl { display: block; font-family: var(--f-display); font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
 
@@ -63,13 +63,6 @@ kbd { font-family: var(--f-display); font-weight: 600; font-size: 0.9em; padding
 .mini { background: var(--plate); border: 1px solid var(--plate-edge); border-radius: 6px; padding: 6px 10px; font-family: var(--f-display); font-weight: 600; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--chalk); }
 .mini:hover { border-color: var(--flag); }
 .mini[aria-pressed="true"] { color: var(--muted); text-decoration: line-through; }
-.wind-plate { display: flex; align-items: center; gap: 10px; padding: 7px 12px 7px 8px; }
-.wind-dial { width: 40px; height: 40px; border-radius: 50%; border: 1.5px solid var(--plate-edge); position: relative; }
-.wind-arrow { position: absolute; left: 50%; top: 50%; width: 0; height: 0; transition: transform 0.2s; }
-.wind-arrow::before { content: ""; position: absolute; left: -1.5px; top: -13px; width: 3px; height: 24px; background: var(--flag); border-radius: 2px; }
-.wind-arrow::after { content: ""; position: absolute; left: -6px; top: -17px; border: 6px solid transparent; border-bottom: 9px solid var(--flag); border-top: 0; }
-.wind-read b { font-family: var(--f-display); font-weight: 700; font-size: 26px; line-height: 1; font-variant-numeric: tabular-nums; }
-.wind-read span { font-size: 12px; color: var(--muted); margin-left: 3px; letter-spacing: 0.06em; }
 #minimap { width: 160px; height: 160px; border-radius: 50%; background: transparent; }
 
 /* Bottom dock */
@@ -89,33 +82,26 @@ kbd { font-family: var(--f-display); font-weight: 600; font-size: 0.9em; padding
 .shot-facts dt { font-family: var(--f-display); font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
 .shot-facts dd { margin: 0; font-family: var(--f-display); font-weight: 600; font-size: 19px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
-.meter { pointer-events: auto; padding-bottom: 2px; cursor: pointer; width: 100%; max-width: 500px; justify-self: center; }
-.meter-track { position: relative; height: 30px; border-radius: 4px; background: linear-gradient(180deg, rgba(8, 18, 13, 0.92), rgba(18, 38, 28, 0.92)); border: 1px solid var(--plate-edge); overflow: visible; }
-.meter-acc { position: absolute; top: 0; bottom: 0; left: 0; width: calc(100% * 0.30 / 1.15); background: repeating-linear-gradient(90deg, rgba(255,255,255,0.06) 0 4px, transparent 4px 8px); border-right: 1px dashed rgba(255,255,255,0.15); }
-.meter-perfect { position: absolute; top: 0; bottom: 0; left: calc(100% * (0.15 - 0.022) / 1.15); width: calc(100% * 0.044 / 1.15); background: rgba(242, 194, 48, 0.35); }
-.meter-fill { position: absolute; top: 4px; bottom: 4px; left: calc(100% * 0.15 / 1.15); width: 0; border-radius: 2px; background: linear-gradient(90deg, #3f9b54, var(--flag) 70%, #e9862e 92%, var(--under)); opacity: 0.9; }
-.meter-lock { position: absolute; top: -4px; bottom: -4px; width: 3px; margin-left: -1.5px; background: var(--chalk); border-radius: 2px; display: none; }
-.meter-snap { position: absolute; top: -6px; bottom: -6px; left: calc(100% * 0.15 / 1.15); width: 2px; margin-left: -1px; background: var(--chalk); }
-.meter-mark { position: absolute; top: -8px; bottom: -8px; width: 4px; margin-left: -2px; left: calc(100% * 0.15 / 1.15); background: var(--flag); box-shadow: 0 0 0 1px rgba(0,0,0,0.6), 0 0 10px rgba(242,194,48,0.7); border-radius: 2px; }
-.meter-ticks span { position: absolute; top: 100%; transform: translateX(-50%); margin-top: 3px; font-family: var(--f-display); font-size: 12px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.meter-ticks span::before { content: ""; position: absolute; left: 50%; top: -14px; width: 1px; height: 8px; background: rgba(255,255,255,0.3); }
-.meter-hint { margin-top: 22px; text-align: center; font-size: 13px; color: var(--chalk); text-shadow: 0 1px 3px rgba(0,0,0,0.8); min-height: 1.3em; }
+.meter { padding-bottom: 2px; width: 100%; max-width: 520px; justify-self: center; }
+.meter-hint { margin-top: 0; text-align: center; font-size: 13px; color: var(--chalk); text-shadow: 0 1px 3px rgba(0,0,0,0.8); min-height: 1.3em; }
 .meter-hint .grade { font-family: var(--f-display); font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
 .meter-hint .grade.good { color: var(--flag); }
-.meter.disabled { opacity: 0.45; pointer-events: none; }
 
 .controls { justify-self: end; display: flex; align-items: end; gap: 10px; pointer-events: auto; }
 .aim-btns { display: flex; gap: 6px; }
-.aim-btns #aimLeft, .aim-btns #aimRight { display: none; }
+.aim-btns #aimLeft, .aim-btns #aimRight, .aim-btns #setUp, .aim-btns #setDown { display: none; }
 .ctl { width: 52px; height: 52px; border-radius: 8px; border: 1px solid var(--plate-edge); background: var(--plate); font-size: 18px; }
 .ctl-text { font-family: var(--f-display); font-weight: 600; font-size: 14px; letter-spacing: 0.06em; text-transform: uppercase; }
 .ctl:active { background: rgba(242,194,48,0.25); }
 .swing { width: 92px; height: 92px; border-radius: 50%; border: 3px solid rgba(255,255,255,0.85); background: radial-gradient(circle at 35% 30%, #ffd75a, var(--flag) 55%, var(--flag-deep)); color: var(--paper-ink);
   font-family: var(--f-display); font-weight: 800; font-size: 20px; letter-spacing: 0.08em; text-transform: uppercase; box-shadow: 0 6px 18px rgba(0,0,0,0.45); }
 .swing:active { transform: scale(0.96); }
-.swing.idle { filter: saturate(0.35) brightness(0.8); }
 
-@media (pointer: coarse) { .aim-btns #aimLeft, .aim-btns #aimRight { display: block; } }
+@media (pointer: coarse) {
+  .aim-btns #aimLeft, .aim-btns #aimRight { display: block; }
+  #hud.setup .aim-btns #setUp, #hud.setup .aim-btns #setDown { display: block; }
+  #hud.setup #viewBtn { display: none; }
+}
 
 /* Mode-dependent HUD: the swing dock only appears at the ball. */
 #hud:not([data-mode="shot"]) .dock { display: none; }
@@ -242,7 +228,6 @@ kbd { font-family: var(--f-display); font-weight: 600; font-size: 0.9em; padding
   .shot-facts dd { font-size: 16px; }
   .controls { justify-self: stretch; justify-content: space-between; }
   .swing { width: 76px; height: 76px; font-size: 17px; }
-  .meter-hint { margin-top: 18px; }
   .hole-num b { font-size: 30px; }
   .hole-num { padding: 6px 10px 4px; }
   .hole-info { padding: 6px 10px; }
@@ -251,9 +236,6 @@ kbd { font-family: var(--f-display); font-weight: 600; font-size: 0.9em; padding
   .hole-score > div { padding: 6px 9px 4px; }
   .hole-score b { font-size: 20px; }
   .tr-row { flex-direction: column-reverse; align-items: flex-end; gap: 6px; }
-  .wind-plate { padding: 4px 8px 4px 4px; gap: 6px; }
-  .wind-dial { width: 32px; height: 32px; }
-  .wind-read b { font-size: 20px; }
   #minimap { width: 104px; height: 104px; }
   .top-left { max-width: calc(100% - 2 * var(--gutter) - 112px); }
   .mini { padding: 4px 7px; font-size: 11px; }
@@ -269,11 +251,9 @@ kbd { font-family: var(--f-display); font-weight: 600; font-size: 0.9em; padding
   .shot-plate { min-width: 200px; }
   .swing { width: 72px; height: 72px; font-size: 16px; }
   .ctl { width: 46px; height: 46px; }
-  .meter-hint { margin-top: 18px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .toast, .banner { animation: none; }
-  .wind-arrow { transition: none; }
 }
 
 /* ---------- Club in hand ---------- */

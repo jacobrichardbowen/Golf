@@ -239,13 +239,12 @@ Assets.define('clubhouse', { kind: 'model', group: 'Course', name: 'Clubhouse', 
   note: 'Real size (the default is about 27 × 16 m). Ground level at the origin; the entrance faces −Z, towards the course.' });
 
 const World = (() => {
-  let renderer, scene, camera, sun, hemi, post = null, postOn = true, motes = null;
+  let renderer, scene, camera, sun, hemi, post = null, postOn = true, motes = null, streaks = null;
   let course = null;
   let detailTex, waterNormal;
   const ball = {}, guides = {};
   const chunks = [];
   const pins = [];
-  const slopes = [];
   let terrainMat = null;
   let paintJob = null;
   let time = 0;
@@ -384,6 +383,8 @@ const World = (() => {
 
     motes = Atmosphere.createMotes();
     scene.add(motes);
+    streaks = WindCues.createStreaks();
+    scene.add(streaks.mesh);
 
     buildBall();
     buildGuides();
@@ -807,6 +808,22 @@ const World = (() => {
       holder.position.set(p.x, y, p.z);
       holder.rotation.y = -p.yaw * DEG;
       group.add(holder);
+      // Flags flying from the roof: drop a ray onto the model at each spot.
+      if (p.flags) {
+        holder.updateMatrixWorld(true);
+        const rc = new THREE.Raycaster();
+        for (const [fx, fz] of p.flags) {
+          const wp = holder.localToWorld(new THREE.Vector3(fx * p.w, 0, fz * p.d));
+          rc.set(new THREE.Vector3(wp.x, wp.y + 400, wp.z), new THREE.Vector3(0, -1, 0));
+          const hit = rc.intersectObject(obj, true)[0];
+          if (!hit) continue;
+          // Big enough to read from the fairway, sized to the building.
+          const k = clamp(Math.max(p.w, p.d) / 30, 0.8, 2);
+          const f = WindCues.makeFlag({ height: 5 * k, w: 3.4 * k, h: 1.9 * k, color: WindCues.PALETTE[1], emblem: 'cross', shape: 'pennant' });
+          f.position.copy(hit.point).y -= 0.3;
+          group.add(f);
+        }
+      }
     }
     // Fences: lengths of the fence model along each line, instanced per part.
     const segs = [];
@@ -885,7 +902,6 @@ const World = (() => {
     pg.add(pole);
     const fg = new THREE.PlaneGeometry(0.8, 0.52, 12, 4);
     fg.translate(0.4, 0, 0);
-    fg.userData.base = Float32Array.from(fg.attributes.position.array);
     const ftex = flagTexture(hole.index + 1);
     const flag = new THREE.Mesh(fg, new THREE.MeshLambertMaterial({ map: ftex, side: THREE.FrontSide }));
     flag.castShadow = true;
@@ -898,7 +914,8 @@ const World = (() => {
     fpivot.add(flag, flagBack);
     pg.add(fpivot);
     group.add(pg);
-    pins.push({ group: pg, flag, fpivot, pole, halo, phase: hole.index * 1.7 });
+    pins.push({ group: pg, flag, fpivot, pole, halo });
+    WindCues.addWaver(fpivot, fg, 0.8, hole.index * 1.7);
   }
 
   function buildTeeMarkers(hole, group) {
@@ -909,6 +926,16 @@ const World = (() => {
       mk.position.set(x, course.H(x, z), z);
       mk.rotation.y = Math.atan2(hole.teeDir.x, hole.teeDir.z);
       group.add(mk);
+    }
+    // Two flags in the hole's colour framing the tee shot, out to the sides
+    // and a little ahead so they stand at the edges of the view.
+    const col = WindCues.PALETTE[hole.index % WindCues.PALETTE.length];
+    for (const side of [-1, 1]) {
+      const x = hole.tee.x - hole.teeDir.z * side * 9.5 + hole.teeDir.x * 8;
+      const z = hole.tee.z + hole.teeDir.x * side * 9.5 + hole.teeDir.z * 8;
+      const f = WindCues.makeFlag({ height: 4.6, w: 1.5, h: 0.95, color: col, emblem: side < 0 ? 'disc' : 'cross', phase: hole.index + side });
+      f.position.set(x, course.H(x, z) - 0.05, z);
+      group.add(f);
     }
     // A small sign at the back of the tee: hole number, par and yardage.
     const sx = hole.tee.x - hole.teeDir.z * 6.5 - hole.teeDir.x * 6, sz = hole.tee.z + hole.teeDir.x * 6.5 - hole.teeDir.z * 6;
@@ -941,6 +968,64 @@ const World = (() => {
     group.add(sign);
   }
 
+  // A few pennants around each hole, in the rough beside the fairway and
+  // behind the green: decoration, and something to read the wind from.
+  function buildCourseFlags(hole, group) {
+    const L = hole.line.length;
+    const rnd = mulberry32(hole.index * 97 + 13);
+    const spots = [[0.32, 1], [0.64, -1], [1.0, rnd() < 0.5 ? 1 : -1]];
+    for (const [f, side0] of spots) {
+      const s = Math.min(L, f * L);
+      const p = hole.line.pointAt(s), q = hole.line.pointAt(Math.max(0, s - 2));
+      let tx = p.x - q.x, tz = p.z - q.z;
+      const tl = Math.hypot(tx, tz) || 1;
+      tx /= tl; tz /= tl;
+      const back = f >= 1 ? hole.green.r + 7 : 0;
+      for (let attempt = 0; attempt < 6; attempt++) {
+        const side = attempt % 2 ? -side0 : side0;
+        const off = (hole.hw || 18) + 9 + attempt * 3 + rnd() * 3;
+        const x = p.x + tx * back - tz * side * (f >= 1 ? 6 : off), z = p.z + tz * back + tx * side * (f >= 1 ? 6 : off);
+        const surf = course.surface(x, z);
+        if (surf === S_WATER || surf === S_SAND || surf === S_OOB || surf === S_GREEN || surf === S_FAIRWAY || surf === S_PATH) continue;
+        if ((course.nearTrees(x, z) || []).some((t) => Math.hypot(t.x - x, t.z - z) < t.trunkR + 1.5)) continue;
+        const fl = WindCues.makeFlag({
+          height: 4, w: 1.7, h: 0.9, shape: 'pennant', emblem: 'chevron',
+          color: WindCues.PALETTE[(hole.index * 3 + Math.round(f * 3)) % WindCues.PALETTE.length], phase: rnd() * 10,
+        });
+        fl.position.set(x, course.H(x, z) - 0.05, z);
+        group.add(fl);
+        break;
+      }
+    }
+  }
+
+  // In the club close-up: an alignment stick on the ground beside the ball,
+  // parallel to the aim, and a faint line straight out from the club face.
+  let stick = null, faceLine = null;
+  function setAlignmentStick(o) {
+    if (!stick) {
+      stick = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 1.4, 6).rotateX(Math.PI / 2),
+        new THREE.MeshLambertMaterial({ color: 0xf2c230 }));
+      stick.castShadow = true;
+      faceLine = new THREE.Mesh(new THREE.PlaneGeometry(0.006, 1).rotateX(-Math.PI / 2).translate(0, 0, -0.5),
+        new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55, depthWrite: false }));
+      faceLine.renderOrder = 5;
+      scene.add(stick, faceLine);
+    }
+    stick.visible = !!o;
+    faceLine.visible = !!(o && o.face);
+    if (!o) return;
+    const d = dirFromYaw(o.yaw);
+    const cx = o.x + d.x * 0.25, cz = o.z + d.z * 0.25;
+    stick.position.set(cx, course.H(cx, cz) + 0.012, cz);
+    stick.rotation.set(0, -o.yaw, 0);
+    if (o.face) {
+      const f = o.face;
+      faceLine.position.set(f.x, course.H(f.x, f.z) + 0.004, f.z);
+      faceLine.rotation.set(0, -yawFromDir(f.dx, f.dz), 0);
+    }
+  }
+
   function buildClubhouse(group) {
     const c = course.clubhouse;
     const g = Assets.object('clubhouse');
@@ -955,41 +1040,6 @@ const World = (() => {
     ob.hx = Math.max(1, (box.max.x - box.min.x) / 2 - 0.5);
     ob.hz = Math.max(1, (box.max.z - box.min.z) / 2 - 0.5);
     ob.x = (box.max.x + box.min.x) / 2; ob.z = (box.max.z + box.min.z) / 2;
-  }
-
-  function buildSlope(hole, group) {
-    const g = hole.green;
-    const pts = [];
-    for (let x = g.x - g.r * 1.3; x <= g.x + g.r * 1.3; x += 1.1)
-      for (let z = g.z - g.r * 1.3; z <= g.z + g.r * 1.3; z += 1.1) {
-        const s = course.surface(x, z);
-        if (s === S_GREEN || s === S_FRINGE) pts.push([x, z]);
-      }
-    const shape = new THREE.Shape();
-    shape.moveTo(0, 0.28); shape.lineTo(0.16, 0.02); shape.lineTo(0.06, 0.04); shape.lineTo(0.06, -0.26);
-    shape.lineTo(-0.06, -0.26); shape.lineTo(-0.06, 0.04); shape.lineTo(-0.16, 0.02); shape.closePath();
-    const geo = new THREE.ShapeGeometry(shape);
-    geo.rotateX(-Math.PI / 2);
-    const mat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.5, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4 });
-    const im = new THREE.InstancedMesh(geo, mat, Math.max(1, pts.length));
-    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), p = new THREE.Vector3();
-    const col = new THREE.Color();
-    const up = new THREE.Vector3(0, 1, 0);
-    pts.forEach(([x, z], i) => {
-      const n = course.normal(x, z);
-      const slope = Math.hypot(n.x, n.z) / n.y;
-      q.setFromAxisAngle(up, -yawFromDir(n.x, n.z));
-      const k = clamp(slope / 0.035, 0, 1);
-      m.compose(p.set(x, course.H(x, z) + 0.02, z), q, sc.setScalar(0.32 + k * 0.38));
-      im.setMatrixAt(i, m);
-      col.setHSL(0.15 - 0.15 * k, 0.85 * k + 0.1, 0.92 - 0.3 * k);
-      im.setColorAt(i, col);
-    });
-    im.count = pts.length;
-    im.visible = false;
-    im.renderOrder = 3;
-    group.add(im);
-    slopes[hole.index] = im;
   }
 
   // ---------- whole-course build ----------------------------------------------
@@ -1091,7 +1141,7 @@ const World = (() => {
 
     for (const mh of c.maps) buildPainted(mh, group);
     buildTrees(group);
-    for (const h of c.holes) { buildPin(h, group); buildTeeMarkers(h, group); buildSlope(h, group); }
+    for (const h of c.holes) { buildPin(h, group); buildTeeMarkers(h, group); buildCourseFlags(h, group); }
     buildClubhouse(group);
     scene.add(group);
     return overview;
@@ -1195,7 +1245,6 @@ const World = (() => {
     }
   }
   function hideGuides() { guides.arc.visible = false; guides.ring.visible = false; }
-  function showSlope(index, v) { slopes.forEach((s, i) => { if (s) s.visible = v && i === index; }); }
   // The flagstick is pulled out when putting.
   function setPinVisible(index, v) {
     pins.forEach((p, i) => { const on = i !== index || v; p.pole.visible = on; p.fpivot.visible = on; p.halo.visible = !on; });
@@ -1265,23 +1314,9 @@ const World = (() => {
       const d = camera.position.distanceTo(guides.ring.position);
       guides.ring.scale.setScalar(clamp(d * 0.018, 0.35, 7) * (1 + 0.06 * Math.sin(time * 4)));
     }
-    // Flags wave downwind; only animate the ones near the camera.
-    const ws = Math.hypot(wind.x, wind.z);
-    const amp = 0.03 + Math.min(ws, 8) * 0.012;
-    for (const p of pins) {
-      if (p.halo.visible) p.halo.material.opacity = 0.38 + 0.18 * Math.sin(time * 3);
-      p.fpivot.rotation.y = ws > 0.01 ? Math.atan2(-wind.z, wind.x) : 0;
-      if (p.group.position.distanceTo(camera.position) > 400) continue;
-      const fg = p.flag.geometry, base = fg.userData.base, arr = fg.attributes.position.array;
-      for (let i = 0; i < arr.length; i += 3) {
-        const x = base[i];
-        arr[i + 2] = Math.sin(x * 7 - time * (5 + ws) + p.phase) * amp * x * 1.6;
-        arr[i + 1] = base[i + 1] - x * x * 0.12 * (1 - Math.min(ws, 6) / 6);
-      }
-      fg.attributes.position.needsUpdate = true;
-      fg.computeVertexNormals();
-    }
-    for (const s of slopes) if (s && s.visible) s.material.opacity = 0.42 + 0.12 * Math.sin(time * 3);
+    // Flags stream downwind and the air shows streaks: the wind, without a dial.
+    WindCues.updateFlags(time, wind, camera);
+    if (course) streaks.update(dt, time, wind, camera, course.H);
   }
 
   const CLOUD_SHADOW = 0.3;
@@ -1314,7 +1349,7 @@ const World = (() => {
 
   return {
     init, buildCourse, paintTick, resize, render, update, add, adapt, setBall, trailReset, trailPush, trailFade, setPost,
-    setGuides, hideGuides, showSlope, setPinVisible, splash,
+    setGuides, hideGuides, setAlignmentStick, setPinVisible, splash,
     get camera() { return camera; }, get renderer() { return renderer; }, get scene() { return scene; }, get post() { return postOn; }, get postParams() { return post.params; },
     get paintedChunks() { return chunks.filter((c) => c.hi).length; }, get chunkCount() { return chunks.length; },
   };

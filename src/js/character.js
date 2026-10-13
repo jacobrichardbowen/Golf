@@ -260,22 +260,52 @@ const Golfer = (() => {
     const arms = ['L', 'R'].map((s) => ({ arm: J['arm.' + s], elbow: J['elbow.' + s] }));
 
     // Club in the hands: a registered asset, with a marker at its head.
-    let clubKind = null, clubHead = new THREE.Object3D();
+    let clubKind = null, clubHead = new THREE.Object3D(), clubFace = new THREE.Object3D(), clubModel = null, face = 0;
     function setClub(kind) {
       if (kind === clubKind) return;
       clubKind = kind;
       while (club.children.length) club.remove(club.children[0]);
       const model = Assets.object(CLUB_ASSET[kind]);
+      clubModel = model;
       model.traverse((o) => { if (o.isMesh) o.castShadow = true; });
-      // Measure before attaching, so the box is in the club's own frame.
+      // Measure before attaching, so the boxes are in the club's own frame.
+      // The head is whatever sits at the very bottom; the face looks along +X.
       model.updateMatrixWorld(true);
       const box = new THREE.Box3().setFromObject(model);
+      const head = new THREE.Box3(), mb = new THREE.Box3();
+      model.traverse((o) => {
+        if (!o.isMesh) return;
+        mb.setFromObject(o);
+        if (mb.min.y < box.min.y + 0.02) head.union(mb);
+      });
+      if (head.isEmpty()) head.copy(box);
       club.add(model);
+      const cx = (head.min.x + head.max.x) / 2, cz = (head.min.z + head.max.z) / 2;
       clubHead = new THREE.Object3D();
-      clubHead.position.set((box.min.x + box.max.x) / 2, box.min.y + 0.02, (box.min.z + box.max.z) / 2);
+      clubHead.position.set(cx, box.min.y + 0.02, cz);
       club.add(clubHead);
+      // The middle of the face, turning with the club.
+      clubFace = new THREE.Object3D();
+      clubFace.position.set(head.max.x, box.min.y + 0.02, cz);
+      model.add(clubFace);
+      model.rotation.y = face;
     }
     setClub('iron8');
+    // Turn the club in the hands, about the shaft: opens (+) or closes (-) the face.
+    function setFace(a) {
+      face = -a;
+      if (clubModel) clubModel.rotation.y = face;
+    }
+    // Where the face is and which way it points, flat on the ground (world).
+    const _fx = new THREE.Vector3();
+    function faceInfo() {
+      if (!clubModel) return null;
+      clubModel.updateMatrixWorld(true);
+      const p = clubFace.getWorldPosition(new THREE.Vector3());
+      _fx.setFromMatrixColumn(clubModel.matrixWorld, 0);
+      const l = Math.hypot(_fx.x, _fx.z) || 1;
+      return { x: p.x, z: p.z, dx: _fx.x / l, dz: _fx.z / l };
+    }
 
     // ---- pose state ----
     const P = {
@@ -422,7 +452,9 @@ const Golfer = (() => {
       apply();
       root.updateMatrixWorld(true);
       clubHead.getWorldPosition(_v);
-      const out = { x: _v.x, y: _v.y, z: _v.z };
+      const fp = clubFace.getWorldPosition(new THREE.Vector3());
+      // ahead: how far the face stands in front of the head's centre (yards).
+      const out = { x: _v.x, y: _v.y, z: _v.z, ahead: Math.hypot(fp.x - _v.x, fp.z - _v.z) };
       Object.assign(P, save);
       root.position.copy(pos); root.rotation.y = rot;
       setClub(saveKind);
@@ -452,7 +484,7 @@ const Golfer = (() => {
     // Sizes for sitting in the cart: hips above the seat, eyes above the hips.
     const seatScale = mscale * (D.hip - 0.09) / (DEFAULT_DIMS.hip - 0.09);
     const eyeScale = mscale * (D.spine + D.neck + D.head + 0.2) / (DEFAULT_DIMS.spine + DEFAULT_DIMS.neck + DEFAULT_DIMS.head + 0.2);
-    return { root, update, setClub, addressOffset, setVisible, scale, seatScale, eyeScale, style, joints: J };
+    return { root, update, setClub, setFace, faceInfo, addressOffset, setVisible, scale, seatScale, eyeScale, style, joints: J };
   }
 
   // Map a club from the bag to its model.

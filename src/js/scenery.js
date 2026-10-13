@@ -74,8 +74,6 @@ function towerModel() {
   // A small annex with a gable roof.
   sceneryAdd(g, 'annex', box(7, 6, 6), M.stone, 8, 3, 6);
   sceneryAdd(g, 'annex-roof', gableGeo(7, 3.2, 7.6), M.roof, 8, 6, 6);
-  sceneryAdd(g, 'flagpole', new THREE.CylinderGeometry(0.12, 0.12, 5, 6), M.wood, 0, 31.5, 0);
-  sceneryAdd(g, 'banner', new THREE.PlaneGeometry(3.5, 2.2).translate(1.75, 0, 0), M.banner, 0, 33, 0);
   return g;
 }
 

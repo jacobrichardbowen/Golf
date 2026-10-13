@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// DOM side of the game: HUD plates, swing meter, prompts, world markers,
+// DOM side of the game: HUD plates, shot hints, prompts, world markers,
 // radar minimap, course map, toasts, banner, scorecard and screens.
 // ---------------------------------------------------------------------------
 
@@ -18,8 +18,6 @@ const UI = (() => {
     $(id).innerHTML = v;
   }
 
-  const P0 = 0.15, SPAN = 1.15;
-  const meterPct = (p) => ((p + P0) / SPAN) * 100;
   const fmtToPar = (d) => (d === 0 ? 'E' : d > 0 ? '+' + d : '−' + -d);
   const fmtYds = (y) => Math.round(y).toLocaleString('en-US');
 
@@ -42,10 +40,6 @@ const UI = (() => {
     text('hTotal', played ? fmtToPar(toPar) : 'E');
     el.classList.toggle('under', played && toPar < 0);
   }
-  function setWind(mph, relDeg) {
-    text('windSpeed', Math.round(mph));
-    $('windArrow').style.transform = `rotate(${relDeg.toFixed(1)}deg)`;
-  }
   function setClub(name, dist) { text('clubName', name); text('clubDist', dist); }
   function setFacts(toPin, lie) { text('toPin', toPin); text('lie', lie); }
   function objective(h) { html('objective', h); }
@@ -60,31 +54,8 @@ const UI = (() => {
     $('actBtn').classList.toggle('ready', !!t);
   }
 
-  // ---------- Meter ----------
-  let lastTicks = '';
-  function setTicks(labels) {
-    const key = labels.join('|');
-    if (key === lastTicks) return;
-    lastTicks = key;
-    $('meterTicks').innerHTML = labels
-      .map((l, i) => `<span style="left:${meterPct((i + 1) / labels.length).toFixed(2)}%">${l}</span>`)
-      .join('');
-  }
-  function setMeter(p, lockP) {
-    const mk = $('meterMark'), fill = $('meterFill'), lock = $('meterLock');
-    mk.style.left = meterPct(p) + '%';
-    const fp = lockP !== null && lockP !== undefined ? lockP : Math.max(0, p);
-    fill.style.width = ((Math.max(0, fp) / SPAN) * 100).toFixed(2) + '%';
-    if (lockP !== null && lockP !== undefined) {
-      lock.style.display = 'block';
-      lock.style.left = meterPct(lockP) + '%';
-    } else lock.style.display = 'none';
-  }
+  // ---------- Shot hint ----------
   function setHint(h) { html('meterHint', h); }
-  function meterEnabled(on) {
-    $('meter').classList.toggle('disabled', !on);
-    $('swingBtn').classList.toggle('idle', !on);
-  }
 
   // ---------- World markers ----------
   // Places a marker at a projected screen position; off-screen targets are
@@ -304,8 +275,8 @@ const UI = (() => {
   }
 
   return {
-    $, text, html, setMode, setHole, setStroke, setTotal, setWind, setClub, setFacts, objective, prompt, setActionLabel,
-    setTicks, setMeter, setHint, meterEnabled, marker, toast, hideToast, banner, hideBanner, show, isShown,
+    $, text, html, setMode, setHole, setStroke, setTotal, setClub, setFacts, objective, prompt, setActionLabel,
+    setHint, marker, toast, hideToast, banner, hideBanner, show, isShown,
     renderCard, setOverview, drawRadar, drawMap, setLoading, fmtToPar, fmtYds,
   };
 })();

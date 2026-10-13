@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------------
 // Game flow. You control your golfer the whole time: walk (or drive the cart)
-// to the ball, press E to address it, swing with the three-press meter,
+// to the ball, press E to address it, hold to wind up and let go to swing,
 // watch it fly, then walk on. Your caddy follows with the bag; walk up to it
 // to change clubs. After holing out, head to the next tee.
 //
@@ -15,7 +15,6 @@ function startGame(saved) {
   const WALK = 4.2, RUN = 8.5;           // yd/s
   const REACH = 2.6;                     // how close to stand to the ball or cart
   const BAG_REACH = 2.1;
-  const P_ACC = 0.15;
 
   const store = {
     load() { try { return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch (e) { return {}; } },
@@ -43,6 +42,13 @@ function startGame(saved) {
   const bag = Equipment.createBag();
   World.add(bag.root);
   const caddy = Golfer.create(CADDY);
+  // A flag on a pole strapped to the caddy's back: the wind goes where he goes.
+  {
+    const f = WindCues.makeFlag({ height: 2.5, w: 0.9, h: 0.58, color: WindCues.PALETTE[0], emblem: 'disc', pole: 0x5a4330 });
+    f.position.set(0.12, -0.2, -0.3); // in the spine joint's frame (unscaled body)
+    f.rotation.x = -0.1;
+    caddy.joints.spine.add(f);
+  }
   caddy.setVisible(false);
   World.add(caddy.root);
   let golfer = null;     // the player's golfer, created after choosing a character
@@ -58,7 +64,8 @@ function startGame(saved) {
     camYaw: 0, camPitch: 0.22, camDist: 4.4, cartLook: 0, lastMouse: -10,
     ballCam: false, ballCamTimer: 0, ff: false,
     aimYaw: 0, aimTouched: false, clubIndex: 0, lie: S_TEE, puttRange: 10, view: 0,
-    meter: { phase: 'idle', p: 0, power: 0 }, swing: { a: 0, top: 0, t: 0, fired: false, finish: 0, putt: false },
+    swing: { a: 0, top: 0, t: 0, fired: false, finish: 0, putt: false, p: 0 },
+    setup: { face: 0, head: 0 }, setupView: false,
     holdFinish: false, preview: { pts: [], landing: null, end: null }, previewDirty: true,
     wind: { x: 0, z: 0, mph: 0, yaw: 0 }, introShown: false, cardTimer: 0, pending: null, trace: [],
     time: 0, inRound: false, locked: false, toastGate: 0, stepT: 0, acc: 0, bounceSounds: 0,
@@ -123,7 +130,6 @@ function startGame(saved) {
     G.trace = [];
     World.trailReset();
     setFlag(true);
-    World.showSlope(i, false);
     UI.setHole(i + 1, h);
     UI.setStroke(1);
     UI.setTotal(toPar(), playedAny());
@@ -310,11 +316,9 @@ function startGame(saved) {
     const c = club();
     if (c.putter) {
       UI.setClub('Putter', `${G.puttRange * 3} ft max`);
-      UI.setTicks([0.25, 0.5, 0.75, 1].map((f) => `${Math.round(G.puttRange * 3 * f)}ft`));
     } else {
       const lf = lieFactor(c, G.lie);
       UI.setClub(c.name, `${Math.round(c.carry * lf)} yds${lf < 0.99 ? ' · lie −' + Math.round((1 - lf) * 100) + '%' : ''}`);
-      UI.setTicks([0.25, 0.5, 0.75, 1].map((f) => `${Math.round(c.carry * lf * f)}`));
     }
     const onGreen = G.lie === S_GREEN || G.lie === S_FRINGE;
     UI.setFacts(fmtDist(distToPin(), onGreen), SURFACES[G.lie].name);
@@ -354,7 +358,15 @@ function startGame(saved) {
       pts.push({ x: sim.p.x, y: sim.p.y, z: sim.p.z });
       G.preview = { pts, landing: { x: sim.p.x, z: sim.p.z }, end: { x: sim.p.x, z: sim.p.z } };
     }
-    World.setGuides(G.preview.pts, G.preview.landing, c.putter);
+    // Only the start of the line is drawn: which way it sets off and how high,
+    // not where it comes down. (The full flight still frames the cameras.)
+    const reach = c.putter ? 1.2 : 14;
+    const near = [];
+    for (const p of G.preview.pts) {
+      if (Math.hypot(p.x - b.x, p.z - b.z) > reach) break;
+      near.push(p);
+    }
+    World.setGuides(near, null, c.putter);
   }
 
   // ---------- addressing the ball ----------
@@ -365,8 +377,13 @@ function startGame(saved) {
     const o = golfer.addressOffset(club().kind, club().putter);
     const c = Math.cos(rot), s = Math.sin(rot);
     // Once the ball is struck, stay where it was hit rather than following it.
-    const b = G.shotPhase === 'down' && G.swing.fired && G.shot ? G.shot.start : G.ball.p;
-    const x = b.x - (o.x * c + o.z * s), z = b.z - (-o.x * s + o.z * c);
+    const b0 = G.shotPhase === 'down' && G.swing.fired && G.shot ? G.shot.start : G.ball.p;
+    // The club face rests just behind the ball.
+    const ahead = dirFromYaw(yaw), gap = BALL_R + (o.ahead || 0) + 0.004;
+    const b = { x: b0.x - ahead.x * gap, z: b0.z - ahead.z * gap };
+    // Pushing the club out (set up in the close-up) means standing that much nearer the ball.
+    const t = dirFromYaw(face), h = G.setup.head;
+    const x = b.x - (o.x * c + o.z * s) + t.x * h, z = b.z - (-o.x * s + o.z * c) + t.z * h;
     return { x, z, face };
   }
 
@@ -382,16 +399,13 @@ function startGame(saved) {
     if (isPutt()) choosePuttRange();
     G.aimYaw = defaultAim();
     G.previewDirty = true;
-    G.meter = { phase: 'idle', p: 0, power: 0 };
-    UI.setMeter(0, null);
-    UI.meterEnabled(true);
+    G.swing.a = 0;
     refreshShotHud();
     const rec = recommendedClub();
     UI.setHint(rec !== G.clubIndex
       ? `Caddy: “I’d hit the <b>${CLUBS[rec].name}</b> here.” Press <kbd>E</kbd> to step back.`
       : swingHint());
     setFlag(G.lie !== S_GREEN);
-    World.showSlope(G.hole, G.lie === S_GREEN || G.lie === S_FRINGE);
     G.view = 0;
     UI.setMode('shot');
     UI.prompt(null);
@@ -400,6 +414,7 @@ function startGame(saved) {
 
   function leaveShot() {
     if (G.mode !== 'shot') return;
+    leaveSetup();
     G.mode = 'walk';
     G.shotPhase = null;
     World.hideGuides();
@@ -409,8 +424,8 @@ function startGame(saved) {
 
   function swingHint() {
     return matchMedia('(pointer: coarse)').matches
-      ? 'Tap <b>Swing</b> three times: start, power, accuracy'
-      : 'Press <kbd>Space</kbd> three times: start, power, accuracy';
+      ? 'Hold <b>Swing</b> to wind up, let go to hit · <b>Setup</b> to check the club'
+      : 'Hold <kbd>Space</kbd> to wind up, let go to hit · <kbd>Q</kbd> to check the club';
   }
 
   // ---------- the bag ----------
@@ -617,62 +632,61 @@ function startGame(saved) {
     caddy.update(dt, { mode: 'walk', speed: c.speed, carry: c.speed > 0.4 && G.bagWhere === 'caddy' && !G.bagSpot });
   }
 
-  // ---------- the swing meter and the swing itself ----------
-  function meterPress() {
-    if (G.mode !== 'shot') return;
-    const m = G.meter;
-    if (G.shotPhase === 'aim') {
-      if (!ballPlayable()) return;
-      if (G.previewDirty) computePreview();
-      G.shotPhase = 'swing';
-      G.meter = { phase: 'power', p: 0, power: 0 };
-      G.swing = { a: 0, top: isPutt() ? 0.5 : 2.5, t: 0, fired: false, finish: 0, putt: isPutt() };
-      UI.setHint('Press again to set <b>power</b>');
-      Sound.click();
-    } else if (G.shotPhase === 'swing') {
-      if (m.phase === 'power') {
-        if (m.p < 0.02) return;
-        m.power = m.p;
-        m.phase = 'acc';
-        UI.setHint('Stop on the <b>white line</b>');
-        Sound.click();
-      } else if (m.phase === 'acc') {
-        startDownswing(m.power, clamp(-m.p / P_ACC, -1, 1));
-      }
-    }
+  // ---------- the swing: hold to wind up, let go to hit ----------
+  // How long the backswing takes to reach the top (faster clubs leave less
+  // time to judge it). How far back he gets is the power.
+  const backswingTime = () => (isPutt() ? 1.6 : 1.3) / (club().meter || 1);
+  const isTouch = () => matchMedia('(pointer: coarse)').matches;
+
+  function swingPress() {
+    if (G.mode !== 'shot' || G.shotPhase !== 'aim' || !ballPlayable()) return false;
+    if (G.setupView) leaveSetup();
+    if (G.previewDirty) computePreview();
+    G.shotPhase = 'swing';
+    G.swing = { a: 0, top: isPutt() ? 0.5 : 2.5, t: 0, fired: false, finish: 0, putt: isPutt(), p: 0, held: 0, wobble: 0, wv: 0 };
+    UI.setHint(isTouch() ? 'Let go of <b>Swing</b> to hit' : 'Let go of <kbd>Space</kbd> to hit');
+    return true;
+  }
+
+  function swingRelease() {
+    if (G.mode !== 'shot' || G.shotPhase !== 'swing') return false;
+    const s = G.swing;
+    if (s.p < 0.03) return cancelSwing(); // just a tap: no swing
+    startDownswing(s.p, s.wobble);
+    return true;
   }
 
   function cancelSwing() {
     if (G.mode !== 'shot' || G.shotPhase !== 'swing') return false;
     G.shotPhase = 'aim';
-    G.meter = { phase: 'idle', p: 0, power: 0 };
-    UI.setMeter(0, null);
+    G.swing.a = 0;
     UI.setHint(swingHint());
     return true;
   }
 
-  function updateMeter(dt) {
-    const m = G.meter;
-    const speed = club().meter || 1;
-    if (m.phase === 'power') {
-      m.p += speed * dt;
-      if (m.p >= 1) { m.p = 1; m.power = 1; m.phase = 'acc'; UI.setHint('Stop on the <b>white line</b>'); }
-      UI.setMeter(m.p, null);
-      G.swing.a = -G.swing.top * Math.max(0, m.p);
-    } else if (m.phase === 'acc') {
-      m.p -= speed * 0.95 * dt;
-      UI.setMeter(m.p, m.power);
-      G.swing.a = -G.swing.top * m.power;
-      if (m.p <= -P_ACC) startDownswing(m.power, 1);
+  // While the button is held he winds up to the top and waits there. Wait
+  // too long and he tenses up: the club trembles and the strike wanders.
+  function updateBackswing(dt) {
+    const s = G.swing;
+    if (s.p < 1) s.p = Math.min(1, s.p + dt / backswingTime());
+    else {
+      s.held += dt;
+      if (s.held > 0.7) {
+        const k = Math.min(1, (s.held - 0.7) / 2);
+        s.wv = (s.wv + (Math.random() - 0.5) * 9 * dt * k) * Math.exp(-dt * 1.5);
+        s.wobble = clamp(s.wobble + s.wv * dt, -1, 1);
+      }
     }
+    const tremble = s.held > 0.7 ? Math.sin(G.time * 23) * 0.02 * Math.min(1, s.held - 0.7) : 0;
+    s.a = -s.top * s.p + tremble;
   }
 
   function startDownswing(power, e) {
     G.shotPhase = 'down';
-    G.meter.phase = 'done';
-    Object.assign(G.swing, { t: 0, from: -G.swing.top * power, power, e, fired: false,
+    // A little of the golfer's own variation, more on a full swing.
+    const jitter = ((Math.random() + Math.random() + Math.random()) / 1.5 - 1) * (0.03 + 0.06 * power * power);
+    Object.assign(G.swing, { t: 0, from: -G.swing.top * power, power, e: e + jitter, fired: false,
       finish: G.swing.putt ? 0.15 + 0.35 * power : 2.3 });
-    UI.meterEnabled(false);
     if (!G.swing.putt) Sound.swing(power);
   }
 
@@ -691,41 +705,54 @@ function startGame(saved) {
         G.mode = 'walk';
         G.shotPhase = null;
         G.holdFinish = true;
+        G.setup = { face: 0, head: 0 }; // set up afresh for the next shot
         UI.setMode('walk');
         G.camYaw = G.aimYaw;
       }
     }
   }
 
-  function gradeLabel(e, putter) {
-    const a = Math.abs(e);
-    if (a < 0.15) return '<span class="grade good">Perfect</span>';
-    if (putter) return `<span class="grade">${a < 0.5 ? 'Slightly ' : ''}${e < 0 ? 'pulled' : 'pushed'}</span>`;
-    if (e < 0) return `<span class="grade">${a < 0.45 ? 'Draw' : a < 0.8 ? 'Hook' : 'Big hook'}</span>`;
+  function gradeLabel(curl, startDeg, putter) {
+    if (putter) {
+      if (Math.abs(startDeg) < 0.6) return '<span class="grade good">On line</span>';
+      return `<span class="grade">${Math.abs(startDeg) < 2 ? 'Slightly ' : ''}${startDeg < 0 ? 'pulled' : 'pushed'}</span>`;
+    }
+    const a = Math.abs(curl);
+    if (a < 0.12) return '<span class="grade good">Straight</span>';
+    if (curl < 0) return `<span class="grade">${a < 0.45 ? 'Draw' : a < 0.8 ? 'Hook' : 'Big hook'}</span>`;
     return `<span class="grade">${a < 0.45 ? 'Fade' : a < 0.8 ? 'Slice' : 'Big slice'}</span>`;
   }
 
+  // The setup decides the shape of the shot: an open face starts the ball
+  // right and curves it right (closed: left), and a strike off the heel
+  // (club pushed out) fades it while one off the toe draws it, through gear
+  // effect; off-centre strikes also lose distance. e is the swing's own wobble.
   function takeShot(power, e) {
     const c = club();
     const b = G.ball;
-    const eff = (Math.sign(e) * Math.max(0, Math.abs(e) - 0.1)) / 0.9;
     const curve = c.curve || 1;
+    const faceDeg = G.setup.face / DEG, off = G.setup.head / HEAD_MAX;
+    const loss = 1 - 0.13 * Math.pow(Math.abs(off), 1.5);
+    const curl = faceDeg / 7 + off * 0.6 + e;
+    const startDeg = faceDeg * 0.75 + e * 1.6 * curve;
     G.shot = { start: { x: b.p.x, y: b.p.y, z: b.p.z }, club: c, power, e, putter: !!c.putter, stroke: G.strokes + 1, lie: G.lie };
     G.strokes++;
     UI.setStroke(G.strokes);
     if (c.putter) {
-      startRoll(b, G.aimYaw + eff * 1.6 * curve * DEG, puttSpeedFor(power * G.puttRange));
+      const putStart = faceDeg * 0.9 + e * 1.4 * curve;
+      startRoll(b, G.aimYaw + putStart * DEG, puttSpeedFor(power * G.puttRange) * loss);
       Sound.hit(power, true);
+      UI.setHint(`${gradeLabel(0, putStart, true)} · ${Math.round(power * 100)}% of ${G.puttRange * 3} ft`);
     } else {
       const spinMul = spinLieFactor(c, G.lie);
-      const speed = speedForCarry(c, power * c.carry * lieFactor(c, G.lie), spinMul);
+      const speed = speedForCarry(c, power * c.carry * lieFactor(c, G.lie), spinMul) * loss;
       if (G.ballState === 'tee') b.p.y += 0.045;
-      launchBall(b, G.aimYaw + eff * 2.0 * curve * DEG, speed, c.launch + (G.lie === S_SAND ? 3 : 0), spinFor(c, speed, spinMul), -eff * 22 * curve);
+      launchBall(b, G.aimYaw + startDeg * DEG, speed, c.launch + (G.lie === S_SAND ? 3 : 0), spinFor(c, speed, spinMul), -curl * 22 * curve);
       Sound.hit(power, false);
+      UI.setHint(`${gradeLabel(curl, startDeg, false)} · ${Math.round(power * 100)}% power`);
     }
     G.shotYaw = G.aimYaw;
     G.ballState = 'moving';
-    UI.setHint(`${gradeLabel(e, c.putter)} · ${Math.round(power * 100)}% power`);
     World.hideGuides();
     World.trailReset();
     G.trace = [{ x: b.p.x, z: b.p.z }];
@@ -733,6 +760,54 @@ function startGame(saved) {
     G.bounceSounds = 0;
     G.ballCam = true;
     G.ballCamTimer = 0;
+  }
+
+  // ---------- club setup: a close look at the club head behind the ball ----------
+  const FACE_MAX = 12 * DEG, HEAD_MAX = 0.045; // yards (about 4 cm either way)
+  function enterSetup() {
+    if (G.mode !== 'shot' || G.shotPhase !== 'aim' || G.setupView) return false;
+    G.setupView = true;
+    World.hideGuides();
+    UI.$('hud').classList.add('setup');
+    UI.$('setupBtn').textContent = 'Done';
+    setupHint();
+    Sound.click();
+    return true;
+  }
+  function leaveSetup() {
+    if (!G.setupView) return false;
+    G.setupView = false;
+    UI.$('hud').classList.remove('setup');
+    UI.$('setupBtn').textContent = 'Setup';
+    World.setAlignmentStick(null);
+    G.previewDirty = true;
+    UI.setHint(swingHint());
+    return true;
+  }
+  function setupWords() {
+    const f = G.setup.face / DEG, h = G.setup.head;
+    const fa = Math.abs(f);
+    const face = fa < 0.75 ? 'square' : `${fa < 3 ? 'a touch ' : fa < 7 ? '' : 'well '}${f > 0 ? 'open' : 'closed'}`;
+    const ha = Math.abs(h) / HEAD_MAX;
+    const hit = ha < 0.15 ? 'the middle of the face' : `${ha < 0.5 ? 'a little towards ' : ''}the ${h > 0 ? 'heel' : 'toe'}`;
+    return `Face <b>${face}</b> · ball on <b>${hit}</b>`;
+  }
+  function setupHint() {
+    UI.setHint(setupWords() + (isTouch()
+      ? '<br>◀ ▶ turn the face · ▲ ▼ club out or in'
+      : '<br><kbd>A</kbd> <kbd>D</kbd> turn the face · <kbd>W</kbd> <kbd>S</kbd> club out or in · <kbd>Q</kbd> done'));
+  }
+  function updateSetup(dt) {
+    let turn = 0, push = 0;
+    if (held('ArrowLeft', 'KeyA') || hold.left) turn -= 1;
+    if (held('ArrowRight', 'KeyD') || hold.right) turn += 1;
+    if (held('ArrowUp', 'KeyW') || hold.up) push += 1;
+    if (held('ArrowDown', 'KeyS') || hold.down) push -= 1;
+    if (!turn && !push) return;
+    const fine = held('ShiftLeft', 'ShiftRight') ? 0.3 : 1;
+    G.setup.face = clamp(G.setup.face + turn * 7 * DEG * fine * dt, -FACE_MAX, FACE_MAX);
+    G.setup.head = clamp(G.setup.head + push * 0.035 * fine * dt, -HEAD_MAX, HEAD_MAX);
+    setupHint();
   }
 
   // ---------- ball in motion ----------
@@ -775,7 +850,6 @@ function startGame(saved) {
     const onGreen = lie === S_GREEN || lie === S_FRINGE;
     UI.toast(`${shotName(s)} · ${fmtDist(dist, s.putter)}`, `${SURFACES[lie].label} · ${fmtDist(distToPin(), onGreen)} to the pin`, 2600);
     G.ballCamTimer = s.putter ? 1.0 : 1.6;
-    World.showSlope(G.hole, onGreen);
     setFlag(lie !== S_GREEN);
     if (G.strokes >= MAX_STROKES) pickUp();
   }
@@ -822,7 +896,6 @@ function startGame(saved) {
       'result' + (d < 0 || G.strokes === 1 ? ' under' : ''), 3200,
     );
     UI.setTotal(toPar(), true);
-    World.showSlope(G.hole, false);
     setFlag(true);
     G.ballCamTimer = 2.4;
     G.cardTimer = 3.4;
@@ -889,7 +962,7 @@ function startGame(saved) {
 
   // ---------- walking ----------
   const keys = new Set();
-  const hold = { left: false, right: false };
+  const hold = { left: false, right: false, up: false, down: false };
   const joy = { x: 0, y: 0, active: false };
   const held = (...codes) => codes.some((c) => keys.has(c));
 
@@ -984,6 +1057,15 @@ function startGame(saved) {
     const b = G.ball.p, d = dirFromYaw(G.aimYaw), r = rightOf(G.aimYaw);
     const putt = isPutt();
     const s = gScale();
+    if (G.setupView) {
+      // Looking down on the ball from just behind it, the target at the top
+      // of the screen: the face against the alignment stick, and where on
+      // the face the ball sits.
+      outPos.set(b.x - d.x * 0.42, b.y + 0.9, b.z - d.z * 0.42);
+      outLook.set(b.x - d.x * 0.03, b.y, b.z - d.z * 0.03);
+      World.setAlignmentStick({ x: b.x + r.x * 0.28, z: b.z + r.z * 0.28, yaw: G.aimYaw, face: golfer.faceInfo() });
+      return;
+    }
     if (G.fp) {
       const st = stanceFor(G.aimYaw);
       const gy = course.H(st.x, st.z);
@@ -1137,6 +1219,7 @@ function startGame(saved) {
       golfer.root.rotation.set(0, Math.PI - P.yaw, 0);
       pose = G.holdFinish ? { mode: 'swing', putt: G.swing.putt, swing: G.swing.a, club: club().kind } : { mode: 'walk', speed: P.speed, club: club().kind };
     }
+    golfer.setFace(G.mode === 'shot' ? G.setup.face : 0);
     golfer.update(dt, pose);
     // Hidden in first person, and when the bag close-up camera is right where he stands.
     const camInside = G.mode === 'bag' && Math.hypot(camera.position.x - P.x, camera.position.z - P.z) < 0.75 * golfer.scale;
@@ -1202,13 +1285,14 @@ function startGame(saved) {
     UI.marker('goalMarker', tm.x, tm.y, tm.behind, G.ballState === 'tee' && !inShot && !inBag && teeFar > 6, `Hole ${G.hole + 1} tee · ${Math.round(teeFar)}y`, tm.w, tm.h);
 
     const camYaw = yawFromDir(cam.look.x - cam.pos.x, cam.look.z - cam.pos.z);
-    UI.setWind(G.wind.mph, wrapAngle(G.wind.yaw - camYaw) / DEG);
 
     const items = [{ kind: 'pin', x: h.pin.x, z: h.pin.z }, { kind: 'cart', x: cart.st.x, z: cart.st.z, ang: cart.st.yaw }];
     if (G.ballState === 'tee') items.push({ kind: 'tee', x: h.tee.x, z: h.tee.z });
     if (G.ballState !== 'holed' && G.ballState !== 'gone') items.push({ kind: 'ball', x: b.x, z: b.z });
     if (!G.cad.riding) items.push({ kind: 'caddy', x: G.cad.x, z: G.cad.z });
-    const aim = inShot && G.preview.end ? { fx: b.x, fz: b.z, x: G.preview.end.x, z: G.preview.end.z } : null;
+    // The radar shows which way you're aiming, not how far it will go.
+    const ad = dirFromYaw(G.aimYaw);
+    const aim = inShot ? { fx: b.x, fz: b.z, x: b.x + ad.x * 90, z: b.z + ad.z * 90 } : null;
     UI.drawRadar({ px: P.x, pz: P.z, yaw: camYaw, heading: G.mode === 'cart' ? cart.st.yaw : P.yaw, items, aim });
     G.radarItems = items;
 
@@ -1216,7 +1300,7 @@ function startGame(saved) {
       G.introShown = true;
       UI.banner(
         `<div class="b-eyebrow">Hole ${G.hole + 1} of ${HOLES.length}</div><div class="b-title">${h.name}</div>` +
-          `<div class="b-meta">Par ${h.par} · ${h.yards} yds · Wind ${Math.round(G.wind.mph)} mph</div>`, '', 3600);
+          `<div class="b-meta">Par ${h.par} · ${h.yards} yds</div>`, '', 3600);
     }
   }
 
@@ -1278,6 +1362,7 @@ function startGame(saved) {
       if (G.mode === 'select') return backFromSelect();
       if (G.mode === 'bag') return exitBag();
       if (cancelSwing()) return;
+      if (leaveSetup()) return;
       if (G.mode === 'shot' && G.shotPhase === 'aim') return leaveShot();
       return;
     }
@@ -1306,12 +1391,14 @@ function startGame(saved) {
     const shot = G.mode === 'shot';
     if (k === 'Space') {
       if (shot && G.shotPhase === 'down') G.ff = true;
-      else if (shot) meterPress();
+      else if (shot && G.setupView) leaveSetup();
+      else if (shot) swingPress();
       else if (G.ballCam && G.ballState === 'moving') G.ff = true;
       else if (G.mode === 'walk') interact();
     } else if (k === 'KeyE' || k === 'Enter' || k === 'KeyF') {
-      if (shot && G.shotPhase === 'aim' && k === 'Enter') meterPress();
-      else interact();
+      if (!(shot && G.shotPhase !== 'aim')) interact();
+    } else if (k === 'KeyQ') {
+      if (shot && G.shotPhase === 'aim') { if (!leaveSetup()) enterSetup(); }
     } else if (k === 'KeyV') toggleFP();
     else if (k === 'KeyT') { if (shot) G.view = (G.view + 1) % 3; }
     else if (k === 'KeyC') showCard(false);
@@ -1321,16 +1408,16 @@ function startGame(saved) {
   });
   window.addEventListener('keyup', (e) => {
     keys.delete(e.code);
-    if (e.code === 'Space') G.ff = false;
+    if (e.code === 'Space') { G.ff = false; swingRelease(); }
   });
-  window.addEventListener('blur', () => { keys.clear(); G.ff = false; hold.left = hold.right = false; });
+  window.addEventListener('blur', () => { keys.clear(); G.ff = false; hold.left = hold.right = hold.up = hold.down = false; cancelSwing(); });
 
   // Mouse look (pointer lock on desktop, drag as a fallback and on touch).
   function applyLook(dx, dy, touch) {
     G.lastMouse = G.time;
     const s = touch ? 0.006 : 0.0024;
     if (G.mode === 'shot') {
-      if (G.shotPhase === 'aim') {
+      if (G.shotPhase === 'aim' && !G.setupView) {
         G.aimYaw = wrapAngle(G.aimYaw + dx * (isPutt() ? 0.0009 : 0.0018) * (touch ? 2 : 1));
         G.aimTouched = true;
         G.previewDirty = true;
@@ -1425,7 +1512,9 @@ function startGame(saved) {
   }
   holdButton('aimLeft', () => (hold.left = true), () => (hold.left = false));
   holdButton('aimRight', () => (hold.right = true), () => (hold.right = false));
-  holdButton('swingBtn', () => meterPress(), () => {});
+  holdButton('setUp', () => (hold.up = true), () => (hold.up = false));
+  holdButton('setDown', () => (hold.down = true), () => (hold.down = false));
+  holdButton('swingBtn', () => swingPress(), () => swingRelease());
   // A tap on the action button can swap the controls under the finger (the
   // bag's Close button sits where it was); swallow the click that follows.
   let swallowClicksUntil = 0;
@@ -1436,9 +1525,9 @@ function startGame(saved) {
     swallowClicksUntil = performance.now() + 500;
     if (G.ballCam && G.ballState === 'moving') G.ff = true; else interact();
   }, () => (G.ff = false));
-  UI.$('meter').addEventListener('pointerdown', (e) => { e.preventDefault(); meterPress(); });
   UI.$('viewBtn').addEventListener('click', () => (G.view = (G.view + 1) % 3));
-  UI.$('backBtn').addEventListener('click', () => { if (!cancelSwing()) leaveShot(); });
+  UI.$('backBtn').addEventListener('click', () => { if (!cancelSwing() && !leaveSetup()) leaveShot(); });
+  UI.$('setupBtn').addEventListener('click', () => { if (G.shotPhase === 'aim' && !leaveSetup()) enterSetup(); });
   UI.$('fpBtn').addEventListener('click', toggleFP);
   UI.$('cardBtn').addEventListener('click', () => showCard(false));
   UI.$('mapBtn').addEventListener('click', () => openOverlay('map'));
@@ -1497,10 +1586,10 @@ function startGame(saved) {
       else if (G.mode === 'bag') {
         if (G.bagExit > 0) { G.bagExit -= dt; if (G.bagExit <= 0) exitBag(); }
       } else if (G.mode === 'shot') {
-        if (G.shotPhase === 'aim') updateAim(dt);
-        else if (G.shotPhase === 'swing') updateMeter(dt);
+        if (G.shotPhase === 'aim') { if (G.setupView) updateSetup(dt); else updateAim(dt); }
+        else if (G.shotPhase === 'swing') updateBackswing(dt);
         else if (G.shotPhase === 'down') updateDownswing(dt);
-        if (G.shotPhase === 'aim' && G.previewDirty) computePreview();
+        if (G.shotPhase === 'aim' && G.previewDirty && !G.setupView) computePreview();
       }
       updateBall(dt);
       if (G.pending) {
@@ -1593,12 +1682,13 @@ function startGame(saved) {
 
   // Small API for automated tests and console tinkering.
   return {
-    G, course, cart, bag, meterPress, takeShot, enterShot, leaveShot, interact, enterCart, exitCart, activateHole,
+    G, course, cart, bag, swingPress, swingRelease, enterSetup, leaveSetup, takeShot, enterShot, leaveShot, interact, enterCart, exitCart, activateHole,
     startRound, placePlayer, nextFromCard, recommendedClub, openSelect, chooseSelect, confirmSelect, enterBag, exitBag, selectClub, openWorkshop,
     get golfer() { return golfer; }, caddy, bagBase,
     swingNow(power, e) {
       if (G.mode !== 'shot' || G.shotPhase !== 'aim') return false;
-      G.swing = { a: 0, top: isPutt() ? 0.5 : 2.5, t: 0, fired: false, finish: 0, putt: isPutt() };
+      leaveSetup();
+      G.swing = { a: 0, top: isPutt() ? 0.5 : 2.5, t: 0, fired: false, finish: 0, putt: isPutt(), p: power };
       startDownswing(power, e);
       return true;
     },

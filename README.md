@@ -2,7 +2,7 @@
 
 A 3D golf game that runs in any modern web browser. Pick one of three golfers
 and play a nine-hole, par-36 course: walk (or drive the cart) to your ball,
-address it, swing with a classic three-press meter, then head after it. Your
+address it, hold to wind up and let go to swing, then head after it. Your
 caddy follows you with the bag; walk up to it to change clubs. When you hole
 out, follow the marker to the next tee.
 
@@ -26,16 +26,33 @@ always at
 | Play your shot | walk up to the ball, press `E` | **Play shot** |
 | Change clubs | walk up to the bag, press `E`, click a club (or `1`–`5`) | **Clubs**, then tap a club |
 | Aim | `A` `D` or mouse | ◀ ▶ |
-| Swing | `Space` three times: start, set power, stop on the white line | **Swing** three times |
+| Swing | hold `Space` to wind up, let go to hit | hold **Swing**, let go |
+| Look at the club | `Q`; then `A` `D` turn the face, `W` `S` push the club out or pull it in | **Setup**; ◀ ▶ and ▲ ▼ |
 | Shot camera | `T`: behind, landing area, overhead | **View** |
 | Step away from the ball | `E` or `Esc` | **Back** |
 | Drive the cart | `E` next to it; `W` `S` drive, `A` `D` steer, `Space` brake, `E` to get out | **Drive** / **Get out** |
 | Fast-forward the ball | hold `Space` while the camera follows it | hold the action button |
 | Course map / scorecard / sound / help | `M` / `C` / `N` / `H` | buttons at the top right |
 
-Early on the third press hooks the ball left; late slices it right. The yellow
-ring shows where a full-power shot lands with no wind. On the green, arrows
-show the slope. Moving takes you back from the ball camera to your golfer.
+**Swinging by feel.** Hold to wind up: how far back your golfer gets is how
+hard he hits, and he waits at the top for as long as you hold. Hang there too
+long and he tenses up, and the strike starts to wander. A short dashed line
+shows which way and how high the ball sets off, not where it lands.
+
+**Shaping the shot.** The close-up (`Q`) looks down on the club behind the
+ball, with an alignment stick pointing where you're aimed and a faint line
+showing where the face points. An open face starts the ball right and curves
+it right; a closed face the other way. Pushing the club out puts the ball on
+the heel, which fades it; pulling it in puts it on the toe, which draws it.
+Off-centre strikes lose a little distance. To hook one round a corner, aim
+right of it and close the face.
+
+**Reading the wind.** There's no wind dial. Faint streaks drift through the
+air with it (more and faster the stronger it blows); two flags frame every
+tee, pennants stand around each hole, flags fly from the castle and tower,
+your caddy carries one on his back, and the flag in the hole streams out
+straight in a gale and hangs limp in a calm. On the green, read the slope
+from the ground. Moving takes you back from the ball camera to your golfer.
 
 ### Golfers, clubs and the caddy
 
@@ -47,10 +64,10 @@ show the slope. Moving takes you back from the ball camera to your golfer.
 
 | Club | Full carry | Its niche |
 | --- | --- | --- |
-| Driver | 235 yds | longest, low flight and lots of roll; fast meter that curves the ball most; loses 14% off the fairway and much more from rough or sand |
+| Driver | 235 yds | longest, low flight and lots of roll; quickest backswing and curves the ball most; loses 14% off the fairway and much more from rough or sand |
 | 4 iron | 185 yds | long approaches; struggles from sand and deep rough |
 | 8 iron | 140 yds | high, spinning approach that stops on the green |
-| Chipping wedge | 95 yds | slow, forgiving meter; best out of bunkers and rough, keeps its spin |
+| Chipping wedge | 95 yds | slow, forgiving backswing; best out of bunkers and rough, keeps its spin |
 | Putter | up to 165 ft | rolls along the ground |
 
 The caddy (McBeaty's build, all in white) walks a few yards behind you and
@@ -139,13 +156,14 @@ src/maps/             the images painted holes are built from
 src/js/assets.js      asset registry: built-in models/textures, custom replacements, glTF in/out
 src/js/publish.js     commits Workshop changes to the GitHub repository
 src/js/atmosphere.js  haze, cloud shadows, dust motes; bloom, sun shafts and colour grading
+src/js/wind.js        wind you can see: waving flags and streaks in the air
 src/js/world.js       three.js rendering: chunked terrain, trees, water, flags, clubhouse
 src/js/scenery.js     castle, tower, houses, bridge, fences and boulders for painted holes
 src/js/equipment.js   club and bag models, the bag close-up
 src/js/character.js   the golfer bodies (rigs) and their procedural animation
 src/js/cart.js        the golf cart model and driving physics
 src/js/workshop.js    the Workshop screen
-src/js/ui.js          HUD, swing meter, markers, radar, course map, scorecard
+src/js/ui.js          HUD, shot hints, markers, radar, course map, scorecard
 src/js/audio.js       synthesised sound effects (WebAudio)
 src/js/main.js        game flow, player and camera control, input
 vendor/three.min.js   three.js r158 (MIT, see vendor/THREE-LICENSE)
@@ -169,7 +187,7 @@ centre line from tee to the middle of the green, plus ellipses for bunkers and
 water, all in yards with play heading towards −Z) and then placed on the
 property with `at: [x, z, heading]`. Run `node tests/course-check.js out/` to
 check that holes don't overlap and to render a map of the layout. Tune club
-distances in `src/js/data.js`; the swing meter recalibrates automatically.
+distances in `src/js/data.js`; full power always gives the full carry.
 
 ### Painted holes
 
@@ -210,7 +228,8 @@ The hole's `map` entry in `course.js` gives the image ids and how to read
 them, all in pixels of the surface map: `scale` (yards per pixel), `tee` (the
 pixel placed at `at`), `pin`, `heights` (yards for black and white), `line`
 (the line of play, used for the yardage and the aim), `props` (buildings and
-bridges: centre pixel, footprint in yards, turn in degrees) and `fences`.
+bridges: centre pixel, footprint in yards, turn in degrees, and `flags`:
+spots across the footprint where a flag flies from the roof) and `fences`.
 `fallback` is a plain hole played if the images can't be loaded.
 
 To make one from an illustration, paint a top-down view and a matching height
