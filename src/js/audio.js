@@ -65,15 +65,16 @@ const Sound = (() => {
     swing(power) {
       noiseBurst({ dur: 0.22, f: 500, f2: 2200, q: 1.2, vol: 0.12 + 0.12 * power, attack: 0.08 });
     },
-    hit(power, putter) {
+    // g: loudness (other players' shots fade with distance).
+    hit(power, putter, g = 1) {
       if (putter) {
-        tone({ f: 1250, f2: 900, dur: 0.06, vol: 0.18 + 0.2 * power });
-        noiseBurst({ dur: 0.03, f: 3000, q: 2, vol: 0.08 });
+        tone({ f: 1250, f2: 900, dur: 0.06, vol: (0.18 + 0.2 * power) * g });
+        noiseBurst({ dur: 0.03, f: 3000, q: 2, vol: 0.08 * g });
         return;
       }
-      noiseBurst({ dur: 0.05, f: 2600, q: 0.8, vol: 0.5 + 0.3 * power, attack: 0.001 });
-      tone({ f: 190, f2: 70, dur: 0.12, vol: 0.35 + 0.2 * power, attack: 0.001 });
-      tone({ f: 1800, f2: 1400, dur: 0.05, type: 'triangle', vol: 0.07 });
+      noiseBurst({ dur: 0.05, f: 2600, q: 0.8, vol: (0.5 + 0.3 * power) * g, attack: 0.001 });
+      tone({ f: 190, f2: 70, dur: 0.12, vol: (0.35 + 0.2 * power) * g, attack: 0.001 });
+      tone({ f: 1800, f2: 1400, dur: 0.05, type: 'triangle', vol: 0.07 * g });
     },
     bounce(speed, surf) {
       const v = clamp(speed / 25, 0.05, 1);
@@ -91,10 +92,10 @@ const Sound = (() => {
       noiseBurst({ dur: 0.7, type: 'lowpass', f: 3000, f2: 300, q: 0.7, vol: 0.45, attack: 0.01 });
       for (let i = 0; i < 6; i++) tone({ t: 0.15 + i * 0.07 + Math.random() * 0.05, f: 500 + Math.random() * 600, f2: 1400, dur: 0.06, vol: 0.05 });
     },
-    cup() {
-      tone({ f: 1500, f2: 1300, dur: 0.05, type: 'triangle', vol: 0.18 });
-      tone({ t: 0.09, f: 1100, f2: 900, dur: 0.06, type: 'triangle', vol: 0.16 });
-      tone({ t: 0.17, f: 260, f2: 120, dur: 0.18, vol: 0.3 });
+    cup(g = 1) {
+      tone({ f: 1500, f2: 1300, dur: 0.05, type: 'triangle', vol: 0.18 * g });
+      tone({ t: 0.09, f: 1100, f2: 900, dur: 0.06, type: 'triangle', vol: 0.16 * g });
+      tone({ t: 0.17, f: 260, f2: 120, dur: 0.18, vol: 0.3 * g });
     },
     lip() { tone({ f: 900, f2: 700, dur: 0.05, type: 'triangle', vol: 0.12 }); },
     applause(strength) {

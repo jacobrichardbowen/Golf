@@ -4,7 +4,8 @@ A 3D golf game that runs in any modern web browser. Pick one of three golfers
 and play a nine-hole, par-36 course: walk (or drive the cart) to your ball,
 address it, hold to wind up and let go to swing, then head after it. Your
 caddy follows you with the bag; walk up to it to change clubs. When you hole
-out, follow the marker to the next tee.
+out, follow the marker to the next tee. Play alone, or online with up to two
+friends, all on the course at once.
 
 ## Play
 
@@ -53,6 +54,35 @@ tee, pennants stand around each hole, flags fly from the castle and tower,
 your caddy carries one on his back, and the flag in the hole streams out
 straight in a gale and hangs limp in a calm. On the green, read the slope
 from the ground. Moving takes you back from the ball camera to your golfer.
+
+### Playing with friends
+
+Up to three golfers can play a round together, each on their own computer or
+phone, all out on the course at the same time.
+
+1. Everyone opens the game and picks **Play with friends** on the title
+   screen, types a name and chooses a golfer.
+2. One player picks **Host a game** and gets a four-letter code. The others
+   type the code and press **Join**.
+3. When everyone's listed, the host presses **Tee off**.
+
+Each of you plays your own ball (white for the host, then orange and pink),
+with your own caddy and cart, from your own spot on each tee. You see the
+others walking, driving and swinging, with their names over their heads, on
+the radar and in the list under the hole plate, and you hear their shots.
+Everyone feels the same wind on the same hole. When you hole out the
+scorecard shows all three of you; it waits until the others have holed out
+too (press **Watch** to close it and look on, or **Go on ahead** if someone's
+dawdling). **Leave game** on the scorecard heads back to the clubhouse.
+
+Online play needs an internet connection. The game uses the free public
+[PeerJS](https://peerjs.com/) server only to introduce your browsers to each
+other; after that they talk directly. If the host leaves, the others can
+still finish their rounds alone. Some strict networks (office or school
+firewalls, a few mobile carriers) block direct connections between browsers;
+if joining hangs, try another network. It works from `Golf.html` and the
+released download; inside the claude.ai Artifact it may be blocked by the
+page's sandbox. Online rounds aren't saved for resuming.
 
 ### Golfers, clubs and the caddy
 
@@ -163,11 +193,14 @@ src/js/equipment.js   club and bag models, the bag close-up
 src/js/character.js   the golfer bodies (rigs) and their procedural animation
 src/js/cart.js        the golf cart model and driving physics
 src/js/workshop.js    the Workshop screen
+src/js/net.js         online play: hosting, joining and passing messages (PeerJS)
+src/js/remote.js      the other players in an online round: golfer, caddy, cart, bag, ball, name tag
 src/js/ui.js          HUD, shot hints, markers, radar, course map, scorecard
 src/js/audio.js       synthesised sound effects (WebAudio)
 src/js/main.js        game flow, player and camera control, input
 vendor/three.min.js   three.js r158 (MIT, see vendor/THREE-LICENSE)
 vendor/three-addons/  three.js glTF loader/exporter modules, converted to plain scripts by build.py
+vendor/peerjs.min.js  PeerJS 1.5.5, browser-to-browser connections (MIT, see vendor/PEERJS-LICENSE)
 assets/               models/textures that replace the built-in ones (written by the Workshop)
 tools/                paint_to_map.py (illustration -> painted hole images), blender/ (course starter)
 .github/workflows/    rebuilds Golf.html when sources or assets change, publishes the download
@@ -265,7 +298,12 @@ node tests/workshop.js [outDir]       # Workshop: download, replace, reload, exp
 node tests/publish.js [outDir]        # Workshop "Commit to project" against a mock of GitHub's API
 node tests/mobile.js [outDir]         # touch layout screenshots, portrait and landscape
 node tests/tour.js [outDir] [holes]   # address-view screenshots from each tee
+node tests/net.js                     # online play's messages: join, the 3-golfer limit, relays, leaving (needs `npx peer --port 9000`)
+node tests/online.js [outDir]         # three browsers play a hole together (same server; slow)
 ```
+
+`Golf.html?peer=host:port` uses your own PeerJS server instead of the public
+one (the online test does this).
 
 `Golf.html?hq` keeps full resolution and every effect (otherwise slow devices
 first lower the resolution, then switch off bloom and the sun shafts).

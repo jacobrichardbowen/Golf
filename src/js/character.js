@@ -490,5 +490,15 @@ const Golfer = (() => {
   // Map a club from the bag to its model.
   const kindFor = (club) => club.kind;
 
-  return { create, kindFor, styleFor };
+  // The caddy, with a flag on a pole strapped to his back: the wind goes where he goes.
+  function createCaddy() {
+    const c = create(CADDY);
+    const f = WindCues.makeFlag({ height: 2.5, w: 0.9, h: 0.58, color: WindCues.PALETTE[0], emblem: 'disc', pole: 0x5a4330 });
+    f.position.set(0.12, -0.2, -0.3); // in the spine joint's frame (unscaled body)
+    f.rotation.x = -0.1;
+    c.joints.spine.add(f);
+    return c;
+  }
+
+  return { create, createCaddy, kindFor, styleFor };
 })();

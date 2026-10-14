@@ -41,14 +41,7 @@ function startGame(saved) {
   cart.place(COURSE.cartStart.x, COURSE.cartStart.z, (COURSE.cartStart.heading || 0) * DEG);
   const bag = Equipment.createBag();
   World.add(bag.root);
-  const caddy = Golfer.create(CADDY);
-  // A flag on a pole strapped to the caddy's back: the wind goes where he goes.
-  {
-    const f = WindCues.makeFlag({ height: 2.5, w: 0.9, h: 0.58, color: WindCues.PALETTE[0], emblem: 'disc', pole: 0x5a4330 });
-    f.position.set(0.12, -0.2, -0.3); // in the spine joint's frame (unscaled body)
-    f.rotation.x = -0.1;
-    caddy.joints.spine.add(f);
-  }
+  const caddy = Golfer.createCaddy();
   caddy.setVisible(false);
   World.add(caddy.root);
   let golfer = null;     // the player's golfer, created after choosing a character
@@ -70,6 +63,7 @@ function startGame(saved) {
     wind: { x: 0, z: 0, mph: 0, yaw: 0 }, introShown: false, cardTimer: 0, pending: null, trace: [],
     time: 0, inRound: false, locked: false, toastGate: 0, stepT: 0, acc: 0, bounceSounds: 0,
     select: { index: 0, waveT: 0, resume: null },
+    mp: null, // an online round: { seed, slot, name, players, remotes, ... }
   };
   window.__golf = G; // handy for debugging from the console
   window.__golfWorld = World;
@@ -96,7 +90,8 @@ function startGame(saved) {
 
   function setWind() {
     const def = hole().def;
-    const r = mulberry32((def.seed || 1) * 13 + (Date.now() & 0xffff));
+    // Online, everyone feels the same wind on the same hole.
+    const r = mulberry32(G.mp ? (G.mp.seed + (G.hole + 1) * 7919) >>> 0 : (def.seed || 1) * 13 + (Date.now() & 0xffff));
     const [lo, hi] = def.wind || [0, 10];
     const mph = lo + r() * (hi - lo);
     const yaw = r() * TAU;
@@ -118,14 +113,29 @@ function startGame(saved) {
     Object.assign(G.cad, { x, z, y: course.H(x, z), yaw, speed: 0, riding: false, stuck: 0 });
   }
 
+  // Where you tee up. Online, each golfer has their own spot four yards along
+  // the tee from the next, so nobody stands in anyone's way.
+  function teeSpot(h) {
+    const off = G.mp ? [0, -4, 4][G.mp.slot] || 0 : 0;
+    if (!off) return { x: h.tee.x, z: h.tee.z };
+    const rx = -h.teeDir.z, rz = h.teeDir.x;
+    for (const f of [1, 0.75, 0.5]) {
+      const x = h.tee.x + rx * off * f, z = h.tee.z + rz * off * f;
+      if (course.surface(x, z) === S_TEE) return { x, z };
+    }
+    return { x: h.tee.x + rx * off * 0.5, z: h.tee.z + rz * off * 0.5 };
+  }
+
   // ---------- holes & round ----------
   function activateHole(i) {
     G.hole = i;
     G.strokes = 0;
+    G.cardAfterHole = false;
     G.field = course.fieldFor(HOLES[i]);
     setWind();
     const h = hole();
-    placeBall(h.tee.x, h.tee.z, true);
+    const t = teeSpot(h);
+    placeBall(t.x, t.z, true);
     G.introShown = false;
     G.trace = [];
     World.trailReset();
@@ -155,10 +165,13 @@ function startGame(saved) {
     G.bagSpot = null;
     const h = hole();
     if (at === 0) {
-      const cl = course.clubhouse;
-      placePlayer(cl.x - 8, cl.z - 18, -0.6);
-      cart.place(COURSE.cartStart.x, COURSE.cartStart.z, (COURSE.cartStart.heading || 0) * DEG);
-      UI.toast('Welcome to Pinehaven', 'Walk to the 1st tee, or hop in the cart. Your caddy has the bag.', 3800);
+      // Online, everyone starts side by side, each with their own cart.
+      const cl = course.clubhouse, k = G.mp ? [0, -1, 1][G.mp.slot] || 0 : 0;
+      const pr = rightOf(-0.6), cs = COURSE.cartStart, ch = (cs.heading || 0) * DEG, cr = rightOf(ch);
+      placePlayer(cl.x - 8 + pr.x * 2.2 * k, cl.z - 18 + pr.z * 2.2 * k, -0.6);
+      cart.place(cs.x + cr.x * 3 * k, cs.z + cr.z * 3 * k, ch);
+      if (G.mp) UI.toast('Out on the course together', 'Everyone plays their own ball. Wait for each other at the end of each hole.', 4200);
+      else UI.toast('Welcome to Pinehaven', 'Walk to the 1st tee, or hop in the cart. Your caddy has the bag.', 3800);
     } else {
       const back = { x: h.tee.x - h.teeDir.x * 12, z: h.tee.z - h.teeDir.z * 12 };
       placePlayer(back.x, back.z, yawFromDir(h.teeDir.x, h.teeDir.z));
@@ -176,6 +189,7 @@ function startGame(saved) {
   }
 
   function saveProgress() {
+    if (G.mp) return; // online rounds can't be resumed
     const st = store.load();
     st.round = { scores: G.scores.slice(), next: G.hole };
     st.character = G.character;
@@ -186,7 +200,7 @@ function startGame(saved) {
     const total = G.scores.reduce((a, s) => a + s, 0);
     const st = store.load();
     if (!st.best || total < st.best) st.best = total;
-    st.round = null;
+    if (!G.mp) st.round = null;
     store.save(st);
     G.inRound = false;
   }
@@ -900,6 +914,7 @@ function startGame(saved) {
     G.ballCamTimer = 2.4;
     G.cardTimer = 3.4;
     saveProgress();
+    sendScore();
   }
 
   function pickUp() {
@@ -909,19 +924,34 @@ function startGame(saved) {
     UI.setTotal(toPar(), true);
     G.cardTimer = 2.6;
     saveProgress();
+    sendScore();
   }
 
+  // afterHole: you've finished the hole and the card leads on to the next.
+  // Online, it waits for the others to hole out too (you can watch them, or
+  // go on ahead).
   function showCard(afterHole) {
     const last = G.hole >= HOLES.length - 1;
     const done = afterHole && last;
-    UI.renderCard(HOLES, G.scores, G.hole, {
+    const wait = afterHole ? stillPlaying(G.hole) : [];
+    const opts = {
       title: done ? 'Final round' : afterHole ? `After ${G.hole + 1}` : 'Scorecard',
-      next: afterHole ? (done ? 'Play again' : `On to the ${ordinal(G.hole + 2)}`) : null,
-      closable: !afterHole,
-    });
+      next: afterHole ? (done ? (G.mp ? 'Back to the clubhouse' : 'Play again') : wait.length ? 'Go on ahead' : `On to the ${ordinal(G.hole + 2)}`) : null,
+      closable: !afterHole || wait.length > 0,
+      closeLabel: afterHole && wait.length ? 'Watch' : 'Close',
+      leave: !!G.mp && !done,
+    };
+    if (G.mp) {
+      opts.players = cardRows();
+      if (wait.length) opts.sub = `Waiting for ${listNames(wait)} to hole out`;
+      else if (afterHole && G.mp.players.size > 1) opts.sub = 'Everyone’s in';
+    }
+    UI.renderCard(HOLES, G.scores, G.hole, opts);
     G.cardAfterHole = afterHole;
+    G.cardClosable = opts.closable;
+    G.cardWaiting = wait.length > 0;
     openOverlay('card');
-    if (done) finishRound();
+    if (done && G.inRound) finishRound();
   }
 
   function nextFromCard() {
@@ -929,13 +959,314 @@ function startGame(saved) {
     if (!G.cardAfterHole) return;
     G.cardAfterHole = false;
     if (G.hole >= HOLES.length - 1) {
-      startRound(0, []);
+      if (G.mp) backToTitle(); else startRound(0, []);
       return;
     }
     activateHole(G.hole + 1);
     const h = hole();
     UI.toast(`Next: the ${ordinal(G.hole + 1)} tee`, `${Math.round(distTo(h.tee.x, h.tee.z))} yds away · follow the red marker`, 3000);
     saveProgress();
+  }
+
+  // ---------- online play ----------
+  // Up to three golfers on their own devices (see net.js). Each plays their
+  // own ball; everyone sends where they are a few times a second and draws the
+  // others from that (remote.js). Scores are swapped as each hole is finished.
+  const defaultName = (slot) => `Player ${slot + 1}`;
+  const listNames = (a) => (a.length <= 1 ? a.join('') : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1]);
+  const lobby = { char: 0, busy: false, token: 0, nameT: 0 };
+
+  function openLobby() {
+    Sound.init();
+    const st = store.load();
+    lobby.char = clamp(st.character != null ? st.character : 0, 0, CHARACTERS.length - 1);
+    UI.$('lbName').value = st.name || '';
+    renderLobbyChars();
+    lobbyStatus('');
+    lobbyView();
+    UI.show('title', false);
+    UI.show('lobby', true);
+  }
+  function closeLobby() {
+    lobby.token++;
+    lobby.busy = false;
+    Net.leave();
+    UI.show('lobby', false);
+    UI.show('title', true);
+  }
+  function lobbyMe() { return { char: lobby.char, name: Net.cleanName(UI.$('lbName').value) }; }
+  function saveMe() {
+    const st = store.load();
+    st.character = lobby.char;
+    st.name = Net.cleanName(UI.$('lbName').value);
+    store.save(st);
+  }
+  function renderLobbyChars() {
+    UI.$('lbChars').innerHTML = CHARACTERS.map((c, i) =>
+      `<button class="lb-char${i === lobby.char ? ' on' : ''}" data-i="${i}"><b>${c.name}</b><span>${c.heightLabel}</span></button>`).join('');
+    UI.$('lbChars').querySelectorAll('.lb-char').forEach((el) => el.addEventListener('click', () => {
+      lobby.char = Number(el.dataset.i);
+      renderLobbyChars();
+      saveMe();
+      if (Net.active) Net.setMe(lobbyMe());
+      Sound.click();
+    }));
+  }
+  function lobbyStatus(text, bad) {
+    const el = UI.$('lbStatus');
+    el.textContent = text || '';
+    el.classList.toggle('bad', !!bad);
+  }
+  // Before connecting: host or join. After: the code and who's in.
+  function lobbyView() {
+    const inRoom = Net.active;
+    UI.show('lbStart', !inRoom);
+    UI.show('lbRoom', inRoom);
+    UI.show('lbLead', !inRoom); // room for the player list on small screens
+    UI.$('lbHost').disabled = UI.$('lbJoin').disabled = lobby.busy;
+    if (!inRoom) return;
+    UI.text('lbCodeShow', Net.code);
+    const pl = Net.players.slice().sort((a, b) => a.slot - b.slot);
+    UI.$('lbPlayers').innerHTML = pl.map((p) => {
+      const c = CHARACTERS[p.char] || CHARACTERS[0];
+      const who = [p.slot === Net.slot ? 'You' : '', p.slot === 0 ? 'Host' : ''].filter(Boolean).join(' · ');
+      return `<li><i style="background:${Remote.COLORS[p.slot]}"></i><b>${UI.esc(p.name || defaultName(p.slot))}</b>` +
+        `<span>${UI.esc(c.name)}</span>${who ? `<em>${who}</em>` : ''}</li>`;
+    }).join('');
+    UI.show('lbGo', Net.isHost);
+    UI.show('lbWait', !Net.isHost);
+    if (Net.isHost) UI.$('lbGo').textContent = pl.length > 1 ? `Tee off · ${pl.length} golfers` : 'Tee off';
+  }
+
+  async function hostGame() {
+    if (lobby.busy) return;
+    saveMe();
+    const token = ++lobby.token;
+    lobby.busy = true;
+    lobbyView();
+    lobbyStatus('Setting up a game…');
+    try {
+      await Net.host(lobbyMe());
+      if (token !== lobby.token) return;
+      lobbyStatus('Give your friends the code: they choose Play with friends, type it in and press Join.');
+    } catch (e) {
+      if (token !== lobby.token) return;
+      Net.leave();
+      lobbyStatus(String(e), true);
+    }
+    lobby.busy = false;
+    lobbyView();
+  }
+  async function joinGame() {
+    if (lobby.busy) return;
+    const code = UI.$('lbCode').value.trim().toUpperCase();
+    if (!/^[A-Z]{4}$/.test(code)) { lobbyStatus('A game code is four letters.', true); return; }
+    saveMe();
+    const token = ++lobby.token;
+    lobby.busy = true;
+    lobbyView();
+    lobbyStatus('Looking for that game…');
+    try {
+      await Net.join(code, lobbyMe());
+      if (token !== lobby.token) return;
+      lobbyStatus('You’re in. The host tees off when everyone’s here.');
+    } catch (e) {
+      if (token !== lobby.token) return;
+      lobbyStatus(String(e), true);
+    }
+    lobby.busy = false;
+    lobbyView();
+  }
+  function teeOffOnline() {
+    if (!Net.isHost || !Net.active) return;
+    Net.start(Math.floor(Math.random() * 0x7fffffff));
+  }
+
+  // The host said go: everyone heads for the first tee.
+  function startMultiplayer(seed) {
+    if (G.mp || !Net.active) return;
+    const me = Net.slot;
+    G.mp = { seed: seed >>> 0, slot: me, name: '', players: new Map(), remotes: new Map(), sendT: 0, listT: 0 };
+    for (const p of Net.players) mpPlayer(p.slot, { ch: p.char, nm: p.name });
+    G.mp.name = G.mp.players.get(me).name;
+    UI.show('lobby', false);
+    setCharacter(G.mp.players.get(me).char);
+    World.setBallColor(Remote.COLORS[me]);
+    startRound(0, []);
+    UI.show('mpList', true);
+    renderMpList();
+  }
+  // What we know about each golfer in the round (scores outlive their avatar).
+  function mpPlayer(s, m) {
+    let p = G.mp.players.get(s);
+    if (!p) {
+      p = { slot: s, name: '', char: clamp((m && m.ch) | 0, 0, CHARACTERS.length - 1), color: Remote.COLORS[s], scores: [], left: false };
+      p.name = (m && Net.cleanName(m.nm)) || defaultName(s);
+      G.mp.players.set(s, p);
+    }
+    return p;
+  }
+  const validSlot = (s) => s === 0 || s === 1 || s === 2;
+
+  function onRemoteState(m) {
+    if (!G.mp || !validSlot(m.s) || m.s === G.mp.slot || !Array.isArray(m.g) || !Array.isArray(m.c) || !Array.isArray(m.k) || !Array.isArray(m.b)) return;
+    const p = mpPlayer(m.s, m);
+    if (p.left) return;
+    let r = G.mp.remotes.get(m.s);
+    if (!r) {
+      r = Remote.create(m.s, { char: p.char, name: p.name }, course, UI.$('hud'));
+      G.mp.remotes.set(m.s, r);
+    }
+    r.apply(m);
+    p.name = r.name;
+  }
+
+  function sendScore() {
+    if (!G.mp) return;
+    Net.send({ t: 'score', h: G.hole, n: G.scores[G.hole] });
+    checkGroupDone();
+  }
+  function onRemoteScore(m) {
+    if (!G.mp || !validSlot(m.s) || m.s === G.mp.slot) return;
+    const h = m.h | 0, n = m.n | 0;
+    if (h < 0 || h >= HOLES.length || n < 1) return;
+    const p = mpPlayer(m.s);
+    p.scores[h] = n;
+    if (G.mode !== 'title') {
+      UI.toast(`${UI.esc(p.name)}: ${n >= MAX_STROKES ? 'Picked up' : scoreName(n, HOLES[h].par)}`, `Hole ${h + 1} · ${n} stroke${n === 1 ? '' : 's'}`, 2600);
+    }
+    checkGroupDone();
+    renderMpList();
+  }
+  // The others still playing the hole you've finished.
+  function stillPlaying(h) {
+    if (!G.mp) return [];
+    const out = [];
+    for (const p of G.mp.players.values()) if (p.slot !== G.mp.slot && !p.left && p.scores[h] == null) out.push(p.name);
+    return out;
+  }
+  // Everyone's holed out: bring the card back to lead on to the next tee.
+  function checkGroupDone() {
+    if (!G.mp || !G.cardAfterHole || G.cardTimer > 0) return;
+    if (UI.isShown('card') && !G.cardWaiting) return;
+    if (stillPlaying(G.hole).length) { if (UI.isShown('card')) showCard(true); return; }
+    showCard(true);
+    Sound.click();
+  }
+  function cardRows() {
+    const rows = [];
+    for (const p of [...G.mp.players.values()].sort((a, b) => a.slot - b.slot)) {
+      const me = p.slot === G.mp.slot;
+      rows.push({ name: me ? G.mp.name || defaultName(p.slot) : p.name, color: p.color, scores: me ? G.scores : p.scores, me, left: p.left });
+    }
+    return rows;
+  }
+
+  function onRemoteLeft(s, quiet) {
+    if (!G.mp) return;
+    const r = G.mp.remotes.get(s);
+    if (r) { r.dispose(); G.mp.remotes.delete(s); }
+    const p = G.mp.players.get(s);
+    if (p && !p.left) {
+      p.left = true;
+      if (!quiet) UI.toast(`${UI.esc(p.name)} left the game`, 'You can carry on without them', 2600, true);
+    }
+    checkGroupDone();
+    renderMpList();
+  }
+  function onHostGone() {
+    if (!G.mp) {
+      if (UI.isShown('lobby')) { lobby.busy = false; lobbyView(); lobbyStatus('The host closed the game.', true); }
+      return;
+    }
+    for (const p of G.mp.players.values()) if (p.slot !== G.mp.slot) onRemoteLeft(p.slot, true);
+    UI.toast('Lost touch with the host', 'The others are gone, but you can finish your round', 3600, true);
+  }
+
+  function endMultiplayer() {
+    if (!G.mp) return;
+    for (const r of G.mp.remotes.values()) r.dispose();
+    G.mp = null;
+    Net.leave();
+    UI.html('mpList', '');
+    UI.show('mpList', false);
+    World.setBallColor('#ffffff');
+  }
+  // Leave the course for the title screen.
+  function backToTitle() {
+    leaveSetup();
+    endMultiplayer();
+    for (const id of ['card', 'map', 'help']) UI.show(id, false);
+    UI.hideBanner();
+    UI.hideToast();
+    if (document.pointerLockElement) document.exitPointerLock();
+    Sound.engine(0);
+    Object.assign(G, { mode: 'title', shotPhase: null, ballCam: false, holdFinish: false, cardTimer: 0, cardAfterHole: false, pending: null, inRound: false, titleT: 0 });
+    World.hideGuides();
+    UI.show('hud', false);
+    if (golfer) { golfer.root.removeFromParent(); golfer = null; }
+    caddy.setVisible(false);
+    G.cad.riding = false;
+    activateHole(0);
+    const cl = course.clubhouse;
+    placePlayer(cl.x - 8, cl.z - 18, -0.6);
+    cart.place(COURSE.cartStart.x, COURSE.cartStart.z, (COURSE.cartStart.heading || 0) * DEG);
+    UI.show('title', true);
+  }
+
+  // Where you are and what you're doing, for the others to draw.
+  const r2 = (v) => Math.round(v * 100) / 100, r3 = (v) => Math.round(v * 1000) / 1000;
+  const POSE_CODE = { walk: 0, address: 1, swing: 2, seated: 3 };
+  function snapshot() {
+    const c = G.cad, k = cart.st, b = G.ball.p, gr = golfer.root, pose = G.lastPose || { mode: 'walk' };
+    const onCart = bag.root.parent === cart.bagMount;
+    const bp = bag.root.position, bq = bag.root.quaternion;
+    return {
+      t: 'st', h: G.hole, ch: G.character, nm: G.mp.name,
+      m: G.mode === 'cart' ? 'c' : G.mode === 'shot' ? 's' : G.mode === 'bag' ? 'b' : 'w',
+      g: [r2(gr.position.x), r2(gr.position.y), r2(gr.position.z), r3(Math.PI - gr.rotation.y)],
+      ps: POSE_CODE[pose.mode] || 0, sp: r2(pose.speed || 0), sw: r3(pose.swing || 0), pu: pose.putt ? 1 : 0,
+      cl: G.clubIndex, fa: r3(G.mode === 'shot' ? G.setup.face : 0),
+      c: [r2(c.x), r2(c.y), r2(c.z), r3(c.yaw), r2(c.speed)], cr: c.riding ? 1 : 0,
+      cc: !c.riding && c.speed > 0.4 && G.bagWhere === 'caddy' && !G.bagSpot ? 1 : 0,
+      k: [r2(k.x), r2(k.y), r2(k.z), r3(k.yaw), r3(k.steer), r3(k.pitch), r3(k.roll)], ks: r2(k.speed),
+      bg: onCart ? 0 : [r2(bp.x), r2(bp.y), r2(bp.z), r3(bq.x), r3(bq.y), r3(bq.z), r3(bq.w)], bo: G.clubIndex,
+      b: [r2(b.x), r3(b.y), r2(b.z)], bs: G.ballState, bm: G.ball.mode === 'holed' ? 1 : 0, n: G.strokes,
+      pw: G.shot ? r2(G.shot.power) : 0,
+    };
+  }
+  function updateOnline(dt) {
+    const mp = G.mp;
+    if (!mp) return;
+    if (Net.active && golfer) {
+      mp.sendT -= dt;
+      if (mp.sendT <= 0) {
+        const busy = G.ballState === 'moving' || G.mode === 'cart' || G.shotPhase === 'swing' || G.shotPhase === 'down';
+        mp.sendT = busy ? 0.05 : 0.1;
+        Net.send(snapshot());
+      }
+    }
+    const show = (G.mode === 'walk' || G.mode === 'cart' || G.mode === 'shot') && !overlayOpen() && !G.setupView;
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    for (const r of mp.remotes.values()) r.update(dt, camera, show, w, h);
+    mp.listT -= dt;
+    if (mp.listT <= 0) { mp.listT = 0.5; renderMpList(); }
+  }
+  // Under the hole plate: where the others are.
+  function renderMpList() {
+    if (!G.mp) return;
+    const rows = [];
+    for (const p of [...G.mp.players.values()].sort((a, b) => a.slot - b.slot)) {
+      if (p.slot === G.mp.slot) continue;
+      const r = G.mp.remotes.get(p.slot);
+      let what;
+      if (p.left) what = 'left';
+      else if (!r || !r.have) what = 'on the way';
+      else if (p.scores[r.hole] != null) what = `Hole ${r.hole + 1} · in ${p.scores[r.hole]}`;
+      else what = `Hole ${r.hole + 1} · ${r.ballState === 'tee' && !r.strokes ? 'on the tee' : `${r.strokes} played`}`;
+      rows.push(`<li class="${p.left ? 'gone' : ''}"><i style="background:${p.color}"></i><b>${UI.esc(p.name)}</b><span>${what}</span></li>`);
+    }
+    UI.html('mpList', rows.join(''));
   }
 
   // ---------- the cart ----------
@@ -993,6 +1324,20 @@ function startGame(saved) {
     return false;
   }
 
+  // Online: the others and their carts. Only stepping into them is blocked,
+  // so nobody gets stuck if one of them walks or drives into you.
+  function othersAt(x, z) {
+    if (!G.mp) return false;
+    for (const r of G.mp.remotes.values()) {
+      if (!r.have) continue;
+      const g = r.golfer.root.position;
+      if (r.msg.m !== 'c' && Math.hypot(x - g.x, z - g.z) < 0.5) return true;
+      const c = r.cart.st, fx = Math.sin(c.yaw), fz = -Math.cos(c.yaw), dx = x - c.x, dz = z - c.z;
+      if (Math.abs(dx * fx + dz * fz) < 1.45 && Math.abs(dx * -fz + dz * fx) < 0.8) return true;
+    }
+    return false;
+  }
+
   function updateWalk(dt) {
     const P = G.player;
     const inp = moveInput();
@@ -1011,9 +1356,11 @@ function startGame(saved) {
     P.vx += (mx * target - P.vx) * k;
     P.vz += (mz * target - P.vz) * k;
     const nx = P.x + P.vx * dt, nz = P.z + P.vz * dt;
-    if (!blockedAt(nx, nz)) { P.x = nx; P.z = nz; }
-    else if (!blockedAt(nx, P.z)) { P.x = nx; P.vz *= 0.5; }
-    else if (!blockedAt(P.x, nz)) { P.z = nz; P.vx *= 0.5; }
+    const inOthers = othersAt(P.x, P.z);
+    const stop = (x, z) => blockedAt(x, z) || (!inOthers && othersAt(x, z));
+    if (!stop(nx, nz)) { P.x = nx; P.z = nz; }
+    else if (!stop(nx, P.z)) { P.x = nx; P.vz *= 0.5; }
+    else if (!stop(P.x, nz)) { P.z = nz; P.vx *= 0.5; }
     else { P.vx = P.vz = 0; }
     P.speed = Math.hypot(P.vx, P.vz);
     if (P.speed > 0.3) {
@@ -1221,6 +1568,7 @@ function startGame(saved) {
     }
     golfer.setFace(G.mode === 'shot' ? G.setup.face : 0);
     golfer.update(dt, pose);
+    G.lastPose = pose;
     // Hidden in first person, and when the bag close-up camera is right where he stands.
     const camInside = G.mode === 'bag' && Math.hypot(camera.position.x - P.x, camera.position.z - P.z) < 0.75 * golfer.scale;
     golfer.setVisible(!(G.fp && G.mode !== 'title' && G.mode !== 'bag' && !G.ballCam) && !camInside);
@@ -1290,6 +1638,15 @@ function startGame(saved) {
     if (G.ballState === 'tee') items.push({ kind: 'tee', x: h.tee.x, z: h.tee.z });
     if (G.ballState !== 'holed' && G.ballState !== 'gone') items.push({ kind: 'ball', x: b.x, z: b.z });
     if (!G.cad.riding) items.push({ kind: 'caddy', x: G.cad.x, z: G.cad.z });
+    if (G.mp) {
+      // The others, and their balls on this hole.
+      for (const r of G.mp.remotes.values()) {
+        if (!r.have) continue;
+        if (r.hole === G.hole && (r.ballState === 'tee' || r.ballState === 'rest' || r.ballState === 'moving')) items.push({ kind: 'fball', x: r.b[0], z: r.b[2], color: r.color });
+        const gp = r.golfer.root.position;
+        items.push({ kind: 'friend', x: gp.x, z: gp.z, ang: r.msg.m === 'c' ? r.cart.st.yaw : r.g[3], color: r.color });
+      }
+    }
     // The radar shows which way you're aiming, not how far it will go.
     const ad = dirFromYaw(G.aimYaw);
     const aim = inShot ? { fx: b.x, fz: b.z, x: b.x + ad.x * 90, z: b.z + ad.z * 90 } : null;
@@ -1311,7 +1668,7 @@ function startGame(saved) {
     if (id === 'map') drawMap();
   }
   function closeOverlay(id) { UI.show(id, false); }
-  const overlayOpen = () => UI.isShown('help') || UI.isShown('card') || UI.isShown('map') || UI.isShown('title') || UI.isShown('glError');
+  const overlayOpen = () => UI.isShown('help') || UI.isShown('card') || UI.isShown('map') || UI.isShown('title') || UI.isShown('lobby') || UI.isShown('glError');
   function drawMap() {
     const P = G.player;
     UI.drawMap({ holes: HOLES, active: G.hole, scores: G.scores, px: P.x, pz: P.z, heading: G.mode === 'cart' ? cart.st.yaw : P.yaw, items: G.radarItems || [] });
@@ -1351,14 +1708,18 @@ function startGame(saved) {
 
   window.addEventListener('keydown', (e) => {
     const k = e.code;
+    // Typing in a text box (a name, a game code) isn't playing.
+    const tag = e.target && e.target.tagName;
+    if ((tag === 'INPUT' || tag === 'TEXTAREA') && k !== 'Escape') return;
     if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab'].includes(k)) e.preventDefault();
     if (keys.has(k)) return;
     keys.add(k);
     if (G.mode === 'workshop') return;
+    if (UI.isShown('lobby')) { if (k === 'Escape') closeLobby(); return; }
     if (k === 'Escape') {
       if (UI.isShown('help')) return closeOverlay('help');
       if (UI.isShown('map')) return closeOverlay('map');
-      if (UI.isShown('card') && !G.cardAfterHole) return closeOverlay('card');
+      if (UI.isShown('card') && G.cardClosable) return closeOverlay('card');
       if (G.mode === 'select') return backFromSelect();
       if (G.mode === 'bag') return exitBag();
       if (cancelSwing()) return;
@@ -1376,8 +1737,9 @@ function startGame(saved) {
     if (UI.isShown('title')) { if (k === 'Enter') onStart(); return; }
     if (UI.isShown('map')) { if (k === 'KeyM' || k === 'Enter') closeOverlay('map'); return; }
     if (UI.isShown('card')) {
-      if (G.cardAfterHole && (k === 'Enter' || k === 'Space')) nextFromCard();
-      else if (k === 'KeyC' && !G.cardAfterHole) closeOverlay('card');
+      // Going on ahead of the others takes a click on the button.
+      if (G.cardAfterHole && !G.cardWaiting && (k === 'Enter' || k === 'Space')) nextFromCard();
+      else if (k === 'KeyC' && G.cardClosable) closeOverlay('card');
       return;
     }
     if (G.mode === 'bag') {
@@ -1401,7 +1763,7 @@ function startGame(saved) {
       if (shot && G.shotPhase === 'aim') { if (!leaveSetup()) enterSetup(); }
     } else if (k === 'KeyV') toggleFP();
     else if (k === 'KeyT') { if (shot) G.view = (G.view + 1) % 3; }
-    else if (k === 'KeyC') showCard(false);
+    else if (k === 'KeyC') showCard(!!G.cardAfterHole);
     else if (k === 'KeyM') openOverlay('map');
     else if (k === 'KeyN') toggleMute();
     else if (k === 'KeyH' || k === 'Slash') openOverlay('help');
@@ -1529,7 +1891,7 @@ function startGame(saved) {
   UI.$('backBtn').addEventListener('click', () => { if (!cancelSwing() && !leaveSetup()) leaveShot(); });
   UI.$('setupBtn').addEventListener('click', () => { if (G.shotPhase === 'aim' && !leaveSetup()) enterSetup(); });
   UI.$('fpBtn').addEventListener('click', toggleFP);
-  UI.$('cardBtn').addEventListener('click', () => showCard(false));
+  UI.$('cardBtn').addEventListener('click', () => showCard(!!G.cardAfterHole));
   UI.$('mapBtn').addEventListener('click', () => openOverlay('map'));
   UI.$('mapClose').addEventListener('click', () => closeOverlay('map'));
   UI.$('helpBtn').addEventListener('click', () => openOverlay('help'));
@@ -1539,6 +1901,26 @@ function startGame(saved) {
   UI.$('muteBtn').addEventListener('click', toggleMute);
   UI.$('cardClose').addEventListener('click', () => closeOverlay('card'));
   UI.$('cardNext').addEventListener('click', nextFromCard);
+  UI.$('cardLeave').addEventListener('click', backToTitle);
+  UI.$('mpBtn').addEventListener('click', openLobby);
+  UI.$('lbHost').addEventListener('click', hostGame);
+  UI.$('lbJoin').addEventListener('click', joinGame);
+  UI.$('lbGo').addEventListener('click', teeOffOnline);
+  UI.$('lbBack').addEventListener('click', closeLobby);
+  UI.$('lbCode').addEventListener('keydown', (e) => { if (e.key === 'Enter') joinGame(); });
+  UI.$('lbCode').addEventListener('input', (e) => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z]/g, ''); });
+  UI.$('lbName').addEventListener('input', () => {
+    clearTimeout(lobby.nameT);
+    lobby.nameT = setTimeout(() => { saveMe(); if (Net.active) Net.setMe(lobbyMe()); }, 400);
+  });
+  Net.on('lobby', () => { if (UI.isShown('lobby')) { lobbyView(); Sound.click(); } });
+  Net.on('start', (m) => startMultiplayer(m.seed));
+  Net.on('st', onRemoteState);
+  Net.on('score', onRemoteScore);
+  Net.on('left', (m) => onRemoteLeft(m.s));
+  Net.on('hostgone', onHostGone);
+  Net.on('error', (e) => { if (UI.isShown('lobby')) lobbyStatus(e.text, true); });
+  window.addEventListener('pagehide', () => Net.leave());
   UI.$('startBtn').addEventListener('click', onStart);
   UI.$('selGo').addEventListener('click', confirmSelect);
   UI.$('selBack').addEventListener('click', backFromSelect);
@@ -1619,6 +2001,7 @@ function startGame(saved) {
     bag.root.visible = playing;
     if (playing) { updateCaddy(dt); updateBag(dt); }
     updateGolfer(dt);
+    updateOnline(dt);
     World.setBall(G.ball.p, G.ballState === 'gone' || !playing ? 'water' : G.ball.mode === 'holed' ? 'holed' : 'ok', G.ballState === 'tee');
     if (playing) updateHud();
     Sound.ambient(dt);
@@ -1676,14 +2059,14 @@ function startGame(saved) {
 
   if (window.claude && window.claude.hot && window.claude.hot.snapshot) {
     try {
-      window.claude.hot.snapshot(() => ({ round: G.inRound ? { scores: G.scores.slice(), next: G.hole } : null }));
+      window.claude.hot.snapshot(() => ({ round: G.inRound && !G.mp ? { scores: G.scores.slice(), next: G.hole } : null }));
     } catch (e) { /* optional */ }
   }
 
   // Small API for automated tests and console tinkering.
   return {
     G, course, cart, bag, swingPress, swingRelease, enterSetup, leaveSetup, takeShot, enterShot, leaveShot, interact, enterCart, exitCart, activateHole,
-    startRound, placePlayer, nextFromCard, recommendedClub, openSelect, chooseSelect, confirmSelect, enterBag, exitBag, selectClub, openWorkshop,
+    startRound, placePlayer, nextFromCard, showCard, backToTitle, openLobby, recommendedClub, openSelect, chooseSelect, confirmSelect, enterBag, exitBag, selectClub, openWorkshop,
     get golfer() { return golfer; }, caddy, bagBase,
     swingNow(power, e) {
       if (G.mode !== 'shot' || G.shotPhase !== 'aim') return false;
@@ -1693,6 +2076,7 @@ function startGame(saved) {
       return true;
     },
     teleportToBall() { const b = G.ball.p; placePlayer(b.x - 1.5, b.z + 1.5, 0); },
+    dropBall(x, z) { placeBall(x, z, false); },
     // Screen position of a club in the bag (for tests that click it).
     clubScreen(i) {
       bag.root.updateMatrixWorld(true);

@@ -18,6 +18,7 @@ const UI = (() => {
     $(id).innerHTML = v;
   }
 
+  const esc = (v) => String(v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
   const fmtToPar = (d) => (d === 0 ? 'E' : d > 0 ? '+' + d : '−' + -d);
   const fmtYds = (y) => Math.round(y).toLocaleString('en-US');
 
@@ -133,28 +134,51 @@ const UI = (() => {
     let t = '<thead><tr><th scope="row">Hole</th>' + cols.map((i) => `<th${cur(i)}>${i + 1}</th>`).join('') + '<th class="tot">Out</th></tr></thead><tbody>';
     t += '<tr class="yards"><th scope="row">Yards</th>' + cols.map((i) => `<td>${holes[i].yards}</td>`).join('') + `<td class="tot">${fmtYds(ydTot)}</td></tr>`;
     t += '<tr><th scope="row">Par</th>' + cols.map((i) => `<td>${holes[i].par}</td>`).join('') + `<td class="tot">${parTot}</td></tr>`;
-    t += '<tr class="score"><th scope="row">Score</th>' + cols.map((i) => `<td${cur(i)}>${scoreMark(scores[i], holes[i].par)}</td>`).join('') + `<td class="tot">${played.length ? scoreTot : ''}</td></tr>`;
-    t += '<tr><th scope="row">To par</th>' + cols.map((i) => {
-      const r = rel[i];
-      return `<td class="${r && r.startsWith('−') ? 'under' : ''}">${r}</td>`;
-    }).join('') + `<td class="tot">${played.length ? fmtToPar(scoreTot - parPlayed) : ''}</td></tr>`;
+    if (opts.players) {
+      // An online round: a row for each golfer, with their total and score to par.
+      for (const pl of opts.players) {
+        const sc = pl.scores, n = sc.filter((s) => s != null).length;
+        const tot = sc.reduce((a, s) => a + (s || 0), 0);
+        const par = holes.reduce((a, h, i) => a + (sc[i] != null ? h.par : 0), 0);
+        t += `<tr class="score${pl.me ? ' me' : ''}"><th scope="row" class="pl"><i style="background:${esc(pl.color)}"></i>${esc(pl.name)}${pl.left ? ' <small>left</small>' : ''}</th>` +
+          cols.map((i) => `<td${cur(i)}>${scoreMark(sc[i], holes[i].par)}</td>`).join('') +
+          `<td class="tot">${n ? `${tot}<small class="${tot - par < 0 ? 'under' : ''}">${fmtToPar(tot - par)}</small>` : ''}</td></tr>`;
+      }
+    } else {
+      t += '<tr class="score"><th scope="row">Score</th>' + cols.map((i) => `<td${cur(i)}>${scoreMark(scores[i], holes[i].par)}</td>`).join('') + `<td class="tot">${played.length ? scoreTot : ''}</td></tr>`;
+      t += '<tr><th scope="row">To par</th>' + cols.map((i) => {
+        const r = rel[i];
+        return `<td class="${r && r.startsWith('−') ? 'under' : ''}">${r}</td>`;
+      }).join('') + `<td class="tot">${played.length ? fmtToPar(scoreTot - parPlayed) : ''}</td></tr>`;
+    }
     t += '</tbody>';
     $('cardTable').innerHTML = t;
     text('cardTitle', opts.title);
-    text('cardSub', played.length ? `${scoreTot} strokes · ${fmtToPar(scoreTot - parPlayed)}` : `Par ${parTot} · ${fmtYds(ydTot)} yards`);
+    text('cardSub', opts.sub || (played.length ? `${scoreTot} strokes · ${fmtToPar(scoreTot - parPlayed)}` : `Par ${parTot} · ${fmtYds(ydTot)} yards`));
     $('cardNext').hidden = !opts.next;
     if (opts.next) $('cardNext').textContent = opts.next;
     $('cardClose').hidden = !opts.closable;
+    $('cardClose').textContent = opts.closeLabel || 'Close';
+    $('cardLeave').hidden = !opts.leave;
   }
 
   // ---------- Radar minimap & course map ----------
   let overview = null, bounds = null;
   function setOverview(canvas, b) { overview = canvas; bounds = b; }
 
-  function drawIcon(g, kind, x, y, d, ang) {
+  function drawIcon(g, kind, x, y, d, ang, color) {
     g.save();
     g.translate(x, y);
-    if (kind === 'player') {
+    if (kind === 'friend') {
+      // Another golfer in an online round, in their ball colour.
+      g.rotate(ang);
+      g.fillStyle = color || '#ffffff'; g.strokeStyle = '#0b1a12'; g.lineWidth = 1.4 * d;
+      g.beginPath(); g.moveTo(0, -6 * d); g.lineTo(4.5 * d, 4.5 * d); g.lineTo(0, 2.2 * d); g.lineTo(-4.5 * d, 4.5 * d); g.closePath();
+      g.fill(); g.stroke();
+    } else if (kind === 'fball') {
+      g.fillStyle = color || '#ffffff'; g.strokeStyle = '#0b1a12'; g.lineWidth = 1.2 * d;
+      g.beginPath(); g.arc(0, 0, 2.6 * d, 0, TAU); g.fill(); g.stroke();
+    } else if (kind === 'player') {
       g.rotate(ang);
       g.fillStyle = '#f2c230'; g.strokeStyle = '#0b1a12'; g.lineWidth = 1.5 * d;
       g.beginPath(); g.moveTo(0, -7 * d); g.lineTo(5 * d, 5 * d); g.lineTo(0, 2.5 * d); g.lineTo(-5 * d, 5 * d); g.closePath();
@@ -217,7 +241,7 @@ const UI = (() => {
       let x = dx * cs - dz * sn, y = dx * sn + dz * cs;
       const r = Math.hypot(x, y), lim = R - 8 * dpr;
       if (r > lim) { x *= lim / r; y *= lim / r; }
-      drawIcon(g, it.kind, W / 2 + x, Hh / 2 + y, dpr, (it.ang || 0) - st.yaw);
+      drawIcon(g, it.kind, W / 2 + x, Hh / 2 + y, dpr, (it.ang || 0) - st.yaw, it.color);
     }
     drawIcon(g, 'player', W / 2, Hh / 2, dpr, st.heading - st.yaw);
     g.strokeStyle = 'rgba(236, 246, 228, 0.35)'; g.lineWidth = 1.5 * dpr;
@@ -265,7 +289,7 @@ const UI = (() => {
       g.textAlign = 'center'; g.textBaseline = 'middle';
       g.fillText(String(i + 1), X(h.tee.x), Y(h.tee.z) + 0.5 * dpr);
     });
-    for (const it of st.items) drawIcon(g, it.kind, X(it.x), Y(it.z), dpr * 1.2, it.ang || 0);
+    for (const it of st.items) drawIcon(g, it.kind, X(it.x), Y(it.z), dpr * 1.2, it.ang || 0, it.color);
     drawIcon(g, 'player', X(st.px), Y(st.pz), dpr * 1.4, st.heading);
   }
 
@@ -276,7 +300,7 @@ const UI = (() => {
 
   return {
     $, text, html, setMode, setHole, setStroke, setTotal, setClub, setFacts, objective, prompt, setActionLabel,
-    setHint, marker, toast, hideToast, banner, hideBanner, show, isShown,
+    setHint, marker, toast, hideToast, banner, hideBanner, show, isShown, esc,
     renderCard, setOverview, drawRadar, drawMap, setLoading, fmtToPar, fmtYds,
   };
 })();

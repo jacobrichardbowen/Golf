@@ -377,6 +377,61 @@ label.btn { display: inline-block; cursor: pointer; }
 .ws-c-actions .btn, .ws-gh .btn { font-size: 15px; padding: 8px 14px; }
 .ws-c-actions .btn:disabled { opacity: 0.4; cursor: default; }
 
+/* ---------- Online play ---------- */
+.lobby-sheet { max-width: 560px; }
+.lb-lead { margin: 0 0 18px; color: var(--muted); line-height: 1.45; }
+.lb-me { display: grid; gap: 14px; margin-bottom: 20px; }
+.lb-field { display: grid; gap: 6px; font-size: 13px; color: var(--muted); }
+.lb-field input, .lb-join input { font: inherit; font-size: 16px; color: var(--chalk); background: rgba(255,255,255,0.06); border: 1px solid var(--plate-edge); border-radius: 6px; padding: 9px 11px; user-select: text; -webkit-user-select: text; }
+.lb-field input:focus, .lb-join input:focus { outline: 2px solid var(--flag); outline-offset: 1px; }
+.lb-chars { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.lb-char { background: rgba(255,255,255,0.04); border: 2px solid var(--plate-edge); border-radius: 6px; padding: 8px 6px; display: grid; gap: 3px; justify-items: center; }
+.lb-char b { font-family: var(--f-display); font-size: 18px; font-weight: 800; text-transform: uppercase; color: var(--chalk); }
+.lb-char span { font-family: var(--f-display); font-size: 13px; color: var(--flag); }
+.lb-char.on { border-color: var(--flag); background: rgba(242,194,48,0.12); }
+.lb-start { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.lb-or { color: var(--muted); font-size: 13px; }
+.lb-join { display: flex; gap: 8px; }
+.lb-join input { width: 6.2em; font-family: var(--f-display); font-weight: 700; font-size: 22px; letter-spacing: 0.2em; text-transform: uppercase; text-align: center; padding: 6px 8px; }
+.lb-room { display: grid; gap: 12px; justify-items: start; }
+.lb-code { margin: 0; color: var(--muted); font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; display: flex; align-items: baseline; gap: 12px; }
+.lb-code b { font-family: var(--f-display); font-size: 44px; font-weight: 800; letter-spacing: 0.22em; color: var(--flag); user-select: text; -webkit-user-select: text; }
+.lb-players { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; width: 100%; }
+.lb-players li { display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.04); border: 1px solid var(--plate-edge); border-radius: 6px; padding: 7px 10px; }
+.lb-players li i, .mp-list li i { width: 12px; height: 12px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.5); flex: none; }
+.lb-players li b { font-family: var(--f-display); font-size: 18px; font-weight: 700; }
+.lb-players li span { color: var(--muted); font-size: 13px; }
+.lb-players li em { margin-left: auto; font-style: normal; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--flag); }
+.lb-wait { margin: 0; color: var(--muted); }
+.lb-status { min-height: 1.4em; margin: 14px 0 0; color: var(--muted); }
+.lb-status.bad { color: var(--under); }
+.lb-actions { display: flex; justify-content: flex-end; margin-top: 8px; }
+.mp-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; justify-items: start; }
+.mp-list li { display: inline-flex; align-items: center; gap: 7px; background: var(--plate); border: 1px solid var(--plate-edge); border-radius: 6px; padding: 3px 9px; font-size: 13px; }
+.mp-list li b { font-family: var(--f-display); font-size: 15px; font-weight: 700; }
+.mp-list li span { color: var(--muted); }
+.mp-list li.gone { opacity: 0.55; }
+#hud[data-mode="bag"] .mp-list { display: none; }
+@media (max-height: 560px) { #hud[data-mode="shot"] .mp-list { display: none; } }
+.mp-tag span { font-size: 13px; }
+.sc-table th.pl { text-transform: none; letter-spacing: 0.02em; font-size: 15px; color: var(--paper-ink); white-space: nowrap; width: auto; padding-right: 8px; }
+.sc-table th.pl i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; border: 1px solid rgba(0,0,0,0.45); vertical-align: 0; }
+.sc-table th.pl small { color: var(--paper-muted); font-size: 12px; }
+.sc-table th.pl { font-weight: 600; }
+.sc-table tr.me th.pl { font-weight: 800; }
+.sc-table td.tot small { display: block; font-size: 13px; color: var(--paper-muted); }
+.sc-table td.tot small.under { color: #c3261a; }
+@media (max-height: 520px) {
+  .lobby-sheet { padding: 14px 20px; }
+  .lobby-sheet h2 { font-size: 26px; margin-bottom: 8px; }
+  .lb-me { grid-template-columns: minmax(0, 1fr) minmax(0, 1.7fr); gap: 12px; margin-bottom: 12px; }
+  .lb-char { padding: 5px 4px; }
+  .lb-char b { font-size: 15px; }
+  .lb-room { gap: 8px; }
+  .lb-code b { font-size: 30px; }
+  .lb-players li { padding: 4px 10px; }
+  .lb-status { margin-top: 8px; }
+}
 
 </style>
 <div id="app">
@@ -397,6 +452,7 @@ label.btn { display: inline-block; cursor: pointer; }
       </section>
       <p class="objective" id="objective"></p>
       <p class="in-hand" id="inHand"><span>In hand</span><b id="inHandClub">Driver</b></p>
+      <ul class="mp-list" id="mpList" hidden></ul>
     </div>
 
     <div class="top-right">
@@ -476,6 +532,7 @@ label.btn { display: inline-block; cursor: pointer; }
       <div class="title-actions">
         <button class="btn primary" id="startBtn">Tee off</button>
         <button class="btn" id="resumeBtn" hidden>Resume round</button>
+        <button class="btn" id="mpBtn">Play with friends</button>
         <button class="btn ghost" id="howBtn">How to play</button>
         <button class="btn ghost" id="workshopBtn">Workshop</button>
       </div>
@@ -492,6 +549,33 @@ label.btn { display: inline-block; cursor: pointer; }
     <div class="sel-actions">
       <button class="btn ghost" id="selBack">Back</button>
       <button class="btn primary" id="selGo">Tee off</button>
+    </div>
+  </div>
+
+  <div id="lobby" class="screen lobby-screen" hidden>
+    <div class="sheet lobby-sheet">
+      <h2>Play with friends</h2>
+      <p class="lb-lead" id="lbLead">Up to three golfers, each on their own computer or phone, out on the course together. One of you hosts and shares the code; everyone needs to be online.</p>
+      <div class="lb-me">
+        <label class="lb-field">Your name <input id="lbName" maxlength="14" autocomplete="off" spellcheck="false" placeholder="Player"></label>
+        <div class="lb-field"><span>Your golfer</span><div class="lb-chars" id="lbChars"></div></div>
+      </div>
+      <div class="lb-start" id="lbStart">
+        <button class="btn primary" id="lbHost">Host a game</button>
+        <span class="lb-or">or</span>
+        <div class="lb-join">
+          <input id="lbCode" maxlength="4" placeholder="CODE" autocomplete="off" spellcheck="false" aria-label="Game code">
+          <button class="btn" id="lbJoin">Join</button>
+        </div>
+      </div>
+      <div class="lb-room" id="lbRoom" hidden>
+        <p class="lb-code">Game code <b id="lbCodeShow">----</b></p>
+        <ul class="lb-players" id="lbPlayers"></ul>
+        <button class="btn primary" id="lbGo" hidden>Tee off</button>
+        <p class="lb-wait" id="lbWait" hidden>Waiting for the host to tee off…</p>
+      </div>
+      <p class="lb-status" id="lbStatus" role="status"></p>
+      <div class="lb-actions"><button class="btn ghost" id="lbBack">Back</button></div>
     </div>
   </div>
 
@@ -565,6 +649,7 @@ label.btn { display: inline-block; cursor: pointer; }
         <li><b>Read the wind</b> from the world: streaks in the air, the flags on every tee, around the course and on your caddy's back.</li>
         <li><b>Drive the cart:</b> press <kbd>E</kbd> next to it to hop in, <kbd>W</kbd> <kbd>S</kbd> to drive, <kbd>A</kbd> <kbd>D</kbd> to steer, <kbd>Space</kbd> to brake, <kbd>E</kbd> to get out.</li>
         <li><b>Hole out</b>, then follow the marker to the next tee.</li>
+        <li><b>Play with friends:</b> on the title screen, one player picks <b>Host a game</b> and reads out the four-letter code; up to two friends type it in on their own devices and join. Everyone plays their own ball at the same time, and the next hole starts when you've all holed out.</li>
       </ol>
       <dl class="keys">
         <div><dt><kbd>V</kbd></dt><dd>First or third person</dd></div>
@@ -599,6 +684,7 @@ label.btn { display: inline-block; cursor: pointer; }
       <div class="sc-scroll"><table class="sc-table" id="cardTable"></table></div>
       <div class="sc-legend"><span><i class="mk eagle"></i>Eagle</span><span><i class="mk birdie"></i>Birdie</span><span><i class="mk bogey"></i>Bogey</span><span><i class="mk double"></i>Double+</span></div>
       <div class="sc-actions">
+        <button class="btn ghost" id="cardLeave" hidden>Leave game</button>
         <button class="btn ghost" id="cardClose">Close</button>
         <button class="btn primary" id="cardNext">Next hole</button>
       </div>
@@ -609,6 +695,7 @@ label.btn { display: inline-block; cursor: pointer; }
   <div id="glError" class="screen" hidden><div class="sheet"><h2>3D graphics unavailable</h2><p>This game needs WebGL. Try a recent version of Chrome, Edge, Firefox or Safari, and check that hardware acceleration is turned on.</p></div></div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.5/dist/peerjs.min.js"></script>
 <script>
 (function () {
 'use strict';
@@ -11687,15 +11774,16 @@ const Sound = (() => {
     swing(power) {
       noiseBurst({ dur: 0.22, f: 500, f2: 2200, q: 1.2, vol: 0.12 + 0.12 * power, attack: 0.08 });
     },
-    hit(power, putter) {
+    // g: loudness (other players' shots fade with distance).
+    hit(power, putter, g = 1) {
       if (putter) {
-        tone({ f: 1250, f2: 900, dur: 0.06, vol: 0.18 + 0.2 * power });
-        noiseBurst({ dur: 0.03, f: 3000, q: 2, vol: 0.08 });
+        tone({ f: 1250, f2: 900, dur: 0.06, vol: (0.18 + 0.2 * power) * g });
+        noiseBurst({ dur: 0.03, f: 3000, q: 2, vol: 0.08 * g });
         return;
       }
-      noiseBurst({ dur: 0.05, f: 2600, q: 0.8, vol: 0.5 + 0.3 * power, attack: 0.001 });
-      tone({ f: 190, f2: 70, dur: 0.12, vol: 0.35 + 0.2 * power, attack: 0.001 });
-      tone({ f: 1800, f2: 1400, dur: 0.05, type: 'triangle', vol: 0.07 });
+      noiseBurst({ dur: 0.05, f: 2600, q: 0.8, vol: (0.5 + 0.3 * power) * g, attack: 0.001 });
+      tone({ f: 190, f2: 70, dur: 0.12, vol: (0.35 + 0.2 * power) * g, attack: 0.001 });
+      tone({ f: 1800, f2: 1400, dur: 0.05, type: 'triangle', vol: 0.07 * g });
     },
     bounce(speed, surf) {
       const v = clamp(speed / 25, 0.05, 1);
@@ -11713,10 +11801,10 @@ const Sound = (() => {
       noiseBurst({ dur: 0.7, type: 'lowpass', f: 3000, f2: 300, q: 0.7, vol: 0.45, attack: 0.01 });
       for (let i = 0; i < 6; i++) tone({ t: 0.15 + i * 0.07 + Math.random() * 0.05, f: 500 + Math.random() * 600, f2: 1400, dur: 0.06, vol: 0.05 });
     },
-    cup() {
-      tone({ f: 1500, f2: 1300, dur: 0.05, type: 'triangle', vol: 0.18 });
-      tone({ t: 0.09, f: 1100, f2: 900, dur: 0.06, type: 'triangle', vol: 0.16 });
-      tone({ t: 0.17, f: 260, f2: 120, dur: 0.18, vol: 0.3 });
+    cup(g = 1) {
+      tone({ f: 1500, f2: 1300, dur: 0.05, type: 'triangle', vol: 0.18 * g });
+      tone({ t: 0.09, f: 1100, f2: 900, dur: 0.06, type: 'triangle', vol: 0.16 * g });
+      tone({ t: 0.17, f: 260, f2: 120, dur: 0.18, vol: 0.3 * g });
     },
     lip() { tone({ f: 900, f2: 700, dur: 0.05, type: 'triangle', vol: 0.12 }); },
     applause(strength) {
@@ -12835,6 +12923,15 @@ const WindCues = (() => {
     return g;
   }
 
+  // Stop waving the cloth of flags inside obj (it is being thrown away).
+  function forget(obj) {
+    for (let i = wavers.length - 1; i >= 0; i--) {
+      let o = wavers[i].pivot;
+      while (o && o !== obj) o = o.parent;
+      if (o) wavers.splice(i, 1);
+    }
+  }
+
   // ---------- per frame ----------
   const _q = new THREE.Quaternion(), _qw = new THREE.Quaternion(), _up = new THREE.Vector3(0, 1, 0), _p = new THREE.Vector3();
   let frame = 0;
@@ -12958,7 +13055,7 @@ const WindCues = (() => {
     return { mesh, update };
   }
 
-  return { makeFlag, addWaver, updateFlags, createStreaks, PALETTE };
+  return { makeFlag, addWaver, forget, updateFlags, createStreaks, PALETTE };
 })();
 
 // ===== world.js =====
@@ -13354,31 +13451,36 @@ const World = (() => {
     buildGuides();
   }
 
-  function buildBall() {
-    ball.mesh = new THREE.Mesh(
-      new THREE.SphereGeometry(1, 24, 16),
-      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.35, metalness: 0, emissive: 0x303030 }),
-    );
-    ball.mesh.castShadow = true;
-    scene.add(ball.mesh);
-    ball.shadow = new THREE.Mesh(
+  // A ball with its shadow, tee peg and flight trail. In an online round every
+  // player has one, each in their own colour.
+  let ballGeo = null;
+  function makeBall(color, trailOpacity) {
+    const b = { trailOpacity };
+    ballGeo = ballGeo || new THREE.SphereGeometry(1, 24, 16);
+    b.mesh = new THREE.Mesh(ballGeo,
+      new THREE.MeshStandardMaterial({ color, roughness: 0.35, metalness: 0, emissive: new THREE.Color(color).multiplyScalar(0.19) }));
+    b.mesh.castShadow = true;
+    scene.add(b.mesh);
+    b.shadow = new THREE.Mesh(
       new THREE.CircleGeometry(1, 24),
       new THREE.MeshBasicMaterial({ map: radialTexture('rgba(0,0,0,0.75)', 'rgba(0,0,0,0)'), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4 }),
     );
-    scene.add(ball.shadow);
+    scene.add(b.shadow);
     // A wooden tee peg, shown while the ball sits on the tee.
-    ball.peg = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.004, 0.07, 6), new THREE.MeshLambertMaterial({ color: 0xf0e2c0 }));
-    ball.peg.visible = false;
-    scene.add(ball.peg);
+    b.peg = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.004, 0.07, 6), new THREE.MeshLambertMaterial({ color: 0xf0e2c0 }));
+    b.peg.visible = false;
+    scene.add(b.peg);
     const tg = new THREE.BufferGeometry();
-    ball.trailPos = new Float32Array(3 * 2048);
-    tg.setAttribute('position', new THREE.BufferAttribute(ball.trailPos, 3));
+    b.trailPos = new Float32Array(3 * 2048);
+    tg.setAttribute('position', new THREE.BufferAttribute(b.trailPos, 3));
     tg.setDrawRange(0, 0);
-    ball.trail = new THREE.Line(tg, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6, depthWrite: false }));
-    ball.trail.frustumCulled = false;
-    ball.trailN = 0;
-    scene.add(ball.trail);
+    b.trail = new THREE.Line(tg, new THREE.LineBasicMaterial({ color, transparent: true, opacity: trailOpacity, depthWrite: false }));
+    b.trail.frustumCulled = false;
+    b.trailN = 0;
+    scene.add(b.trail);
+    return b;
   }
+  function buildBall() { Object.assign(ball, makeBall(0xffffff, 0.6)); }
 
   function buildGuides() {
     const ag = new THREE.BufferGeometry();
@@ -14154,37 +14256,63 @@ const World = (() => {
     camera.updateProjectionMatrix();
   }
 
-  function setBall(p, mode, onTee) {
-    const dist = camera.position.distanceTo(ball.mesh.position);
+  function placeBall(b, p, mode, onTee) {
+    const dist = camera.position.distanceTo(b.mesh.position);
     const r = Math.max(BALL_R, dist * 0.0032);
-    ball.mesh.scale.setScalar(r);
+    b.mesh.scale.setScalar(r);
     const lift = onTee ? 0.045 : 0;
-    ball.mesh.position.set(p.x, p.y - BALL_R + r + lift, p.z);
-    ball.mesh.visible = mode !== 'water' && mode !== 'hidden';
-    if (mode === 'holed') ball.mesh.position.y = p.y;
-    ball.peg.visible = !!onTee && ball.mesh.visible;
-    if (onTee) ball.peg.position.set(p.x, p.y - BALL_R + 0.03, p.z);
+    b.mesh.position.set(p.x, p.y - BALL_R + r + lift, p.z);
+    b.mesh.visible = mode !== 'water' && mode !== 'hidden';
+    if (mode === 'holed') b.mesh.position.y = p.y;
+    b.peg.visible = !!onTee && b.mesh.visible;
+    if (onTee) b.peg.position.set(p.x, p.y - BALL_R + 0.03, p.z);
     if (!course) return;
     const gh = course.H(p.x, p.z);
     const agl = Math.max(0, p.y - BALL_R - gh);
     const n = course.normal(p.x, p.z);
-    ball.shadow.visible = ball.mesh.visible && mode !== 'holed';
-    ball.shadow.position.set(p.x + n.x * 0.02, gh + 0.02, p.z + n.z * 0.02);
-    ball.shadow.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), new THREE.Vector3(n.x, n.y, n.z));
-    ball.shadow.scale.setScalar(r * 1.25 * (1 + agl * 0.04));
-    ball.shadow.material.opacity = clamp(1 - agl / 60, 0.15, 0.9);
+    b.shadow.visible = b.mesh.visible && mode !== 'holed';
+    b.shadow.position.set(p.x + n.x * 0.02, gh + 0.02, p.z + n.z * 0.02);
+    b.shadow.quaternion.setFromUnitVectors(_zAxis, _n.set(n.x, n.y, n.z));
+    b.shadow.scale.setScalar(r * 1.25 * (1 + agl * 0.04));
+    b.shadow.material.opacity = clamp(1 - agl / 60, 0.15, 0.9);
   }
+  const _zAxis = new THREE.Vector3(0, 0, 1), _n = new THREE.Vector3();
+  function ballTrailReset(b) { b.trailN = 0; b.trail.geometry.setDrawRange(0, 0); b.trail.material.opacity = b.trailOpacity; }
+  function ballTrailPush(b, p) {
+    if (b.trailN >= 2048) return;
+    const i = b.trailN++ * 3;
+    b.trailPos[i] = p.x; b.trailPos[i + 1] = p.y; b.trailPos[i + 2] = p.z;
+    b.trail.geometry.attributes.position.needsUpdate = true;
+    b.trail.geometry.setDrawRange(0, b.trailN);
+  }
+  function ballTrailFade(b, dt) { b.trail.material.opacity = Math.max(0, b.trail.material.opacity - dt * 0.25); }
 
-  function trailReset() { ball.trailN = 0; ball.trail.geometry.setDrawRange(0, 0); ball.trail.material.opacity = 0.6; }
-  function trailPush(p) {
-    if (ball.trailN >= 2048) return;
-    const i = ball.trailN++ * 3;
-    ball.trailPos[i] = p.x; ball.trailPos[i + 1] = p.y; ball.trailPos[i + 2] = p.z;
-    ball.trail.geometry.attributes.position.needsUpdate = true;
-    ball.trail.geometry.setDrawRange(0, ball.trailN);
+  function setBall(p, mode, onTee) { placeBall(ball, p, mode, onTee); }
+  function trailReset() { ballTrailReset(ball); }
+  function trailPush(p) { ballTrailPush(ball, p); }
+  function trailFade(dt) { ballTrailFade(ball, dt); }
+  function setBallColor(c) {
+    ball.mesh.material.color.set(c);
+    ball.mesh.material.emissive.set(c).multiplyScalar(0.19);
   }
-  function trailFade(dt) {
-    ball.trail.material.opacity = Math.max(0, ball.trail.material.opacity - dt * 0.25);
+  // Another player's ball.
+  function createBall(color) {
+    const b = makeBall(color, 0.45);
+    return {
+      set: (p, mode, onTee) => placeBall(b, p, mode, onTee),
+      trailReset: () => ballTrailReset(b),
+      trailPush: (p) => ballTrailPush(b, p),
+      trailFade: (dt) => ballTrailFade(b, dt),
+      get trailN() { return b.trailN; },
+      dispose() {
+        for (const o of [b.mesh, b.shadow, b.peg, b.trail]) {
+          o.removeFromParent();
+          if (o.geometry !== ballGeo) o.geometry.dispose();
+          if (o.material.map) o.material.map.dispose();
+          o.material.dispose();
+        }
+      },
+    };
   }
 
   function setGuides(pts, landing, putt) {
@@ -14312,7 +14440,7 @@ const World = (() => {
   function add(obj) { scene.add(obj); }
 
   return {
-    init, buildCourse, paintTick, resize, render, update, add, adapt, setBall, trailReset, trailPush, trailFade, setPost,
+    init, buildCourse, paintTick, resize, render, update, add, adapt, setBall, trailReset, trailPush, trailFade, setPost, createBall, setBallColor,
     setGuides, hideGuides, setAlignmentStick, setPinVisible, splash,
     get camera() { return camera; }, get renderer() { return renderer; }, get scene() { return scene; }, get post() { return postOn; }, get postParams() { return post.params; },
     get paintedChunks() { return chunks.filter((c) => c.hi).length; }, get chunkCount() { return chunks.length; },
@@ -15146,7 +15274,17 @@ const Golfer = (() => {
   // Map a club from the bag to its model.
   const kindFor = (club) => club.kind;
 
-  return { create, kindFor, styleFor };
+  // The caddy, with a flag on a pole strapped to his back: the wind goes where he goes.
+  function createCaddy() {
+    const c = create(CADDY);
+    const f = WindCues.makeFlag({ height: 2.5, w: 0.9, h: 0.58, color: WindCues.PALETTE[0], emblem: 'disc', pole: 0x5a4330 });
+    f.position.set(0.12, -0.2, -0.3); // in the spine joint's frame (unscaled body)
+    f.rotation.x = -0.1;
+    c.joints.spine.add(f);
+    return c;
+  }
+
+  return { create, createCaddy, kindFor, styleFor };
 })();
 
 // ===== cart.js =====
@@ -15395,6 +15533,7 @@ const UI = (() => {
     $(id).innerHTML = v;
   }
 
+  const esc = (v) => String(v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
   const fmtToPar = (d) => (d === 0 ? 'E' : d > 0 ? '+' + d : '−' + -d);
   const fmtYds = (y) => Math.round(y).toLocaleString('en-US');
 
@@ -15510,28 +15649,51 @@ const UI = (() => {
     let t = '<thead><tr><th scope="row">Hole</th>' + cols.map((i) => `<th${cur(i)}>${i + 1}</th>`).join('') + '<th class="tot">Out</th></tr></thead><tbody>';
     t += '<tr class="yards"><th scope="row">Yards</th>' + cols.map((i) => `<td>${holes[i].yards}</td>`).join('') + `<td class="tot">${fmtYds(ydTot)}</td></tr>`;
     t += '<tr><th scope="row">Par</th>' + cols.map((i) => `<td>${holes[i].par}</td>`).join('') + `<td class="tot">${parTot}</td></tr>`;
-    t += '<tr class="score"><th scope="row">Score</th>' + cols.map((i) => `<td${cur(i)}>${scoreMark(scores[i], holes[i].par)}</td>`).join('') + `<td class="tot">${played.length ? scoreTot : ''}</td></tr>`;
-    t += '<tr><th scope="row">To par</th>' + cols.map((i) => {
-      const r = rel[i];
-      return `<td class="${r && r.startsWith('−') ? 'under' : ''}">${r}</td>`;
-    }).join('') + `<td class="tot">${played.length ? fmtToPar(scoreTot - parPlayed) : ''}</td></tr>`;
+    if (opts.players) {
+      // An online round: a row for each golfer, with their total and score to par.
+      for (const pl of opts.players) {
+        const sc = pl.scores, n = sc.filter((s) => s != null).length;
+        const tot = sc.reduce((a, s) => a + (s || 0), 0);
+        const par = holes.reduce((a, h, i) => a + (sc[i] != null ? h.par : 0), 0);
+        t += `<tr class="score${pl.me ? ' me' : ''}"><th scope="row" class="pl"><i style="background:${esc(pl.color)}"></i>${esc(pl.name)}${pl.left ? ' <small>left</small>' : ''}</th>` +
+          cols.map((i) => `<td${cur(i)}>${scoreMark(sc[i], holes[i].par)}</td>`).join('') +
+          `<td class="tot">${n ? `${tot}<small class="${tot - par < 0 ? 'under' : ''}">${fmtToPar(tot - par)}</small>` : ''}</td></tr>`;
+      }
+    } else {
+      t += '<tr class="score"><th scope="row">Score</th>' + cols.map((i) => `<td${cur(i)}>${scoreMark(scores[i], holes[i].par)}</td>`).join('') + `<td class="tot">${played.length ? scoreTot : ''}</td></tr>`;
+      t += '<tr><th scope="row">To par</th>' + cols.map((i) => {
+        const r = rel[i];
+        return `<td class="${r && r.startsWith('−') ? 'under' : ''}">${r}</td>`;
+      }).join('') + `<td class="tot">${played.length ? fmtToPar(scoreTot - parPlayed) : ''}</td></tr>`;
+    }
     t += '</tbody>';
     $('cardTable').innerHTML = t;
     text('cardTitle', opts.title);
-    text('cardSub', played.length ? `${scoreTot} strokes · ${fmtToPar(scoreTot - parPlayed)}` : `Par ${parTot} · ${fmtYds(ydTot)} yards`);
+    text('cardSub', opts.sub || (played.length ? `${scoreTot} strokes · ${fmtToPar(scoreTot - parPlayed)}` : `Par ${parTot} · ${fmtYds(ydTot)} yards`));
     $('cardNext').hidden = !opts.next;
     if (opts.next) $('cardNext').textContent = opts.next;
     $('cardClose').hidden = !opts.closable;
+    $('cardClose').textContent = opts.closeLabel || 'Close';
+    $('cardLeave').hidden = !opts.leave;
   }
 
   // ---------- Radar minimap & course map ----------
   let overview = null, bounds = null;
   function setOverview(canvas, b) { overview = canvas; bounds = b; }
 
-  function drawIcon(g, kind, x, y, d, ang) {
+  function drawIcon(g, kind, x, y, d, ang, color) {
     g.save();
     g.translate(x, y);
-    if (kind === 'player') {
+    if (kind === 'friend') {
+      // Another golfer in an online round, in their ball colour.
+      g.rotate(ang);
+      g.fillStyle = color || '#ffffff'; g.strokeStyle = '#0b1a12'; g.lineWidth = 1.4 * d;
+      g.beginPath(); g.moveTo(0, -6 * d); g.lineTo(4.5 * d, 4.5 * d); g.lineTo(0, 2.2 * d); g.lineTo(-4.5 * d, 4.5 * d); g.closePath();
+      g.fill(); g.stroke();
+    } else if (kind === 'fball') {
+      g.fillStyle = color || '#ffffff'; g.strokeStyle = '#0b1a12'; g.lineWidth = 1.2 * d;
+      g.beginPath(); g.arc(0, 0, 2.6 * d, 0, TAU); g.fill(); g.stroke();
+    } else if (kind === 'player') {
       g.rotate(ang);
       g.fillStyle = '#f2c230'; g.strokeStyle = '#0b1a12'; g.lineWidth = 1.5 * d;
       g.beginPath(); g.moveTo(0, -7 * d); g.lineTo(5 * d, 5 * d); g.lineTo(0, 2.5 * d); g.lineTo(-5 * d, 5 * d); g.closePath();
@@ -15594,7 +15756,7 @@ const UI = (() => {
       let x = dx * cs - dz * sn, y = dx * sn + dz * cs;
       const r = Math.hypot(x, y), lim = R - 8 * dpr;
       if (r > lim) { x *= lim / r; y *= lim / r; }
-      drawIcon(g, it.kind, W / 2 + x, Hh / 2 + y, dpr, (it.ang || 0) - st.yaw);
+      drawIcon(g, it.kind, W / 2 + x, Hh / 2 + y, dpr, (it.ang || 0) - st.yaw, it.color);
     }
     drawIcon(g, 'player', W / 2, Hh / 2, dpr, st.heading - st.yaw);
     g.strokeStyle = 'rgba(236, 246, 228, 0.35)'; g.lineWidth = 1.5 * dpr;
@@ -15642,7 +15804,7 @@ const UI = (() => {
       g.textAlign = 'center'; g.textBaseline = 'middle';
       g.fillText(String(i + 1), X(h.tee.x), Y(h.tee.z) + 0.5 * dpr);
     });
-    for (const it of st.items) drawIcon(g, it.kind, X(it.x), Y(it.z), dpr * 1.2, it.ang || 0);
+    for (const it of st.items) drawIcon(g, it.kind, X(it.x), Y(it.z), dpr * 1.2, it.ang || 0, it.color);
     drawIcon(g, 'player', X(st.px), Y(st.pz), dpr * 1.4, st.heading);
   }
 
@@ -15653,7 +15815,7 @@ const UI = (() => {
 
   return {
     $, text, html, setMode, setHole, setStroke, setTotal, setClub, setFacts, objective, prompt, setActionLabel,
-    setHint, marker, toast, hideToast, banner, hideBanner, show, isShown,
+    setHint, marker, toast, hideToast, banner, hideBanner, show, isShown, esc,
     renderCard, setOverview, drawRadar, drawMap, setLoading, fmtToPar, fmtYds,
   };
 })();
@@ -16086,6 +16248,440 @@ const Workshop = (() => {
   return { open, close, render, get isOpen() { return isOpen; } };
 })();
 
+// ===== net.js =====
+// ---------------------------------------------------------------------------
+// Online play for up to three golfers, peer to peer over WebRTC (PeerJS).
+// One player hosts and gets a four-letter code; friends join with it. Every
+// message goes through the host, who stamps the sender and passes it on.
+//
+// Matchmaking (introducing the browsers to each other) uses the free public
+// PeerJS server; after that the game talks browser to browser. For tests,
+// ?peer=host:port points it at a local PeerJS server instead.
+// ---------------------------------------------------------------------------
+
+const Net = (() => {
+  const MAX = 3;
+  const PREFIX = 'pinehaven-golf-';
+  const LETTERS = 'BCDFGHJKLMNPQRSTVWXZ';
+  // Without a word for this long, a link counts as dropped. Generous, so a
+  // phone that nips out to another app for a moment isn't thrown out (a link
+  // that's really gone closes by itself sooner).
+  const QUIET = 45000;
+
+  let peer = null, isHost = false, slot = -1, code = null, started = false;
+  let players = []; // [{ slot, char, name }]
+  const links = new Map(); // host: slot -> connection; guest: 0 -> connection to the host
+  const heard = new Map();
+  const handlers = new Map();
+  let pinger = null;
+
+  function on(type, fn) {
+    if (!handlers.has(type)) handlers.set(type, []);
+    handlers.get(type).push(fn);
+  }
+  function emit(type, msg) { for (const fn of handlers.get(type) || []) fn(msg); }
+
+  function options() {
+    const m = /[?&]peer=([^&]+)/.exec(location.search);
+    if (!m) return { debug: 0 };
+    const [host, port] = decodeURIComponent(m[1]).split(':');
+    return { host, port: Number(port) || 9000, path: '/', secure: false, debug: 0, config: { iceServers: [] } };
+  }
+  function makePeer(id) {
+    if (typeof Peer === 'undefined') throw new Error('Online play is not available here.');
+    return id ? new Peer(id, options()) : new Peer(options());
+  }
+  function explain(e) {
+    const t = e && e.type;
+    if (t === 'peer-unavailable') return 'No game with that code. Check it and try again.';
+    if (t === 'browser-incompatible') return 'This browser can’t play online.';
+    if (t === 'network' || t === 'server-error' || t === 'socket-error' || t === 'socket-closed')
+      return 'Couldn’t reach the matchmaking server. Check your internet connection.';
+    return (e && e.message) || 'Something went wrong with the connection.';
+  }
+
+  const cleanName = (n) => String(n || '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 14);
+  function lobbyMsg() { return { t: 'lobby', players: players.map((p) => ({ ...p })), started }; }
+  // Host: send to every guest but one.
+  function relay(msg, except) {
+    for (const [s, c] of links) if (s !== except && c.open) { try { c.send(msg); } catch (e) { /* closing */ } }
+  }
+
+  // ---------- hosting ----------
+  function host(me) {
+    leave();
+    isHost = true; slot = 0; started = false;
+    players = [{ slot: 0, char: me.char | 0, name: cleanName(me.name) }];
+    return new Promise((resolve, reject) => {
+      let tries = 0, opened = false;
+      const attempt = () => {
+        code = Array.from({ length: 4 }, () => LETTERS[Math.floor(Math.random() * LETTERS.length)]).join('');
+        try { peer = makePeer(PREFIX + code); } catch (e) { reject(e.message); return; }
+        peer.on('open', () => { opened = true; startPinger(); resolve(code); });
+        peer.on('connection', accept);
+        peer.on('error', (e) => {
+          if (!opened && e.type === 'unavailable-id' && tries++ < 6) { peer.destroy(); attempt(); return; }
+          if (!opened) reject(explain(e)); else emit('error', { text: explain(e) });
+        });
+        // Losing the matchmaking server doesn't break links already made.
+        peer.on('disconnected', () => { if (peer && !peer.destroyed) { try { peer.reconnect(); } catch (e) { /* later */ } } });
+      };
+      attempt();
+    });
+  }
+
+  function accept(conn) {
+    conn.on('open', () => {
+      const free = [1, 2].find((k) => !players.some((p) => p.slot === k));
+      if (started || free === undefined) {
+        try { conn.send({ t: 'full', started }); } catch (e) { /* gone */ }
+        // Close once the message is through (and for certain a bit later).
+        try { conn.close({ flush: true }); } catch (e) { /* gone */ }
+        setTimeout(() => { try { conn.close(); } catch (e) { /* gone */ } }, 5000);
+        return;
+      }
+      links.set(free, conn);
+      heard.set(free, performance.now());
+      conn.on('data', (msg) => fromGuest(free, msg));
+      conn.on('close', () => drop(free));
+      conn.on('error', () => drop(free));
+    });
+  }
+
+  function fromGuest(s, msg) {
+    heard.set(s, performance.now());
+    if (!msg || typeof msg !== 'object') return;
+    msg.s = s; // the host says who sent it
+    if (msg.t === 'ping') return;
+    // Only the host speaks for the room.
+    if (msg.t === 'welcome' || msg.t === 'lobby' || msg.t === 'start' || msg.t === 'full' || msg.t === 'left') return;
+    if (msg.t === 'hello') {
+      if (!players.some((p) => p.slot === s)) players.push({ slot: s, char: msg.char | 0, name: cleanName(msg.name) });
+      links.get(s).send({ t: 'welcome', slot: s, code });
+      const m = lobbyMsg();
+      relay(m, -1); emit('lobby', m);
+      return;
+    }
+    if (msg.t === 'me') {
+      const p = players.find((q) => q.slot === s);
+      if (p) { p.char = msg.char | 0; p.name = cleanName(msg.name); }
+      const m = lobbyMsg();
+      relay(m, -1); emit('lobby', m);
+      return;
+    }
+    relay(msg, s);
+    emit(msg.t, msg);
+  }
+
+  function drop(s) {
+    if (!links.has(s)) return;
+    const c = links.get(s);
+    links.delete(s);
+    heard.delete(s);
+    try { c.close(); } catch (e) { /* already */ }
+    players = players.filter((p) => p.slot !== s);
+    const m = { t: 'left', s };
+    relay(m, -1); emit('left', m);
+    const l = lobbyMsg();
+    relay(l, -1); emit('lobby', l);
+  }
+
+  // ---------- joining ----------
+  function join(theCode, me) {
+    leave();
+    isHost = false; started = false;
+    code = String(theCode || '').trim().toUpperCase();
+    return new Promise((resolve, reject) => {
+      let done = false;
+      const fail = (text) => {
+        if (!done) { done = true; reject(text); leave(); } else emit('error', { text });
+      };
+      try { peer = makePeer(); } catch (e) { fail(e.message); return; }
+      peer.on('error', (e) => fail(explain(e)));
+      peer.on('open', () => {
+        const conn = peer.connect(PREFIX + code, { reliable: true, serialization: 'json' });
+        conn.on('open', () => {
+          links.set(0, conn);
+          heard.set(0, performance.now());
+          conn.send({ t: 'hello', char: me.char | 0, name: cleanName(me.name) });
+        });
+        conn.on('data', (msg) => {
+          heard.set(0, performance.now());
+          if (!msg || typeof msg !== 'object') return;
+          if (msg.t === 'welcome') { slot = msg.slot; done = true; startPinger(); resolve(slot); return; }
+          if (msg.t === 'full') { fail(msg.started ? 'That round has already started.' : 'That game already has three players.'); return; }
+          if (msg.t === 'lobby') { players = msg.players; started = msg.started; }
+          if (msg.t === 'start') started = true;
+          emit(msg.t, msg);
+        });
+        conn.on('close', () => { if (done) hostGone(); else fail('Couldn’t join that game.'); });
+      });
+      setTimeout(() => { if (!done) fail('No answer from that code. Check it and try again.'); }, 20000);
+    });
+  }
+
+  function hostGone() {
+    if (!links.has(0)) return;
+    links.delete(0);
+    emit('hostgone', {});
+    leave();
+  }
+
+  // Keep links warm, and notice when someone has silently gone.
+  function startPinger() {
+    clearInterval(pinger);
+    let last = performance.now();
+    pinger = setInterval(() => {
+      const now = performance.now();
+      // If this page was frozen (busy, or in the background), messages may be
+      // waiting to be read: don't judge anyone silent until they have been.
+      const woke = now - last > 5000;
+      last = now;
+      if (isHost) {
+        relay({ t: 'ping', s: 0 }, -1);
+        if (!woke) for (const [s, at] of heard) if (now - at > QUIET) drop(s);
+      } else if (links.has(0)) {
+        try { links.get(0).send({ t: 'ping' }); } catch (e) { /* closing */ }
+        if (!woke && now - (heard.get(0) || now) > QUIET) hostGone();
+      }
+    }, 2000);
+  }
+
+  // ---------- in play ----------
+  function send(msg) {
+    msg.s = slot;
+    if (isHost) relay(msg, -1);
+    else if (links.has(0) && links.get(0).open) { try { links.get(0).send(msg); } catch (e) { /* closing */ } }
+  }
+  // Change your name or golfer while waiting to tee off.
+  function setMe(me) {
+    const p = players.find((q) => q.slot === slot);
+    if (p) { p.char = me.char | 0; p.name = cleanName(me.name); }
+    if (isHost) { const m = lobbyMsg(); relay(m, -1); emit('lobby', m); }
+    else send({ t: 'me', char: me.char | 0, name: cleanName(me.name) });
+  }
+  // Host only: everyone tees off, with a shared seed for the wind.
+  function start(seed) {
+    if (!isHost) return;
+    started = true;
+    const m = { t: 'start', seed, s: 0 };
+    relay(m, -1);
+    emit('start', m);
+    const l = lobbyMsg();
+    relay(l, -1);
+  }
+
+  function leave() {
+    clearInterval(pinger);
+    pinger = null;
+    for (const c of links.values()) { try { c.close(); } catch (e) { /* already */ } }
+    links.clear();
+    heard.clear();
+    if (peer) { try { peer.destroy(); } catch (e) { /* already */ } }
+    peer = null;
+    slot = -1; code = null; players = []; isHost = false; started = false;
+  }
+
+  return {
+    host, join, send, setMe, start, leave, on, cleanName,
+    get active() { return slot >= 0; },
+    get isHost() { return isHost; },
+    get slot() { return slot; },
+    get code() { return code; },
+    get players() { return players; },
+    get started() { return started; },
+  };
+})();
+
+// ===== remote.js =====
+// ---------------------------------------------------------------------------
+// The other golfers in an online round: their golfer, caddy, cart, bag and
+// ball, each glided towards where its player last said it was, plus a name
+// tag over their head. Only what they send is shown; nothing is simulated.
+// ---------------------------------------------------------------------------
+
+const Remote = (() => {
+  // Ball, name tag and radar colour for each seat in the game.
+  const COLORS = ['#ffffff', '#ff9a3c', '#ff6fae'];
+  const POSES = ['walk', 'address', 'swing', 'seated'];
+  const NEAR_CAMERA = 2.6; // yards: closer than this to the camera, people step out of the picture
+
+  function create(slot, info, course, hud) {
+    const style = CHARACTERS[info.char] || CHARACTERS[0];
+    const golfer = Golfer.create(style);
+    const caddy = Golfer.createCaddy();
+    const cart = Cart.create(course);
+    const bag = Equipment.createBag();
+    const ball = World.createBall(COLORS[slot]);
+    for (const o of [golfer.root, caddy.root, cart.root, bag.root]) { o.visible = false; World.add(o); }
+
+    const tag = document.createElement('div');
+    tag.className = 'marker mp-tag';
+    tag.id = 'mpTag' + slot;
+    tag.style.setProperty('--c', COLORS[slot]);
+    tag.innerHTML = '<i></i><span></span>';
+    hud.appendChild(tag);
+
+    const R = {
+      slot, name: info.name, char: info.char, color: COLORS[slot], style,
+      hole: 0, strokes: 0, ballState: 'tee', have: false, msg: null,
+      g: [0, 0, 0, 0], c: [0, 0, 0, 0], k: [0, 0, 0, 0, 0, 0, 0], b: [0, 0, 0],
+      sw: 0, out: -1, bagP: new THREE.Vector3(), bagQ: new THREE.Quaternion(), lastTrail: null,
+    };
+    const _q = new THREE.Quaternion(), _t = new THREE.Vector3(), _tag = new THREE.Vector3();
+
+    function snapAll(m) {
+      R.g = m.g.slice(); R.c = m.c.slice(); R.k = m.k.slice(); R.b = m.b.slice();
+      R.sw = m.sw || 0;
+      if (m.bg) { R.bagP.fromArray(m.bg, 0); R.bagQ.fromArray(m.bg, 3); }
+    }
+
+    // A snapshot from this player.
+    function apply(m) {
+      const prev = R.msg;
+      R.msg = m;
+      R.hole = m.h | 0;
+      R.strokes = m.n | 0;
+      R.ballState = m.bs;
+      if (m.nm) R.name = Net.cleanName(m.nm) || R.name;
+      if (!R.have) {
+        R.have = true;
+        snapAll(m);
+        for (const o of [golfer.root, caddy.root, cart.root, bag.root]) o.visible = true;
+        return;
+      }
+      // Their shots and putts, heard from wherever you are.
+      if (prev && prev.bs !== 'moving' && m.bs === 'moving') {
+        R.lastTrail = null;
+        ball.trailReset();
+        const g = loudness(m.b);
+        if (g > 0.05) Sound.hit(m.pw || 0.7, !!m.pu, g);
+      }
+      if (prev && !prev.bm && m.bm) {
+        const g = loudness(m.b);
+        if (g > 0.05) Sound.cup(g);
+      }
+    }
+
+    function loudness(p) {
+      const cp = World.camera.position;
+      const d = Math.hypot(p[0] - cp.x, p[2] - cp.z);
+      return clamp(1 - d / 140, 0, 1) ** 2;
+    }
+
+    // Glide a vector towards the target: positions first, then an angle at index ai.
+    function glide(cur, tgt, k, snapDist, ai) {
+      if (Math.hypot(tgt[0] - cur[0], tgt[2] - cur[2]) > snapDist) { for (let i = 0; i < tgt.length; i++) cur[i] = tgt[i]; return; }
+      for (let i = 0; i < tgt.length; i++) {
+        if (i === ai) cur[i] += wrapAngle(tgt[i] - cur[i]) * k;
+        else cur[i] += (tgt[i] - cur[i]) * k;
+      }
+    }
+
+    // w, h: size of the view, for placing the name tag.
+    function update(dt, camera, showTag, w, h) {
+      const m = R.msg;
+      if (!m) return;
+      const k = 1 - Math.exp(-dt * 12);
+      glide(R.g, m.g, k, 6, 3);
+      glide(R.c, m.c, k, 6, 3);
+      glide(R.k, m.k, k, 8, 3);
+      glide(R.b, m.b, 1 - Math.exp(-dt * 16), 30, -1);
+      R.sw += ((m.sw || 0) - R.sw) * (1 - Math.exp(-dt * 25));
+
+      // The cart.
+      const st = cart.st;
+      st.x = R.k[0]; st.y = R.k[1]; st.z = R.k[2]; st.yaw = R.k[3];
+      st.steer = R.k[4]; st.pitch = R.k[5]; st.roll = R.k[6];
+      st.speed = m.ks || 0;
+      st.spin += st.speed * dt / 0.21;
+      cart.sync();
+
+      // The golfer.
+      const club = CLUBS[m.cl] || CLUBS[0];
+      const mode = POSES[m.ps] || 'walk';
+      if (m.m === 'c') {
+        const s = cart.seatPose(golfer.seatScale);
+        golfer.root.position.set(s.x, s.y, s.z);
+        golfer.root.rotation.set(0, Math.PI - s.yaw, 0);
+        golfer.update(dt, { mode: 'seated' });
+      } else {
+        golfer.root.position.set(R.g[0], R.g[1], R.g[2]);
+        golfer.root.rotation.set(0, Math.PI - R.g[3], 0);
+        golfer.setFace(m.m === 's' ? m.fa || 0 : 0);
+        golfer.update(dt, { mode, speed: m.sp || 0, putt: !!m.pu, club: club.kind, swing: R.sw });
+      }
+
+      // The caddy.
+      if (m.cr) {
+        const s = cart.seatPose(caddy.seatScale, true);
+        caddy.root.position.set(s.x, s.y, s.z);
+        caddy.root.rotation.set(0, Math.PI - s.yaw, 0);
+        caddy.update(dt, { mode: 'seated', passenger: true });
+      } else {
+        caddy.root.position.set(R.c[0], R.c[1], R.c[2]);
+        caddy.root.rotation.set(0, Math.PI - R.c[3], 0);
+        caddy.update(dt, { mode: 'walk', speed: m.c[4] || 0, carry: !!m.cc });
+      }
+
+      // The bag: on the cart's rack, or wherever they say it is.
+      if (!m.bg) {
+        if (bag.root.parent !== cart.bagMount) cart.bagMount.add(bag.root);
+        bag.root.position.set(0, 0, 0);
+        bag.root.rotation.set(0, 0, 0);
+      } else {
+        if (bag.root.parent !== World.scene) World.add(bag.root);
+        _t.fromArray(m.bg, 0);
+        _q.fromArray(m.bg, 3);
+        if (R.bagP.distanceTo(_t) > 4) { R.bagP.copy(_t); R.bagQ.copy(_q); }
+        R.bagP.lerp(_t, k);
+        R.bagQ.slerp(_q, k);
+        bag.root.position.copy(R.bagP);
+        bag.root.quaternion.copy(R.bagQ);
+      }
+      if (m.bo !== R.out) { R.out = m.bo; bag.setOut(m.bo); }
+      bag.update(dt);
+
+      // The ball, and the trail behind it while it flies.
+      const bp = { x: R.b[0], y: R.b[1], z: R.b[2] };
+      ball.set(bp, m.bs === 'gone' ? 'hidden' : m.bm ? 'holed' : 'ok', m.bs === 'tee');
+      if (m.bs === 'moving') {
+        const l = R.lastTrail;
+        if (!l || Math.hypot(bp.x - l.x, bp.y - l.y, bp.z - l.z) > 0.6) { ball.trailPush(bp); R.lastTrail = bp; }
+      } else ball.trailFade(dt);
+
+      // Step out of the way of the camera when it's right on top of them.
+      const cp = camera.position;
+      const near = (o, r) => o.position.distanceTo(cp) < r;
+      golfer.root.visible = !(m.m !== 'c' && near(golfer.root, NEAR_CAMERA));
+      caddy.root.visible = !(!m.cr && near(caddy.root, NEAR_CAMERA));
+      bag.root.visible = !(m.bg && near(bag.root, NEAR_CAMERA));
+      cart.root.visible = !near(cart.root, 1.9);
+
+      // Name tag over their head.
+      const seated = m.m === 'c';
+      const p = _tag.copy(golfer.root.position);
+      p.y += m.m === 's' ? style.height * 0.85 : style.height * (seated ? 0.8 : 1) + 0.15; // just over the head (lower when bent over the ball)
+      const dist = p.distanceTo(cp);
+      p.project(camera);
+      const x = (p.x * 0.5 + 0.5) * w, y = (-p.y * 0.5 + 0.5) * h;
+      const on = showTag && p.z < 1 && x > 10 && x < w - 10 && y > 10 && y < h - 10 && dist < 260 && dist > 1.5;
+      UI.marker(tag.id, x, y, false, on, R.name, w, h);
+    }
+
+    function dispose() {
+      WindCues.forget(caddy.root);
+      for (const o of [golfer.root, caddy.root, cart.root, bag.root]) o.removeFromParent();
+      ball.dispose();
+      tag.remove();
+    }
+
+    return Object.assign(R, { apply, update, dispose, cart, golfer, caddy });
+  }
+
+  return { create, COLORS };
+})();
+
 // ===== main.js =====
 // ---------------------------------------------------------------------------
 // Game flow. You control your golfer the whole time: walk (or drive the cart)
@@ -16130,14 +16726,7 @@ function startGame(saved) {
   cart.place(COURSE.cartStart.x, COURSE.cartStart.z, (COURSE.cartStart.heading || 0) * DEG);
   const bag = Equipment.createBag();
   World.add(bag.root);
-  const caddy = Golfer.create(CADDY);
-  // A flag on a pole strapped to the caddy's back: the wind goes where he goes.
-  {
-    const f = WindCues.makeFlag({ height: 2.5, w: 0.9, h: 0.58, color: WindCues.PALETTE[0], emblem: 'disc', pole: 0x5a4330 });
-    f.position.set(0.12, -0.2, -0.3); // in the spine joint's frame (unscaled body)
-    f.rotation.x = -0.1;
-    caddy.joints.spine.add(f);
-  }
+  const caddy = Golfer.createCaddy();
   caddy.setVisible(false);
   World.add(caddy.root);
   let golfer = null;     // the player's golfer, created after choosing a character
@@ -16159,6 +16748,7 @@ function startGame(saved) {
     wind: { x: 0, z: 0, mph: 0, yaw: 0 }, introShown: false, cardTimer: 0, pending: null, trace: [],
     time: 0, inRound: false, locked: false, toastGate: 0, stepT: 0, acc: 0, bounceSounds: 0,
     select: { index: 0, waveT: 0, resume: null },
+    mp: null, // an online round: { seed, slot, name, players, remotes, ... }
   };
   window.__golf = G; // handy for debugging from the console
   window.__golfWorld = World;
@@ -16185,7 +16775,8 @@ function startGame(saved) {
 
   function setWind() {
     const def = hole().def;
-    const r = mulberry32((def.seed || 1) * 13 + (Date.now() & 0xffff));
+    // Online, everyone feels the same wind on the same hole.
+    const r = mulberry32(G.mp ? (G.mp.seed + (G.hole + 1) * 7919) >>> 0 : (def.seed || 1) * 13 + (Date.now() & 0xffff));
     const [lo, hi] = def.wind || [0, 10];
     const mph = lo + r() * (hi - lo);
     const yaw = r() * TAU;
@@ -16207,14 +16798,29 @@ function startGame(saved) {
     Object.assign(G.cad, { x, z, y: course.H(x, z), yaw, speed: 0, riding: false, stuck: 0 });
   }
 
+  // Where you tee up. Online, each golfer has their own spot four yards along
+  // the tee from the next, so nobody stands in anyone's way.
+  function teeSpot(h) {
+    const off = G.mp ? [0, -4, 4][G.mp.slot] || 0 : 0;
+    if (!off) return { x: h.tee.x, z: h.tee.z };
+    const rx = -h.teeDir.z, rz = h.teeDir.x;
+    for (const f of [1, 0.75, 0.5]) {
+      const x = h.tee.x + rx * off * f, z = h.tee.z + rz * off * f;
+      if (course.surface(x, z) === S_TEE) return { x, z };
+    }
+    return { x: h.tee.x + rx * off * 0.5, z: h.tee.z + rz * off * 0.5 };
+  }
+
   // ---------- holes & round ----------
   function activateHole(i) {
     G.hole = i;
     G.strokes = 0;
+    G.cardAfterHole = false;
     G.field = course.fieldFor(HOLES[i]);
     setWind();
     const h = hole();
-    placeBall(h.tee.x, h.tee.z, true);
+    const t = teeSpot(h);
+    placeBall(t.x, t.z, true);
     G.introShown = false;
     G.trace = [];
     World.trailReset();
@@ -16244,10 +16850,13 @@ function startGame(saved) {
     G.bagSpot = null;
     const h = hole();
     if (at === 0) {
-      const cl = course.clubhouse;
-      placePlayer(cl.x - 8, cl.z - 18, -0.6);
-      cart.place(COURSE.cartStart.x, COURSE.cartStart.z, (COURSE.cartStart.heading || 0) * DEG);
-      UI.toast('Welcome to Pinehaven', 'Walk to the 1st tee, or hop in the cart. Your caddy has the bag.', 3800);
+      // Online, everyone starts side by side, each with their own cart.
+      const cl = course.clubhouse, k = G.mp ? [0, -1, 1][G.mp.slot] || 0 : 0;
+      const pr = rightOf(-0.6), cs = COURSE.cartStart, ch = (cs.heading || 0) * DEG, cr = rightOf(ch);
+      placePlayer(cl.x - 8 + pr.x * 2.2 * k, cl.z - 18 + pr.z * 2.2 * k, -0.6);
+      cart.place(cs.x + cr.x * 3 * k, cs.z + cr.z * 3 * k, ch);
+      if (G.mp) UI.toast('Out on the course together', 'Everyone plays their own ball. Wait for each other at the end of each hole.', 4200);
+      else UI.toast('Welcome to Pinehaven', 'Walk to the 1st tee, or hop in the cart. Your caddy has the bag.', 3800);
     } else {
       const back = { x: h.tee.x - h.teeDir.x * 12, z: h.tee.z - h.teeDir.z * 12 };
       placePlayer(back.x, back.z, yawFromDir(h.teeDir.x, h.teeDir.z));
@@ -16265,6 +16874,7 @@ function startGame(saved) {
   }
 
   function saveProgress() {
+    if (G.mp) return; // online rounds can't be resumed
     const st = store.load();
     st.round = { scores: G.scores.slice(), next: G.hole };
     st.character = G.character;
@@ -16275,7 +16885,7 @@ function startGame(saved) {
     const total = G.scores.reduce((a, s) => a + s, 0);
     const st = store.load();
     if (!st.best || total < st.best) st.best = total;
-    st.round = null;
+    if (!G.mp) st.round = null;
     store.save(st);
     G.inRound = false;
   }
@@ -16989,6 +17599,7 @@ function startGame(saved) {
     G.ballCamTimer = 2.4;
     G.cardTimer = 3.4;
     saveProgress();
+    sendScore();
   }
 
   function pickUp() {
@@ -16998,19 +17609,34 @@ function startGame(saved) {
     UI.setTotal(toPar(), true);
     G.cardTimer = 2.6;
     saveProgress();
+    sendScore();
   }
 
+  // afterHole: you've finished the hole and the card leads on to the next.
+  // Online, it waits for the others to hole out too (you can watch them, or
+  // go on ahead).
   function showCard(afterHole) {
     const last = G.hole >= HOLES.length - 1;
     const done = afterHole && last;
-    UI.renderCard(HOLES, G.scores, G.hole, {
+    const wait = afterHole ? stillPlaying(G.hole) : [];
+    const opts = {
       title: done ? 'Final round' : afterHole ? `After ${G.hole + 1}` : 'Scorecard',
-      next: afterHole ? (done ? 'Play again' : `On to the ${ordinal(G.hole + 2)}`) : null,
-      closable: !afterHole,
-    });
+      next: afterHole ? (done ? (G.mp ? 'Back to the clubhouse' : 'Play again') : wait.length ? 'Go on ahead' : `On to the ${ordinal(G.hole + 2)}`) : null,
+      closable: !afterHole || wait.length > 0,
+      closeLabel: afterHole && wait.length ? 'Watch' : 'Close',
+      leave: !!G.mp && !done,
+    };
+    if (G.mp) {
+      opts.players = cardRows();
+      if (wait.length) opts.sub = `Waiting for ${listNames(wait)} to hole out`;
+      else if (afterHole && G.mp.players.size > 1) opts.sub = 'Everyone’s in';
+    }
+    UI.renderCard(HOLES, G.scores, G.hole, opts);
     G.cardAfterHole = afterHole;
+    G.cardClosable = opts.closable;
+    G.cardWaiting = wait.length > 0;
     openOverlay('card');
-    if (done) finishRound();
+    if (done && G.inRound) finishRound();
   }
 
   function nextFromCard() {
@@ -17018,13 +17644,314 @@ function startGame(saved) {
     if (!G.cardAfterHole) return;
     G.cardAfterHole = false;
     if (G.hole >= HOLES.length - 1) {
-      startRound(0, []);
+      if (G.mp) backToTitle(); else startRound(0, []);
       return;
     }
     activateHole(G.hole + 1);
     const h = hole();
     UI.toast(`Next: the ${ordinal(G.hole + 1)} tee`, `${Math.round(distTo(h.tee.x, h.tee.z))} yds away · follow the red marker`, 3000);
     saveProgress();
+  }
+
+  // ---------- online play ----------
+  // Up to three golfers on their own devices (see net.js). Each plays their
+  // own ball; everyone sends where they are a few times a second and draws the
+  // others from that (remote.js). Scores are swapped as each hole is finished.
+  const defaultName = (slot) => `Player ${slot + 1}`;
+  const listNames = (a) => (a.length <= 1 ? a.join('') : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1]);
+  const lobby = { char: 0, busy: false, token: 0, nameT: 0 };
+
+  function openLobby() {
+    Sound.init();
+    const st = store.load();
+    lobby.char = clamp(st.character != null ? st.character : 0, 0, CHARACTERS.length - 1);
+    UI.$('lbName').value = st.name || '';
+    renderLobbyChars();
+    lobbyStatus('');
+    lobbyView();
+    UI.show('title', false);
+    UI.show('lobby', true);
+  }
+  function closeLobby() {
+    lobby.token++;
+    lobby.busy = false;
+    Net.leave();
+    UI.show('lobby', false);
+    UI.show('title', true);
+  }
+  function lobbyMe() { return { char: lobby.char, name: Net.cleanName(UI.$('lbName').value) }; }
+  function saveMe() {
+    const st = store.load();
+    st.character = lobby.char;
+    st.name = Net.cleanName(UI.$('lbName').value);
+    store.save(st);
+  }
+  function renderLobbyChars() {
+    UI.$('lbChars').innerHTML = CHARACTERS.map((c, i) =>
+      `<button class="lb-char${i === lobby.char ? ' on' : ''}" data-i="${i}"><b>${c.name}</b><span>${c.heightLabel}</span></button>`).join('');
+    UI.$('lbChars').querySelectorAll('.lb-char').forEach((el) => el.addEventListener('click', () => {
+      lobby.char = Number(el.dataset.i);
+      renderLobbyChars();
+      saveMe();
+      if (Net.active) Net.setMe(lobbyMe());
+      Sound.click();
+    }));
+  }
+  function lobbyStatus(text, bad) {
+    const el = UI.$('lbStatus');
+    el.textContent = text || '';
+    el.classList.toggle('bad', !!bad);
+  }
+  // Before connecting: host or join. After: the code and who's in.
+  function lobbyView() {
+    const inRoom = Net.active;
+    UI.show('lbStart', !inRoom);
+    UI.show('lbRoom', inRoom);
+    UI.show('lbLead', !inRoom); // room for the player list on small screens
+    UI.$('lbHost').disabled = UI.$('lbJoin').disabled = lobby.busy;
+    if (!inRoom) return;
+    UI.text('lbCodeShow', Net.code);
+    const pl = Net.players.slice().sort((a, b) => a.slot - b.slot);
+    UI.$('lbPlayers').innerHTML = pl.map((p) => {
+      const c = CHARACTERS[p.char] || CHARACTERS[0];
+      const who = [p.slot === Net.slot ? 'You' : '', p.slot === 0 ? 'Host' : ''].filter(Boolean).join(' · ');
+      return `<li><i style="background:${Remote.COLORS[p.slot]}"></i><b>${UI.esc(p.name || defaultName(p.slot))}</b>` +
+        `<span>${UI.esc(c.name)}</span>${who ? `<em>${who}</em>` : ''}</li>`;
+    }).join('');
+    UI.show('lbGo', Net.isHost);
+    UI.show('lbWait', !Net.isHost);
+    if (Net.isHost) UI.$('lbGo').textContent = pl.length > 1 ? `Tee off · ${pl.length} golfers` : 'Tee off';
+  }
+
+  async function hostGame() {
+    if (lobby.busy) return;
+    saveMe();
+    const token = ++lobby.token;
+    lobby.busy = true;
+    lobbyView();
+    lobbyStatus('Setting up a game…');
+    try {
+      await Net.host(lobbyMe());
+      if (token !== lobby.token) return;
+      lobbyStatus('Give your friends the code: they choose Play with friends, type it in and press Join.');
+    } catch (e) {
+      if (token !== lobby.token) return;
+      Net.leave();
+      lobbyStatus(String(e), true);
+    }
+    lobby.busy = false;
+    lobbyView();
+  }
+  async function joinGame() {
+    if (lobby.busy) return;
+    const code = UI.$('lbCode').value.trim().toUpperCase();
+    if (!/^[A-Z]{4}$/.test(code)) { lobbyStatus('A game code is four letters.', true); return; }
+    saveMe();
+    const token = ++lobby.token;
+    lobby.busy = true;
+    lobbyView();
+    lobbyStatus('Looking for that game…');
+    try {
+      await Net.join(code, lobbyMe());
+      if (token !== lobby.token) return;
+      lobbyStatus('You’re in. The host tees off when everyone’s here.');
+    } catch (e) {
+      if (token !== lobby.token) return;
+      lobbyStatus(String(e), true);
+    }
+    lobby.busy = false;
+    lobbyView();
+  }
+  function teeOffOnline() {
+    if (!Net.isHost || !Net.active) return;
+    Net.start(Math.floor(Math.random() * 0x7fffffff));
+  }
+
+  // The host said go: everyone heads for the first tee.
+  function startMultiplayer(seed) {
+    if (G.mp || !Net.active) return;
+    const me = Net.slot;
+    G.mp = { seed: seed >>> 0, slot: me, name: '', players: new Map(), remotes: new Map(), sendT: 0, listT: 0 };
+    for (const p of Net.players) mpPlayer(p.slot, { ch: p.char, nm: p.name });
+    G.mp.name = G.mp.players.get(me).name;
+    UI.show('lobby', false);
+    setCharacter(G.mp.players.get(me).char);
+    World.setBallColor(Remote.COLORS[me]);
+    startRound(0, []);
+    UI.show('mpList', true);
+    renderMpList();
+  }
+  // What we know about each golfer in the round (scores outlive their avatar).
+  function mpPlayer(s, m) {
+    let p = G.mp.players.get(s);
+    if (!p) {
+      p = { slot: s, name: '', char: clamp((m && m.ch) | 0, 0, CHARACTERS.length - 1), color: Remote.COLORS[s], scores: [], left: false };
+      p.name = (m && Net.cleanName(m.nm)) || defaultName(s);
+      G.mp.players.set(s, p);
+    }
+    return p;
+  }
+  const validSlot = (s) => s === 0 || s === 1 || s === 2;
+
+  function onRemoteState(m) {
+    if (!G.mp || !validSlot(m.s) || m.s === G.mp.slot || !Array.isArray(m.g) || !Array.isArray(m.c) || !Array.isArray(m.k) || !Array.isArray(m.b)) return;
+    const p = mpPlayer(m.s, m);
+    if (p.left) return;
+    let r = G.mp.remotes.get(m.s);
+    if (!r) {
+      r = Remote.create(m.s, { char: p.char, name: p.name }, course, UI.$('hud'));
+      G.mp.remotes.set(m.s, r);
+    }
+    r.apply(m);
+    p.name = r.name;
+  }
+
+  function sendScore() {
+    if (!G.mp) return;
+    Net.send({ t: 'score', h: G.hole, n: G.scores[G.hole] });
+    checkGroupDone();
+  }
+  function onRemoteScore(m) {
+    if (!G.mp || !validSlot(m.s) || m.s === G.mp.slot) return;
+    const h = m.h | 0, n = m.n | 0;
+    if (h < 0 || h >= HOLES.length || n < 1) return;
+    const p = mpPlayer(m.s);
+    p.scores[h] = n;
+    if (G.mode !== 'title') {
+      UI.toast(`${UI.esc(p.name)}: ${n >= MAX_STROKES ? 'Picked up' : scoreName(n, HOLES[h].par)}`, `Hole ${h + 1} · ${n} stroke${n === 1 ? '' : 's'}`, 2600);
+    }
+    checkGroupDone();
+    renderMpList();
+  }
+  // The others still playing the hole you've finished.
+  function stillPlaying(h) {
+    if (!G.mp) return [];
+    const out = [];
+    for (const p of G.mp.players.values()) if (p.slot !== G.mp.slot && !p.left && p.scores[h] == null) out.push(p.name);
+    return out;
+  }
+  // Everyone's holed out: bring the card back to lead on to the next tee.
+  function checkGroupDone() {
+    if (!G.mp || !G.cardAfterHole || G.cardTimer > 0) return;
+    if (UI.isShown('card') && !G.cardWaiting) return;
+    if (stillPlaying(G.hole).length) { if (UI.isShown('card')) showCard(true); return; }
+    showCard(true);
+    Sound.click();
+  }
+  function cardRows() {
+    const rows = [];
+    for (const p of [...G.mp.players.values()].sort((a, b) => a.slot - b.slot)) {
+      const me = p.slot === G.mp.slot;
+      rows.push({ name: me ? G.mp.name || defaultName(p.slot) : p.name, color: p.color, scores: me ? G.scores : p.scores, me, left: p.left });
+    }
+    return rows;
+  }
+
+  function onRemoteLeft(s, quiet) {
+    if (!G.mp) return;
+    const r = G.mp.remotes.get(s);
+    if (r) { r.dispose(); G.mp.remotes.delete(s); }
+    const p = G.mp.players.get(s);
+    if (p && !p.left) {
+      p.left = true;
+      if (!quiet) UI.toast(`${UI.esc(p.name)} left the game`, 'You can carry on without them', 2600, true);
+    }
+    checkGroupDone();
+    renderMpList();
+  }
+  function onHostGone() {
+    if (!G.mp) {
+      if (UI.isShown('lobby')) { lobby.busy = false; lobbyView(); lobbyStatus('The host closed the game.', true); }
+      return;
+    }
+    for (const p of G.mp.players.values()) if (p.slot !== G.mp.slot) onRemoteLeft(p.slot, true);
+    UI.toast('Lost touch with the host', 'The others are gone, but you can finish your round', 3600, true);
+  }
+
+  function endMultiplayer() {
+    if (!G.mp) return;
+    for (const r of G.mp.remotes.values()) r.dispose();
+    G.mp = null;
+    Net.leave();
+    UI.html('mpList', '');
+    UI.show('mpList', false);
+    World.setBallColor('#ffffff');
+  }
+  // Leave the course for the title screen.
+  function backToTitle() {
+    leaveSetup();
+    endMultiplayer();
+    for (const id of ['card', 'map', 'help']) UI.show(id, false);
+    UI.hideBanner();
+    UI.hideToast();
+    if (document.pointerLockElement) document.exitPointerLock();
+    Sound.engine(0);
+    Object.assign(G, { mode: 'title', shotPhase: null, ballCam: false, holdFinish: false, cardTimer: 0, cardAfterHole: false, pending: null, inRound: false, titleT: 0 });
+    World.hideGuides();
+    UI.show('hud', false);
+    if (golfer) { golfer.root.removeFromParent(); golfer = null; }
+    caddy.setVisible(false);
+    G.cad.riding = false;
+    activateHole(0);
+    const cl = course.clubhouse;
+    placePlayer(cl.x - 8, cl.z - 18, -0.6);
+    cart.place(COURSE.cartStart.x, COURSE.cartStart.z, (COURSE.cartStart.heading || 0) * DEG);
+    UI.show('title', true);
+  }
+
+  // Where you are and what you're doing, for the others to draw.
+  const r2 = (v) => Math.round(v * 100) / 100, r3 = (v) => Math.round(v * 1000) / 1000;
+  const POSE_CODE = { walk: 0, address: 1, swing: 2, seated: 3 };
+  function snapshot() {
+    const c = G.cad, k = cart.st, b = G.ball.p, gr = golfer.root, pose = G.lastPose || { mode: 'walk' };
+    const onCart = bag.root.parent === cart.bagMount;
+    const bp = bag.root.position, bq = bag.root.quaternion;
+    return {
+      t: 'st', h: G.hole, ch: G.character, nm: G.mp.name,
+      m: G.mode === 'cart' ? 'c' : G.mode === 'shot' ? 's' : G.mode === 'bag' ? 'b' : 'w',
+      g: [r2(gr.position.x), r2(gr.position.y), r2(gr.position.z), r3(Math.PI - gr.rotation.y)],
+      ps: POSE_CODE[pose.mode] || 0, sp: r2(pose.speed || 0), sw: r3(pose.swing || 0), pu: pose.putt ? 1 : 0,
+      cl: G.clubIndex, fa: r3(G.mode === 'shot' ? G.setup.face : 0),
+      c: [r2(c.x), r2(c.y), r2(c.z), r3(c.yaw), r2(c.speed)], cr: c.riding ? 1 : 0,
+      cc: !c.riding && c.speed > 0.4 && G.bagWhere === 'caddy' && !G.bagSpot ? 1 : 0,
+      k: [r2(k.x), r2(k.y), r2(k.z), r3(k.yaw), r3(k.steer), r3(k.pitch), r3(k.roll)], ks: r2(k.speed),
+      bg: onCart ? 0 : [r2(bp.x), r2(bp.y), r2(bp.z), r3(bq.x), r3(bq.y), r3(bq.z), r3(bq.w)], bo: G.clubIndex,
+      b: [r2(b.x), r3(b.y), r2(b.z)], bs: G.ballState, bm: G.ball.mode === 'holed' ? 1 : 0, n: G.strokes,
+      pw: G.shot ? r2(G.shot.power) : 0,
+    };
+  }
+  function updateOnline(dt) {
+    const mp = G.mp;
+    if (!mp) return;
+    if (Net.active && golfer) {
+      mp.sendT -= dt;
+      if (mp.sendT <= 0) {
+        const busy = G.ballState === 'moving' || G.mode === 'cart' || G.shotPhase === 'swing' || G.shotPhase === 'down';
+        mp.sendT = busy ? 0.05 : 0.1;
+        Net.send(snapshot());
+      }
+    }
+    const show = (G.mode === 'walk' || G.mode === 'cart' || G.mode === 'shot') && !overlayOpen() && !G.setupView;
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    for (const r of mp.remotes.values()) r.update(dt, camera, show, w, h);
+    mp.listT -= dt;
+    if (mp.listT <= 0) { mp.listT = 0.5; renderMpList(); }
+  }
+  // Under the hole plate: where the others are.
+  function renderMpList() {
+    if (!G.mp) return;
+    const rows = [];
+    for (const p of [...G.mp.players.values()].sort((a, b) => a.slot - b.slot)) {
+      if (p.slot === G.mp.slot) continue;
+      const r = G.mp.remotes.get(p.slot);
+      let what;
+      if (p.left) what = 'left';
+      else if (!r || !r.have) what = 'on the way';
+      else if (p.scores[r.hole] != null) what = `Hole ${r.hole + 1} · in ${p.scores[r.hole]}`;
+      else what = `Hole ${r.hole + 1} · ${r.ballState === 'tee' && !r.strokes ? 'on the tee' : `${r.strokes} played`}`;
+      rows.push(`<li class="${p.left ? 'gone' : ''}"><i style="background:${p.color}"></i><b>${UI.esc(p.name)}</b><span>${what}</span></li>`);
+    }
+    UI.html('mpList', rows.join(''));
   }
 
   // ---------- the cart ----------
@@ -17082,6 +18009,20 @@ function startGame(saved) {
     return false;
   }
 
+  // Online: the others and their carts. Only stepping into them is blocked,
+  // so nobody gets stuck if one of them walks or drives into you.
+  function othersAt(x, z) {
+    if (!G.mp) return false;
+    for (const r of G.mp.remotes.values()) {
+      if (!r.have) continue;
+      const g = r.golfer.root.position;
+      if (r.msg.m !== 'c' && Math.hypot(x - g.x, z - g.z) < 0.5) return true;
+      const c = r.cart.st, fx = Math.sin(c.yaw), fz = -Math.cos(c.yaw), dx = x - c.x, dz = z - c.z;
+      if (Math.abs(dx * fx + dz * fz) < 1.45 && Math.abs(dx * -fz + dz * fx) < 0.8) return true;
+    }
+    return false;
+  }
+
   function updateWalk(dt) {
     const P = G.player;
     const inp = moveInput();
@@ -17100,9 +18041,11 @@ function startGame(saved) {
     P.vx += (mx * target - P.vx) * k;
     P.vz += (mz * target - P.vz) * k;
     const nx = P.x + P.vx * dt, nz = P.z + P.vz * dt;
-    if (!blockedAt(nx, nz)) { P.x = nx; P.z = nz; }
-    else if (!blockedAt(nx, P.z)) { P.x = nx; P.vz *= 0.5; }
-    else if (!blockedAt(P.x, nz)) { P.z = nz; P.vx *= 0.5; }
+    const inOthers = othersAt(P.x, P.z);
+    const stop = (x, z) => blockedAt(x, z) || (!inOthers && othersAt(x, z));
+    if (!stop(nx, nz)) { P.x = nx; P.z = nz; }
+    else if (!stop(nx, P.z)) { P.x = nx; P.vz *= 0.5; }
+    else if (!stop(P.x, nz)) { P.z = nz; P.vx *= 0.5; }
     else { P.vx = P.vz = 0; }
     P.speed = Math.hypot(P.vx, P.vz);
     if (P.speed > 0.3) {
@@ -17310,6 +18253,7 @@ function startGame(saved) {
     }
     golfer.setFace(G.mode === 'shot' ? G.setup.face : 0);
     golfer.update(dt, pose);
+    G.lastPose = pose;
     // Hidden in first person, and when the bag close-up camera is right where he stands.
     const camInside = G.mode === 'bag' && Math.hypot(camera.position.x - P.x, camera.position.z - P.z) < 0.75 * golfer.scale;
     golfer.setVisible(!(G.fp && G.mode !== 'title' && G.mode !== 'bag' && !G.ballCam) && !camInside);
@@ -17379,6 +18323,15 @@ function startGame(saved) {
     if (G.ballState === 'tee') items.push({ kind: 'tee', x: h.tee.x, z: h.tee.z });
     if (G.ballState !== 'holed' && G.ballState !== 'gone') items.push({ kind: 'ball', x: b.x, z: b.z });
     if (!G.cad.riding) items.push({ kind: 'caddy', x: G.cad.x, z: G.cad.z });
+    if (G.mp) {
+      // The others, and their balls on this hole.
+      for (const r of G.mp.remotes.values()) {
+        if (!r.have) continue;
+        if (r.hole === G.hole && (r.ballState === 'tee' || r.ballState === 'rest' || r.ballState === 'moving')) items.push({ kind: 'fball', x: r.b[0], z: r.b[2], color: r.color });
+        const gp = r.golfer.root.position;
+        items.push({ kind: 'friend', x: gp.x, z: gp.z, ang: r.msg.m === 'c' ? r.cart.st.yaw : r.g[3], color: r.color });
+      }
+    }
     // The radar shows which way you're aiming, not how far it will go.
     const ad = dirFromYaw(G.aimYaw);
     const aim = inShot ? { fx: b.x, fz: b.z, x: b.x + ad.x * 90, z: b.z + ad.z * 90 } : null;
@@ -17400,7 +18353,7 @@ function startGame(saved) {
     if (id === 'map') drawMap();
   }
   function closeOverlay(id) { UI.show(id, false); }
-  const overlayOpen = () => UI.isShown('help') || UI.isShown('card') || UI.isShown('map') || UI.isShown('title') || UI.isShown('glError');
+  const overlayOpen = () => UI.isShown('help') || UI.isShown('card') || UI.isShown('map') || UI.isShown('title') || UI.isShown('lobby') || UI.isShown('glError');
   function drawMap() {
     const P = G.player;
     UI.drawMap({ holes: HOLES, active: G.hole, scores: G.scores, px: P.x, pz: P.z, heading: G.mode === 'cart' ? cart.st.yaw : P.yaw, items: G.radarItems || [] });
@@ -17440,14 +18393,18 @@ function startGame(saved) {
 
   window.addEventListener('keydown', (e) => {
     const k = e.code;
+    // Typing in a text box (a name, a game code) isn't playing.
+    const tag = e.target && e.target.tagName;
+    if ((tag === 'INPUT' || tag === 'TEXTAREA') && k !== 'Escape') return;
     if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab'].includes(k)) e.preventDefault();
     if (keys.has(k)) return;
     keys.add(k);
     if (G.mode === 'workshop') return;
+    if (UI.isShown('lobby')) { if (k === 'Escape') closeLobby(); return; }
     if (k === 'Escape') {
       if (UI.isShown('help')) return closeOverlay('help');
       if (UI.isShown('map')) return closeOverlay('map');
-      if (UI.isShown('card') && !G.cardAfterHole) return closeOverlay('card');
+      if (UI.isShown('card') && G.cardClosable) return closeOverlay('card');
       if (G.mode === 'select') return backFromSelect();
       if (G.mode === 'bag') return exitBag();
       if (cancelSwing()) return;
@@ -17465,8 +18422,9 @@ function startGame(saved) {
     if (UI.isShown('title')) { if (k === 'Enter') onStart(); return; }
     if (UI.isShown('map')) { if (k === 'KeyM' || k === 'Enter') closeOverlay('map'); return; }
     if (UI.isShown('card')) {
-      if (G.cardAfterHole && (k === 'Enter' || k === 'Space')) nextFromCard();
-      else if (k === 'KeyC' && !G.cardAfterHole) closeOverlay('card');
+      // Going on ahead of the others takes a click on the button.
+      if (G.cardAfterHole && !G.cardWaiting && (k === 'Enter' || k === 'Space')) nextFromCard();
+      else if (k === 'KeyC' && G.cardClosable) closeOverlay('card');
       return;
     }
     if (G.mode === 'bag') {
@@ -17490,7 +18448,7 @@ function startGame(saved) {
       if (shot && G.shotPhase === 'aim') { if (!leaveSetup()) enterSetup(); }
     } else if (k === 'KeyV') toggleFP();
     else if (k === 'KeyT') { if (shot) G.view = (G.view + 1) % 3; }
-    else if (k === 'KeyC') showCard(false);
+    else if (k === 'KeyC') showCard(!!G.cardAfterHole);
     else if (k === 'KeyM') openOverlay('map');
     else if (k === 'KeyN') toggleMute();
     else if (k === 'KeyH' || k === 'Slash') openOverlay('help');
@@ -17618,7 +18576,7 @@ function startGame(saved) {
   UI.$('backBtn').addEventListener('click', () => { if (!cancelSwing() && !leaveSetup()) leaveShot(); });
   UI.$('setupBtn').addEventListener('click', () => { if (G.shotPhase === 'aim' && !leaveSetup()) enterSetup(); });
   UI.$('fpBtn').addEventListener('click', toggleFP);
-  UI.$('cardBtn').addEventListener('click', () => showCard(false));
+  UI.$('cardBtn').addEventListener('click', () => showCard(!!G.cardAfterHole));
   UI.$('mapBtn').addEventListener('click', () => openOverlay('map'));
   UI.$('mapClose').addEventListener('click', () => closeOverlay('map'));
   UI.$('helpBtn').addEventListener('click', () => openOverlay('help'));
@@ -17628,6 +18586,26 @@ function startGame(saved) {
   UI.$('muteBtn').addEventListener('click', toggleMute);
   UI.$('cardClose').addEventListener('click', () => closeOverlay('card'));
   UI.$('cardNext').addEventListener('click', nextFromCard);
+  UI.$('cardLeave').addEventListener('click', backToTitle);
+  UI.$('mpBtn').addEventListener('click', openLobby);
+  UI.$('lbHost').addEventListener('click', hostGame);
+  UI.$('lbJoin').addEventListener('click', joinGame);
+  UI.$('lbGo').addEventListener('click', teeOffOnline);
+  UI.$('lbBack').addEventListener('click', closeLobby);
+  UI.$('lbCode').addEventListener('keydown', (e) => { if (e.key === 'Enter') joinGame(); });
+  UI.$('lbCode').addEventListener('input', (e) => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z]/g, ''); });
+  UI.$('lbName').addEventListener('input', () => {
+    clearTimeout(lobby.nameT);
+    lobby.nameT = setTimeout(() => { saveMe(); if (Net.active) Net.setMe(lobbyMe()); }, 400);
+  });
+  Net.on('lobby', () => { if (UI.isShown('lobby')) { lobbyView(); Sound.click(); } });
+  Net.on('start', (m) => startMultiplayer(m.seed));
+  Net.on('st', onRemoteState);
+  Net.on('score', onRemoteScore);
+  Net.on('left', (m) => onRemoteLeft(m.s));
+  Net.on('hostgone', onHostGone);
+  Net.on('error', (e) => { if (UI.isShown('lobby')) lobbyStatus(e.text, true); });
+  window.addEventListener('pagehide', () => Net.leave());
   UI.$('startBtn').addEventListener('click', onStart);
   UI.$('selGo').addEventListener('click', confirmSelect);
   UI.$('selBack').addEventListener('click', backFromSelect);
@@ -17708,6 +18686,7 @@ function startGame(saved) {
     bag.root.visible = playing;
     if (playing) { updateCaddy(dt); updateBag(dt); }
     updateGolfer(dt);
+    updateOnline(dt);
     World.setBall(G.ball.p, G.ballState === 'gone' || !playing ? 'water' : G.ball.mode === 'holed' ? 'holed' : 'ok', G.ballState === 'tee');
     if (playing) updateHud();
     Sound.ambient(dt);
@@ -17765,14 +18744,14 @@ function startGame(saved) {
 
   if (window.claude && window.claude.hot && window.claude.hot.snapshot) {
     try {
-      window.claude.hot.snapshot(() => ({ round: G.inRound ? { scores: G.scores.slice(), next: G.hole } : null }));
+      window.claude.hot.snapshot(() => ({ round: G.inRound && !G.mp ? { scores: G.scores.slice(), next: G.hole } : null }));
     } catch (e) { /* optional */ }
   }
 
   // Small API for automated tests and console tinkering.
   return {
     G, course, cart, bag, swingPress, swingRelease, enterSetup, leaveSetup, takeShot, enterShot, leaveShot, interact, enterCart, exitCart, activateHole,
-    startRound, placePlayer, nextFromCard, recommendedClub, openSelect, chooseSelect, confirmSelect, enterBag, exitBag, selectClub, openWorkshop,
+    startRound, placePlayer, nextFromCard, showCard, backToTitle, openLobby, recommendedClub, openSelect, chooseSelect, confirmSelect, enterBag, exitBag, selectClub, openWorkshop,
     get golfer() { return golfer; }, caddy, bagBase,
     swingNow(power, e) {
       if (G.mode !== 'shot' || G.shotPhase !== 'aim') return false;
@@ -17782,6 +18761,7 @@ function startGame(saved) {
       return true;
     },
     teleportToBall() { const b = G.ball.p; placePlayer(b.x - 1.5, b.z + 1.5, 0); },
+    dropBall(x, z) { placeBall(x, z, false); },
     // Screen position of a club in the bag (for tests that click it).
     clubScreen(i) {
       bag.root.updateMatrixWorld(true);

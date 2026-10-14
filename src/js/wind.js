@@ -62,6 +62,15 @@ const WindCues = (() => {
     return g;
   }
 
+  // Stop waving the cloth of flags inside obj (it is being thrown away).
+  function forget(obj) {
+    for (let i = wavers.length - 1; i >= 0; i--) {
+      let o = wavers[i].pivot;
+      while (o && o !== obj) o = o.parent;
+      if (o) wavers.splice(i, 1);
+    }
+  }
+
   // ---------- per frame ----------
   const _q = new THREE.Quaternion(), _qw = new THREE.Quaternion(), _up = new THREE.Vector3(0, 1, 0), _p = new THREE.Vector3();
   let frame = 0;
@@ -185,5 +194,5 @@ const WindCues = (() => {
     return { mesh, update };
   }
 
-  return { makeFlag, addWaver, updateFlags, createStreaks, PALETTE };
+  return { makeFlag, addWaver, forget, updateFlags, createStreaks, PALETTE };
 })();

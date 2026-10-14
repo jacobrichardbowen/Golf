@@ -390,31 +390,36 @@ const World = (() => {
     buildGuides();
   }
 
-  function buildBall() {
-    ball.mesh = new THREE.Mesh(
-      new THREE.SphereGeometry(1, 24, 16),
-      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.35, metalness: 0, emissive: 0x303030 }),
-    );
-    ball.mesh.castShadow = true;
-    scene.add(ball.mesh);
-    ball.shadow = new THREE.Mesh(
+  // A ball with its shadow, tee peg and flight trail. In an online round every
+  // player has one, each in their own colour.
+  let ballGeo = null;
+  function makeBall(color, trailOpacity) {
+    const b = { trailOpacity };
+    ballGeo = ballGeo || new THREE.SphereGeometry(1, 24, 16);
+    b.mesh = new THREE.Mesh(ballGeo,
+      new THREE.MeshStandardMaterial({ color, roughness: 0.35, metalness: 0, emissive: new THREE.Color(color).multiplyScalar(0.19) }));
+    b.mesh.castShadow = true;
+    scene.add(b.mesh);
+    b.shadow = new THREE.Mesh(
       new THREE.CircleGeometry(1, 24),
       new THREE.MeshBasicMaterial({ map: radialTexture('rgba(0,0,0,0.75)', 'rgba(0,0,0,0)'), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4 }),
     );
-    scene.add(ball.shadow);
+    scene.add(b.shadow);
     // A wooden tee peg, shown while the ball sits on the tee.
-    ball.peg = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.004, 0.07, 6), new THREE.MeshLambertMaterial({ color: 0xf0e2c0 }));
-    ball.peg.visible = false;
-    scene.add(ball.peg);
+    b.peg = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.004, 0.07, 6), new THREE.MeshLambertMaterial({ color: 0xf0e2c0 }));
+    b.peg.visible = false;
+    scene.add(b.peg);
     const tg = new THREE.BufferGeometry();
-    ball.trailPos = new Float32Array(3 * 2048);
-    tg.setAttribute('position', new THREE.BufferAttribute(ball.trailPos, 3));
+    b.trailPos = new Float32Array(3 * 2048);
+    tg.setAttribute('position', new THREE.BufferAttribute(b.trailPos, 3));
     tg.setDrawRange(0, 0);
-    ball.trail = new THREE.Line(tg, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6, depthWrite: false }));
-    ball.trail.frustumCulled = false;
-    ball.trailN = 0;
-    scene.add(ball.trail);
+    b.trail = new THREE.Line(tg, new THREE.LineBasicMaterial({ color, transparent: true, opacity: trailOpacity, depthWrite: false }));
+    b.trail.frustumCulled = false;
+    b.trailN = 0;
+    scene.add(b.trail);
+    return b;
   }
+  function buildBall() { Object.assign(ball, makeBall(0xffffff, 0.6)); }
 
   function buildGuides() {
     const ag = new THREE.BufferGeometry();
@@ -1190,37 +1195,63 @@ const World = (() => {
     camera.updateProjectionMatrix();
   }
 
-  function setBall(p, mode, onTee) {
-    const dist = camera.position.distanceTo(ball.mesh.position);
+  function placeBall(b, p, mode, onTee) {
+    const dist = camera.position.distanceTo(b.mesh.position);
     const r = Math.max(BALL_R, dist * 0.0032);
-    ball.mesh.scale.setScalar(r);
+    b.mesh.scale.setScalar(r);
     const lift = onTee ? 0.045 : 0;
-    ball.mesh.position.set(p.x, p.y - BALL_R + r + lift, p.z);
-    ball.mesh.visible = mode !== 'water' && mode !== 'hidden';
-    if (mode === 'holed') ball.mesh.position.y = p.y;
-    ball.peg.visible = !!onTee && ball.mesh.visible;
-    if (onTee) ball.peg.position.set(p.x, p.y - BALL_R + 0.03, p.z);
+    b.mesh.position.set(p.x, p.y - BALL_R + r + lift, p.z);
+    b.mesh.visible = mode !== 'water' && mode !== 'hidden';
+    if (mode === 'holed') b.mesh.position.y = p.y;
+    b.peg.visible = !!onTee && b.mesh.visible;
+    if (onTee) b.peg.position.set(p.x, p.y - BALL_R + 0.03, p.z);
     if (!course) return;
     const gh = course.H(p.x, p.z);
     const agl = Math.max(0, p.y - BALL_R - gh);
     const n = course.normal(p.x, p.z);
-    ball.shadow.visible = ball.mesh.visible && mode !== 'holed';
-    ball.shadow.position.set(p.x + n.x * 0.02, gh + 0.02, p.z + n.z * 0.02);
-    ball.shadow.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), new THREE.Vector3(n.x, n.y, n.z));
-    ball.shadow.scale.setScalar(r * 1.25 * (1 + agl * 0.04));
-    ball.shadow.material.opacity = clamp(1 - agl / 60, 0.15, 0.9);
+    b.shadow.visible = b.mesh.visible && mode !== 'holed';
+    b.shadow.position.set(p.x + n.x * 0.02, gh + 0.02, p.z + n.z * 0.02);
+    b.shadow.quaternion.setFromUnitVectors(_zAxis, _n.set(n.x, n.y, n.z));
+    b.shadow.scale.setScalar(r * 1.25 * (1 + agl * 0.04));
+    b.shadow.material.opacity = clamp(1 - agl / 60, 0.15, 0.9);
   }
+  const _zAxis = new THREE.Vector3(0, 0, 1), _n = new THREE.Vector3();
+  function ballTrailReset(b) { b.trailN = 0; b.trail.geometry.setDrawRange(0, 0); b.trail.material.opacity = b.trailOpacity; }
+  function ballTrailPush(b, p) {
+    if (b.trailN >= 2048) return;
+    const i = b.trailN++ * 3;
+    b.trailPos[i] = p.x; b.trailPos[i + 1] = p.y; b.trailPos[i + 2] = p.z;
+    b.trail.geometry.attributes.position.needsUpdate = true;
+    b.trail.geometry.setDrawRange(0, b.trailN);
+  }
+  function ballTrailFade(b, dt) { b.trail.material.opacity = Math.max(0, b.trail.material.opacity - dt * 0.25); }
 
-  function trailReset() { ball.trailN = 0; ball.trail.geometry.setDrawRange(0, 0); ball.trail.material.opacity = 0.6; }
-  function trailPush(p) {
-    if (ball.trailN >= 2048) return;
-    const i = ball.trailN++ * 3;
-    ball.trailPos[i] = p.x; ball.trailPos[i + 1] = p.y; ball.trailPos[i + 2] = p.z;
-    ball.trail.geometry.attributes.position.needsUpdate = true;
-    ball.trail.geometry.setDrawRange(0, ball.trailN);
+  function setBall(p, mode, onTee) { placeBall(ball, p, mode, onTee); }
+  function trailReset() { ballTrailReset(ball); }
+  function trailPush(p) { ballTrailPush(ball, p); }
+  function trailFade(dt) { ballTrailFade(ball, dt); }
+  function setBallColor(c) {
+    ball.mesh.material.color.set(c);
+    ball.mesh.material.emissive.set(c).multiplyScalar(0.19);
   }
-  function trailFade(dt) {
-    ball.trail.material.opacity = Math.max(0, ball.trail.material.opacity - dt * 0.25);
+  // Another player's ball.
+  function createBall(color) {
+    const b = makeBall(color, 0.45);
+    return {
+      set: (p, mode, onTee) => placeBall(b, p, mode, onTee),
+      trailReset: () => ballTrailReset(b),
+      trailPush: (p) => ballTrailPush(b, p),
+      trailFade: (dt) => ballTrailFade(b, dt),
+      get trailN() { return b.trailN; },
+      dispose() {
+        for (const o of [b.mesh, b.shadow, b.peg, b.trail]) {
+          o.removeFromParent();
+          if (o.geometry !== ballGeo) o.geometry.dispose();
+          if (o.material.map) o.material.map.dispose();
+          o.material.dispose();
+        }
+      },
+    };
   }
 
   function setGuides(pts, landing, putt) {
@@ -1348,7 +1379,7 @@ const World = (() => {
   function add(obj) { scene.add(obj); }
 
   return {
-    init, buildCourse, paintTick, resize, render, update, add, adapt, setBall, trailReset, trailPush, trailFade, setPost,
+    init, buildCourse, paintTick, resize, render, update, add, adapt, setBall, trailReset, trailPush, trailFade, setPost, createBall, setBallColor,
     setGuides, hideGuides, setAlignmentStick, setPinVisible, splash,
     get camera() { return camera; }, get renderer() { return renderer; }, get scene() { return scene; }, get post() { return postOn; }, get postParams() { return post.params; },
     get paintedChunks() { return chunks.filter((c) => c.hi).length; }, get chunkCount() { return chunks.length; },

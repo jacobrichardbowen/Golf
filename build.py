@@ -4,9 +4,10 @@
     python3 build.py
 
 Outputs:
-  Golf.html                 - double-click to play; three.js is inlined, works offline
+  Golf.html                 - double-click to play; three.js and PeerJS are inlined, works
+                              offline (online play needs the internet, of course)
   dist/golf-artifact.html   - page body for publishing as a claude.ai Artifact
-                              (loads three.js from the jsDelivr CDN)
+                              (loads three.js and PeerJS from the jsDelivr CDN)
 """
 import base64
 import json
@@ -18,7 +19,7 @@ SRC = ROOT / "src"
 JS_ORDER = [
     "util.js", "data.js", "physics.js", "course.js", "terrain.js", "maphole.js", "audio.js",
     "assets.js", "publish.js", "atmosphere.js", "wind.js", "world.js", "scenery.js", "equipment.js", "character.js", "cart.js", "ui.js",
-    "workshop.js", "main.js",
+    "workshop.js", "net.js", "remote.js", "main.js",
 ]
 # three.js example modules (r158) used by the workshop to read and write .glb.
 # They are ES modules; esm_to_script() turns them into plain scripts.
@@ -30,6 +31,9 @@ ASSET_TYPES = {".glb": "model/gltf-binary", ".gltf": "model/gltf+json", ".png": 
 REPO = "jacobrichardbowen/Golf"
 THREE_VERSION = "0.158.0"
 THREE_CDN = f"https://cdn.jsdelivr.net/npm/three@{THREE_VERSION}/build/three.min.js"
+# PeerJS (MIT, see vendor/PEERJS-LICENSE) introduces players to each other for online rounds.
+PEERJS_VERSION = "1.5.5"
+PEERJS_CDN = f"https://cdn.jsdelivr.net/npm/peerjs@{PEERJS_VERSION}/dist/peerjs.min.js"
 
 
 def safe_script(code: str) -> str:
@@ -122,11 +126,11 @@ def game_js() -> str:
     return safe_script("(function () {\n'use strict';\n" + guard + body + "\n}\n})();\n")
 
 
-def page(three_tag: str) -> tuple[str, str]:
+def page(three_tag: str, peer_tag: str) -> tuple[str, str]:
     template = (SRC / "index.html").read_text()
     css = (SRC / "style.css").read_text()
     template = template.replace("/*STYLE*/", css)
-    template = template.replace("<!--THREE-->", three_tag)
+    template = template.replace("<!--THREE-->", three_tag + "\n" + peer_tag)
     template = template.replace("/*GAME*/", game_js())
     head, body = template.split("<!--BODY-->", 1)
     return head.strip(), body.strip()
@@ -136,7 +140,10 @@ def main():
     three = (ROOT / "vendor" / "three.min.js").read_text()
     # Drop the "build/three.min.js is deprecated" console warning (keep it an expression).
     three = re.sub(r"^console\.warn\([^)]*\),", "0,", three, count=1)
-    head, body = page("<script>\n" + safe_script(three) + "\n</script>")
+    peer = (ROOT / "vendor" / "peerjs.min.js").read_text()
+    peer = re.sub(r"\n?//# sourceMappingURL=\S+\s*$", "", peer)
+    head, body = page("<script>\n" + safe_script(three) + "\n</script>",
+                      "<script>\n" + safe_script(peer) + "\n</script>")
     full = (
         "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n"
         "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\">\n"
@@ -144,7 +151,7 @@ def main():
     )
     (ROOT / "Golf.html").write_text(full)
 
-    head, body = page(f'<script src="{THREE_CDN}"></script>')
+    head, body = page(f'<script src="{THREE_CDN}"></script>', f'<script src="{PEERJS_CDN}"></script>')
     (ROOT / "dist").mkdir(exist_ok=True)
     (ROOT / "dist" / "golf-artifact.html").write_text(head + "\n" + body + "\n")
 

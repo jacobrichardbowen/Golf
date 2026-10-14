@@ -24,6 +24,7 @@
       </section>
       <p class="objective" id="objective"></p>
       <p class="in-hand" id="inHand"><span>In hand</span><b id="inHandClub">Driver</b></p>
+      <ul class="mp-list" id="mpList" hidden></ul>
     </div>
 
     <div class="top-right">
@@ -103,6 +104,7 @@
       <div class="title-actions">
         <button class="btn primary" id="startBtn">Tee off</button>
         <button class="btn" id="resumeBtn" hidden>Resume round</button>
+        <button class="btn" id="mpBtn">Play with friends</button>
         <button class="btn ghost" id="howBtn">How to play</button>
         <button class="btn ghost" id="workshopBtn">Workshop</button>
       </div>
@@ -119,6 +121,33 @@
     <div class="sel-actions">
       <button class="btn ghost" id="selBack">Back</button>
       <button class="btn primary" id="selGo">Tee off</button>
+    </div>
+  </div>
+
+  <div id="lobby" class="screen lobby-screen" hidden>
+    <div class="sheet lobby-sheet">
+      <h2>Play with friends</h2>
+      <p class="lb-lead" id="lbLead">Up to three golfers, each on their own computer or phone, out on the course together. One of you hosts and shares the code; everyone needs to be online.</p>
+      <div class="lb-me">
+        <label class="lb-field">Your name <input id="lbName" maxlength="14" autocomplete="off" spellcheck="false" placeholder="Player"></label>
+        <div class="lb-field"><span>Your golfer</span><div class="lb-chars" id="lbChars"></div></div>
+      </div>
+      <div class="lb-start" id="lbStart">
+        <button class="btn primary" id="lbHost">Host a game</button>
+        <span class="lb-or">or</span>
+        <div class="lb-join">
+          <input id="lbCode" maxlength="4" placeholder="CODE" autocomplete="off" spellcheck="false" aria-label="Game code">
+          <button class="btn" id="lbJoin">Join</button>
+        </div>
+      </div>
+      <div class="lb-room" id="lbRoom" hidden>
+        <p class="lb-code">Game code <b id="lbCodeShow">----</b></p>
+        <ul class="lb-players" id="lbPlayers"></ul>
+        <button class="btn primary" id="lbGo" hidden>Tee off</button>
+        <p class="lb-wait" id="lbWait" hidden>Waiting for the host to tee off…</p>
+      </div>
+      <p class="lb-status" id="lbStatus" role="status"></p>
+      <div class="lb-actions"><button class="btn ghost" id="lbBack">Back</button></div>
     </div>
   </div>
 
@@ -192,6 +221,7 @@
         <li><b>Read the wind</b> from the world: streaks in the air, the flags on every tee, around the course and on your caddy's back.</li>
         <li><b>Drive the cart:</b> press <kbd>E</kbd> next to it to hop in, <kbd>W</kbd> <kbd>S</kbd> to drive, <kbd>A</kbd> <kbd>D</kbd> to steer, <kbd>Space</kbd> to brake, <kbd>E</kbd> to get out.</li>
         <li><b>Hole out</b>, then follow the marker to the next tee.</li>
+        <li><b>Play with friends:</b> on the title screen, one player picks <b>Host a game</b> and reads out the four-letter code; up to two friends type it in on their own devices and join. Everyone plays their own ball at the same time, and the next hole starts when you've all holed out.</li>
       </ol>
       <dl class="keys">
         <div><dt><kbd>V</kbd></dt><dd>First or third person</dd></div>
@@ -226,6 +256,7 @@
       <div class="sc-scroll"><table class="sc-table" id="cardTable"></table></div>
       <div class="sc-legend"><span><i class="mk eagle"></i>Eagle</span><span><i class="mk birdie"></i>Birdie</span><span><i class="mk bogey"></i>Bogey</span><span><i class="mk double"></i>Double+</span></div>
       <div class="sc-actions">
+        <button class="btn ghost" id="cardLeave" hidden>Leave game</button>
         <button class="btn ghost" id="cardClose">Close</button>
         <button class="btn primary" id="cardNext">Next hole</button>
       </div>
