@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Online play for up to three golfers, peer to peer over WebRTC (PeerJS).
+// Online play for up to six golfers, peer to peer over WebRTC (PeerJS).
 // One player hosts and gets a four-letter code; friends join with it. Every
 // message goes through the host, who stamps the sender and passes it on.
 //
@@ -9,7 +9,8 @@
 // ---------------------------------------------------------------------------
 
 const Net = (() => {
-  const MAX = 3;
+  const MAX = 6;      // golfers in a game (one of each character)
+  const CHARS = 6;
   const PREFIX = 'pinehaven-golf-';
   const LETTERS = 'BCDFGHJKLMNPQRSTVWXZ';
   // Without a word for this long, a link counts as dropped. Generous, so a
@@ -19,6 +20,7 @@ const Net = (() => {
 
   let peer = null, isHost = false, slot = -1, code = null, started = false;
   let players = []; // [{ slot, char, name }]
+  let room = {};     // what the host says about the game (which course)
   const links = new Map(); // host: slot -> connection; guest: 0 -> connection to the host
   const heard = new Map();
   const handlers = new Map();
@@ -50,16 +52,25 @@ const Net = (() => {
   }
 
   const cleanName = (n) => String(n || '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 14);
-  function lobbyMsg() { return { t: 'lobby', players: players.map((p) => ({ ...p })), started }; }
+  function lobbyMsg() { return { t: 'lobby', players: players.map((p) => ({ ...p })), started, room }; }
+  // Each golfer can only be played by one person: the first free one if taken.
+  function freeChar(want, slot) {
+    const taken = players.filter((p) => p.slot !== slot).map((p) => p.char);
+    if (!taken.includes(want)) return want;
+    for (let c = 0; c < CHARS; c++) if (!taken.includes(c)) return c;
+    return want;
+  }
   // Host: send to every guest but one.
   function relay(msg, except) {
     for (const [s, c] of links) if (s !== except && c.open) { try { c.send(msg); } catch (e) { /* closing */ } }
   }
 
   // ---------- hosting ----------
-  function host(me) {
+  // info: what guests should know about the game, e.g. { course }.
+  function host(me, info) {
     leave();
     isHost = true; slot = 0; started = false;
+    room = Object.assign({}, info);
     players = [{ slot: 0, char: me.char | 0, name: cleanName(me.name) }];
     return new Promise((resolve, reject) => {
       let tries = 0, opened = false;
@@ -81,7 +92,8 @@ const Net = (() => {
 
   function accept(conn) {
     conn.on('open', () => {
-      const free = [1, 2].find((k) => !players.some((p) => p.slot === k));
+      let free;
+      for (let k = 1; k < MAX && free === undefined; k++) if (!players.some((p) => p.slot === k)) free = k;
       if (started || free === undefined) {
         try { conn.send({ t: 'full', started }); } catch (e) { /* gone */ }
         // Close once the message is through (and for certain a bit later).
@@ -105,15 +117,15 @@ const Net = (() => {
     // Only the host speaks for the room.
     if (msg.t === 'welcome' || msg.t === 'lobby' || msg.t === 'start' || msg.t === 'full' || msg.t === 'left') return;
     if (msg.t === 'hello') {
-      if (!players.some((p) => p.slot === s)) players.push({ slot: s, char: msg.char | 0, name: cleanName(msg.name) });
-      links.get(s).send({ t: 'welcome', slot: s, code });
+      if (!players.some((p) => p.slot === s)) players.push({ slot: s, char: freeChar(msg.char | 0, s), name: cleanName(msg.name) });
+      links.get(s).send({ t: 'welcome', slot: s, code, room });
       const m = lobbyMsg();
       relay(m, -1); emit('lobby', m);
       return;
     }
     if (msg.t === 'me') {
       const p = players.find((q) => q.slot === s);
-      if (p) { p.char = msg.char | 0; p.name = cleanName(msg.name); }
+      if (p) { p.char = freeChar(msg.char | 0, s) === (msg.char | 0) ? msg.char | 0 : p.char; p.name = cleanName(msg.name); }
       const m = lobbyMsg();
       relay(m, -1); emit('lobby', m);
       return;
@@ -157,9 +169,9 @@ const Net = (() => {
         conn.on('data', (msg) => {
           heard.set(0, performance.now());
           if (!msg || typeof msg !== 'object') return;
-          if (msg.t === 'welcome') { slot = msg.slot; done = true; startPinger(); resolve(slot); return; }
-          if (msg.t === 'full') { fail(msg.started ? 'That round has already started.' : 'That game already has three players.'); return; }
-          if (msg.t === 'lobby') { players = msg.players; started = msg.started; }
+          if (msg.t === 'welcome') { slot = msg.slot; room = msg.room || {}; done = true; startPinger(); resolve(slot); return; }
+          if (msg.t === 'full') { fail(msg.started ? 'That round has already started.' : 'That game already has six players.'); return; }
+          if (msg.t === 'lobby') { players = msg.players; started = msg.started; room = msg.room || {}; }
           if (msg.t === 'start') started = true;
           emit(msg.t, msg);
         });
@@ -205,7 +217,7 @@ const Net = (() => {
   // Change your name or golfer while waiting to tee off.
   function setMe(me) {
     const p = players.find((q) => q.slot === slot);
-    if (p) { p.char = me.char | 0; p.name = cleanName(me.name); }
+    if (p) { if (!isHost || freeChar(me.char | 0, slot) === (me.char | 0)) p.char = me.char | 0; p.name = cleanName(me.name); }
     if (isHost) { const m = lobbyMsg(); relay(m, -1); emit('lobby', m); }
     else send({ t: 'me', char: me.char | 0, name: cleanName(me.name) });
   }
@@ -228,7 +240,7 @@ const Net = (() => {
     heard.clear();
     if (peer) { try { peer.destroy(); } catch (e) { /* already */ } }
     peer = null;
-    slot = -1; code = null; players = []; isHost = false; started = false;
+    slot = -1; code = null; players = []; isHost = false; started = false; room = {};
   }
 
   return {
@@ -239,5 +251,7 @@ const Net = (() => {
     get code() { return code; },
     get players() { return players; },
     get started() { return started; },
+    get room() { return room; },
+    MAX,
   };
 })();

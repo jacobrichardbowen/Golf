@@ -1,11 +1,13 @@
 # Pinehaven Golf
 
-A 3D golf game that runs in any modern web browser. Pick one of three golfers
-and play a nine-hole, par-36 course: walk (or drive the cart) to your ball,
-address it, hold to wind up and let go to swing, then head after it. Your
-caddy follows you with the bag; walk up to it to change clubs. When you hole
-out, follow the marker to the next tee. Play alone, or online with up to two
-friends, all on the course at once.
+A 3D golf game that runs in any modern web browser. Pick one of six golfers
+and play one of two nine-hole, par-36 courses: walk (or drive the cart) to
+your ball, address it, hold to wind up and let go to swing, then head after
+it. Your caddy follows you with the bag; walk up to it to change clubs. When
+you hole out, follow the marker to the next tee. Play alone, or online with up
+to five friends, all on the course at once.
+
+This is build **v008** (shown in the corner of the title screen).
 
 ## Play
 
@@ -16,6 +18,16 @@ adds the nicer fonts.
 The latest build, including every model committed from the Workshop, is
 always at
 [releases/download/build/Golf.html](https://github.com/jacobrichardbowen/Golf/releases/download/build/Golf.html).
+
+**Two courses.** Pick one on the title screen (the game reloads into it):
+
+- **Pinehaven**: parkland and pines, a castle by the first, ponds and creeks.
+- **Golden Plains**: a windswept, hilly plain of golden grass dotted with
+  rocky, grass-topped mesas. Tee off from a lookout high on a mesa, play mesa
+  to mesa over a creek and walk (or drive) across on a rope suspension bridge,
+  thread a ball through a great arch in the rock (or go round it), finish one
+  hole on top of a table mesa, and dodge the hoodoos. Steep ground is a slow
+  scramble on foot; ramps and bridges are quicker, and carts need them.
 
 ### Controls
 
@@ -32,46 +44,65 @@ always at
 | Shot camera | `T`: behind, landing area, overhead | **View** |
 | Step away from the ball | `E` or `Esc` | **Back** |
 | Drive the cart | `E` next to it; `W` `S` drive, `A` `D` steer, `Space` brake, `E` to get out | **Drive** / **Get out** |
+| Send the caddy for the cart | `G` | **Fetch cart** (shows when it's far away) |
 | Fast-forward the ball | hold `Space` while the camera follows it | hold the action button |
 | Course map / scorecard / sound / help | `M` / `C` / `N` / `H` | buttons at the top right |
 
 **Swinging by feel.** Hold to wind up: how far back your golfer gets is how
 hard he hits, and he waits at the top for as long as you hold. Hang there too
-long and he tenses up, and the strike starts to wander. A short dashed line
-shows which way and how high the ball sets off, not where it lands.
+long and he tenses up, and the strike starts to wander. Giving it absolutely
+everything sprays it a little too: a smooth nine-tenths swing is straighter.
+No line shows where the ball will go. When you step up to the ball you're
+lined up roughly, never exactly: often a few degrees off for a full shot, a
+degree or two on the green, so look down the line and adjust.
 
-**Shaping the shot.** The close-up (`Q`) looks down on the club behind the
-ball, with an alignment stick pointing where you're aimed and a faint line
-showing where the face points. An open face starts the ball right and curves
+**Shaping the shot.** The close-up (`Q`) looks down through your golfer's own
+eyes at the club behind the ball, the target off to the left, with an
+alignment stick pointing where you're aimed and a faint line showing where
+the face points. An open face starts the ball right and curves
 it right; a closed face the other way. Pushing the club out puts the ball on
 the heel, which fades it; pulling it in puts it on the toe, which draws it.
 Off-centre strikes lose a little distance. To hook one round a corner, aim
 right of it and close the face.
 
-**Reading the wind.** There's no wind dial. Faint streaks drift through the
+**Reading the wind.** There's no wind dial, and the wind matters: a 10 mph
+crosswind moves a drive about 25 yards. Faint streaks drift through the
 air with it (more and faster the stronger it blows); two flags frame every
 tee, pennants stand around each hole, flags fly from the castle and tower,
-your caddy carries one on his back, and the flag in the hole streams out
-straight in a gale and hangs limp in a calm. On the green, read the slope
+your caddy carries one on his back (in your colours), and the flag in the
+hole streams out straight in a gale and hangs limp in a calm.
+
+**Fetching the cart.** Left the cart a long way back? Press `G` (or **Fetch
+cart**): your caddy sets the bag down beside you and runs off for it. If it
+was more than 120 yards away it takes him about half a minute; nearer, less.
+He comes back driving it in from wherever you aren't looking and pulls up
+beside you. On the green, read the slope
 from the ground. Moving takes you back from the ball camera to your golfer.
 
 ### Playing with friends
 
-Up to three golfers can play a round together, each on their own computer or
-phone, all out on the course at the same time.
+Up to six golfers can play a round together, each on their own computer or
+phone, all out on the course at the same time. (Six is also the most the
+free connection services comfortably carry: every message goes through the
+host's browser.)
 
 1. Everyone opens the game and picks **Play with friends** on the title
-   screen, types a name and chooses a golfer.
-2. One player picks **Host a game** and gets a four-letter code. The others
-   type the code and press **Join**.
+   screen, types a name and chooses a golfer. Each golfer can be played by
+   one person only; taken ones are greyed out with the player's name.
+2. The host picks the course on the title screen first, then **Host a game**
+   and gets a four-letter code. The others type the code and press **Join**
+   (if they're on the other course, the game switches over and joins again
+   by itself).
 3. When everyone's listed, the host presses **Tee off**.
 
-Each of you plays your own ball (white for the host, then orange and pink),
-with your own caddy and cart, from your own spot on each tee. You see the
+Each of you plays your own ball in your golfer's colour, with your own caddy
+and cart in your colours, from your own spot on each tee (three abreast and a
+row behind; anyone standing in your line of sight steps out of the picture
+while you address the ball). You see the
 others walking, driving and swinging, with their names over their heads, on
 the radar and in the list under the hole plate, and you hear their shots.
 Everyone feels the same wind on the same hole. When you hole out the
-scorecard shows all three of you; it waits until the others have holed out
+scorecard shows all of you; it waits until the others have holed out
 too (press **Watch** to close it and look on, or **Go on ahead** if someone's
 dawdling). **Leave game** on the scorecard heads back to the clubhouse.
 
@@ -86,11 +117,17 @@ page's sandbox. Online rounds aren't saved for resuming.
 
 ### Golfers, clubs and the caddy
 
-| Golfer | Height | Build | Look |
-| --- | --- | --- | --- |
-| G. Surlaw | 6′0″ | human: tall and lean, walrus moustache | white hair, gray shirt, cyan-blue pants |
-| F. Froth | 5′0″ | dwarf: stocky, broad, bearded | brown hair, forest green shirt, gold pants |
-| W. McBeaty | 4′0″ | his own model | orange hair, red shirt, white pants |
+| Golfer | Height | Build | Colours | Ball |
+| --- | --- | --- | --- | --- |
+| G. Surlaw | 6′0″ | human: tall and broad-shouldered, walrus moustache; stands like a hero, chest out, feet wide | cyan-blue and gray | cyan-blue |
+| F. Froth | 5′0″ | dwarf: stocky, broad, bearded | green and gold | gold |
+| W. McBeaty | 4′0″ | his own model | white and red | red |
+| A. Salt | 5′10″ | human: sporty, reddish quiff and sideburns | black and red | black |
+| B. B. Beetor | 6′5″ | human: lanky and long-limbed, hunched on bent knees; balding, pencil moustache | brown and dark gray | brown |
+| R. Cord | 5′8″ | elf: slender, long pointed ears, long fair hair | orange and blue | orange |
+
+Your golfer's colours are on your cart and on the flag your caddy carries;
+your ball is your golfer's ball colour.
 
 | Club | Full carry | Its niche |
 | --- | --- | --- |
@@ -179,8 +216,9 @@ src/style.css         HUD styling
 src/js/util.js        math, seeded noise, polyline helpers
 src/js/data.js        clubs, surfaces (bounce, friction, lie) and the golfers
 src/js/physics.js     ball flight (drag + Magnus lift), bounce, roll, cup capture
-src/js/course.js      the nine holes and where each sits on the property
-src/js/terrain.js     builds the whole course: height, surfaces, water, trees, cart paths
+src/js/course.js      Pinehaven's nine holes and where each sits on the property
+src/js/plains.js      Golden Plains' nine holes, mesas, bridges and tunnel; the list of courses
+src/js/terrain.js     builds the whole course: height, mesas, surfaces, water, trees, cart paths, bridges, tunnels
 src/js/maphole.js     turns painted hole images into height, surfaces, trees and water
 src/maps/             the images painted holes are built from
 src/js/assets.js      asset registry: built-in models/textures, custom replacements, glTF in/out
@@ -215,12 +253,24 @@ python3 build.py
 
 ### Changing the course
 
-Holes live in `src/js/course.js`. Each hole is designed in its own frame (a
-centre line from tee to the middle of the green, plus ellipses for bunkers and
-water, all in yards with play heading towards −Z) and then placed on the
-property with `at: [x, z, heading]`. Run `node tests/course-check.js out/` to
-check that holes don't overlap and to render a map of the layout. Tune club
-distances in `src/js/data.js`; full power always gives the full carry.
+Pinehaven's holes live in `src/js/course.js`, Golden Plains' in
+`src/js/plains.js`. Each hole is designed in its own frame (a centre line from
+tee to the middle of the green, plus ellipses for bunkers and water, all in
+yards with play heading towards −Z) and then placed on the property with
+`at: [x, z, heading]`. Golden Plains adds:
+
+- `mesas`: steep-sided plateaus `{ x, z, rx, rz, rot, h, cliff }` with a ledge
+  part way down their sandstone cliffs and scree at the foot, and `ramps:
+  [{ a: foot, b: top, w }]` up them. Tees and greens can sit on top.
+- `bridges`: rope suspension bridges `{ a, b, w }` between the ground at each
+  end. People, carts and balls can be on the deck or pass beneath it.
+- `tunnels`: arches straight through the rock `{ a, b, w, h }`. The ground
+  inside the arch is cut away; the floor runs between the ground at each end.
+
+Run `node tests/course-check.js out/` to check both courses (holes don't
+overlap, a ball rolls through each tunnel and lands on each bridge) and to
+render maps of the layouts. Tune club distances in `src/js/data.js`; full
+power always gives the full carry.
 
 ### Painted holes
 
@@ -294,11 +344,12 @@ objects as scenery. The "READ ME" text inside the file has the details.
 node tests/course-check.js [outDir]   # validates the layout; optional top-down map
 node tests/calibrate.js               # carry, apex and rollout for every club
 node tests/smoke.js [outDir]          # plays hole 1 in headless Chromium: select, walk, swing, bag, cart, hole out
+node tests/plains.js [outDir]         # Golden Plains: across a bridge, through the tunnel, the caddy fetching the cart
 node tests/workshop.js [outDir]       # Workshop: download, replace, reload, export/import, reset
 node tests/publish.js [outDir]        # Workshop "Commit to project" against a mock of GitHub's API
 node tests/mobile.js [outDir]         # touch layout screenshots, portrait and landscape
 node tests/tour.js [outDir] [holes]   # address-view screenshots from each tee
-node tests/net.js                     # online play's messages: join, the 3-golfer limit, relays, leaving (needs `npx peer --port 9000`)
+node tests/net.js                     # online play's messages: join, the 6-golfer limit, one of each golfer, relays, leaving (needs `npx peer --port 9000`)
 node tests/online.js [outDir]         # three browsers play a hole together (same server; slow)
 ```
 

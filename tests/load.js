@@ -3,7 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const FILES = ['util.js', 'data.js', 'physics.js', 'course.js', 'terrain.js', 'maphole.js'];
+const FILES = ['util.js', 'data.js', 'physics.js', 'course.js', 'plains.js', 'terrain.js', 'maphole.js'];
 
 module.exports = function load(names = FILES) {
   const src = names
@@ -12,7 +12,7 @@ module.exports = function load(names = FILES) {
   const exportsList = [
     'CLUBS', 'SURFACES', 'createBall', 'launchBall', 'startRoll', 'stepBall', 'simulateFlat',
     'fullSpeed', 'speedForCarry', 'spinFor', 'puttSpeedFor', 'DT', 'BALL_R', 'MPH', 'lieFactor', 'spinLieFactor', 'CHARACTERS', 'CADDY',
-    'COURSE', 'buildCourse', 'placeHole', 'S_PATH', 'S_GREEN', 'S_FAIRWAY', 'S_WATER', 'S_SAND', 'S_ROUGH', 'S_DEEP', 'S_TEE', 'S_FRINGE', 'S_OOB',
+    'COURSE', 'COURSES', 'GOLDEN_PLAINS', 'courseDef', 'S_ROCK', 'buildCourse', 'placeHole', 'S_PATH', 'S_GREEN', 'S_FAIRWAY', 'S_WATER', 'S_SAND', 'S_ROUGH', 'S_DEEP', 'S_TEE', 'S_FRINGE', 'S_OOB',
     'dirFromYaw', 'yawFromDir', 'MAP_PALETTE', 'buildMapHole',
   ];
   const body = src + '\nreturn {' + exportsList.map((n) => `${n}: typeof ${n} !== 'undefined' ? ${n} : undefined`).join(',') + '};';

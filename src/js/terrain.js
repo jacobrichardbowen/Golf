@@ -23,11 +23,15 @@ function placeHole(def) {
     return Object.assign({}, e, { x, z, rot: fx * (e.rot || 0) + hdg });
   };
   const M = (m) => { const [x, z] = P([m.x, m.z]); return Object.assign({}, m, { x, z }); };
+  const AB = (o) => Object.assign({}, o, { a: P(o.a), b: P(o.b) });
   return {
     path: def.path.map(P),
     bunkers: (def.bunkers || []).map(E),
     water: (def.water || []).map(E),
     mounds: (def.mounds || []).map(M),
+    mesas: (def.mesas || []).map((m) => Object.assign(E(m), { ramps: (m.ramps || []).map(AB) })),
+    bridges: (def.bridges || []).map(AB),
+    tunnels: (def.tunnels || []).map(AB),
     tilt: V(def.green.tilt || [0, 0]),
     pin: V(def.pin),
   };
@@ -72,6 +76,7 @@ function buildCourse(C, env = {}) {
       green: { x: last[0], z: last[1], r: def.green.r },
       hw: def.fairway.width / 2, fwStart: def.fairway.start, tilt: w.tilt,
       bunkers: w.bunkers.map(prepEllipse), waters: w.water.map(prepEllipse), mounds: w.mounds,
+      mesas: w.mesas, bridges: w.bridges, tunnels: w.tunnels,
       pinOffset: w.pin,
     };
     let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
@@ -86,6 +91,24 @@ function buildCourse(C, env = {}) {
   const allBunkers = holes.flatMap((h) => h.bunkers);
   const allWaters = holes.flatMap((h) => h.waters);
   const allMounds = holes.flatMap((h) => h.mounds);
+  // Mesas: steep-sided plateaus (rocky cliffs, grassy tops), with ramps up.
+  // Bridges span gaps between them; tunnels run through them.
+  const allMesas = holes.flatMap((h) => h.mesas || []).concat((C.mesas || []).map((m) => Object.assign({}, m, { ramps: m.ramps || [] })));
+  for (const m of allMesas) {
+    prepEllipse(m);
+    m.cliff = m.cliff || 5;
+    for (const r of m.ramps) {
+      const dx = r.b[0] - r.a[0], dz = r.b[1] - r.a[1];
+      r.len = Math.hypot(dx, dz); r.ux = dx / r.len; r.uz = dz / r.len; r.w = r.w || 7;
+    }
+  }
+  const prepSpan = (o) => {
+    const dx = o.b[0] - o.a[0], dz = o.b[1] - o.a[1];
+    o.ax = o.a[0]; o.az = o.a[1]; o.len = Math.hypot(dx, dz); o.ux = dx / o.len; o.uz = dz / o.len;
+    return o;
+  };
+  const allBridges = holes.flatMap((h) => h.bridges || []).concat(C.bridges || []).map((b) => prepSpan(Object.assign({ w: 3.4 }, b)));
+  const allTunnels = holes.flatMap((h) => h.tunnels || []).concat(C.tunnels || []).map((t) => prepSpan(Object.assign({ w: 12, h: 9 }, t)));
 
   // Course bounds
   let bMinX = C.clubhouse.x - 60, bMaxX = C.clubhouse.x + 60, bMinZ = C.clubhouse.z - 60, bMaxZ = C.clubhouse.z + 60;
@@ -93,19 +116,25 @@ function buildCourse(C, env = {}) {
     bMinX = Math.min(bMinX, h.bbox.minX); bMaxX = Math.max(bMaxX, h.bbox.maxX);
     bMinZ = Math.min(bMinZ, h.bbox.minZ); bMaxZ = Math.max(bMaxZ, h.bbox.maxZ);
   }
+  for (const m of allMesas) {
+    const r = m._bound + m.cliff * 3;
+    bMinX = Math.min(bMinX, m.x - r); bMaxX = Math.max(bMaxX, m.x + r);
+    bMinZ = Math.min(bMinZ, m.z - r); bMaxZ = Math.max(bMaxZ, m.z + r);
+  }
   const bounds = { minX: Math.floor(bMinX - 50), maxX: Math.ceil(bMaxX + 50), minZ: Math.floor(bMinZ - 50), maxZ: Math.ceil(bMaxZ + 50) };
   const inBounds = (x, z) => x > bounds.minX && x < bounds.maxX && z > bounds.minZ && z < bounds.maxZ;
 
   // ---------- spatial index ----------
   const grid = new Map();
   const ckey = (ix, iz) => ix * 100003 + iz;
-  const EMPTY = { holes: [], bunkers: [], waters: [], mounds: [], paths: [], maps: [] };
+  const KINDS = () => ({ holes: [], bunkers: [], waters: [], mounds: [], paths: [], maps: [], mesas: [], bridges: [], tunnels: [] });
+  const EMPTY = KINDS();
   function register(kind, obj, minX, maxX, minZ, maxZ) {
     for (let ix = Math.floor(minX / CELL); ix <= Math.floor(maxX / CELL); ix++)
       for (let iz = Math.floor(minZ / CELL); iz <= Math.floor(maxZ / CELL); iz++) {
         const k = ckey(ix, iz);
         let cell = grid.get(k);
-        if (!cell) grid.set(k, (cell = { holes: [], bunkers: [], waters: [], mounds: [], paths: [], maps: [] }));
+        if (!cell) grid.set(k, (cell = KINDS()));
         if (!cell[kind].includes(obj)) cell[kind].push(obj);
       }
   }
@@ -117,6 +146,22 @@ function buildCourse(C, env = {}) {
   for (const w of allWaters) { const r = w._bound * 1.45; register('waters', w, w.x - r, w.x + r, w.z - r, w.z + r); }
   for (const m of allMounds) { const r = m.r * 2.6; register('mounds', m, m.x - r, m.x + r, m.z - r, m.z + r); }
   for (const mh of maps) register('maps', mh, mh.bbox.minX, mh.bbox.maxX, mh.bbox.minZ, mh.bbox.maxZ);
+  for (const m of allMesas) {
+    const r = m._bound * 1.15 + m.cliff * 3.5;
+    let minX = m.x - r, maxX = m.x + r, minZ = m.z - r, maxZ = m.z + r;
+    for (const ra of m.ramps) for (const q of [ra.a, ra.b]) {
+      minX = Math.min(minX, q[0] - 12); maxX = Math.max(maxX, q[0] + 12); minZ = Math.min(minZ, q[1] - 12); maxZ = Math.max(maxZ, q[1] + 12);
+    }
+    register('mesas', m, minX, maxX, minZ, maxZ);
+  }
+  const registerSpan = (kind, o, pad) => register(kind, o, Math.min(o.a[0], o.b[0]) - pad, Math.max(o.a[0], o.b[0]) + pad, Math.min(o.a[1], o.b[1]) - pad, Math.max(o.a[1], o.b[1]) + pad);
+  for (const b of allBridges) registerSpan('bridges', b, b.w + 2);
+  for (const t of allTunnels) registerSpan('tunnels', t, t.w + 4);
+  // Where a point is along a bridge or tunnel: s from its start, l to its side.
+  const spanLocal = (o, x, z) => {
+    const dx = x - o.ax, dz = z - o.az;
+    return { s: dx * o.ux + dz * o.uz, l: -dx * o.uz + dz * o.ux };
+  };
 
   // ---------- per-hole helpers ----------
   const greenEdge = (h, x, z) => h.green.r * (1 + 0.1 * nEdge(x / 8 + 40, z / 8));
@@ -126,6 +171,40 @@ function buildCourse(C, env = {}) {
     const dx = x - h.tee.x, dz = z - h.tee.z;
     return { along: dx * h.teeDir.x + dz * h.teeDir.z, side: dx * -h.teeDir.z + dz * h.teeDir.x };
   };
+
+  // ---------- mesas ----------
+  // How far (yards) a point lies outside a mesa's rim (negative: on top),
+  // with a ragged, uneven edge.
+  function mesaOut(m, x, z) {
+    const dx = x - m.x, dz = z - m.z;
+    const lx = dx * m._cos + dz * m._sin, lz = -dx * m._sin + dz * m._cos;
+    const ed = Math.sqrt((lx * lx) / (m.rx * m.rx) + (lz * lz) / (m.rz * m.rz));
+    if (ed < 1e-4) return -Math.min(m.rx, m.rz);
+    const r = Math.hypot(lx, lz) / ed; // the rim's distance from the centre this way
+    const wob = 1 + 0.06 * nEdge(x / 26 + m.x * 0.01, z / 26) + 0.025 * nBump(x / 7, z / 7);
+    return Math.hypot(lx, lz) - r * wob;
+  }
+  // 1 on top, 0 on the plain: a cliff with a ledge part way down and a
+  // scree slope at its foot. v counts cliff widths outward from the rim.
+  function mesaProfile(v) {
+    return 0.64 * (1 - smoothstep(-1, -0.15, v)) + 0.28 * (1 - smoothstep(0.1, 0.85, v)) + 0.08 * (1 - smoothstep(0.85, 3, v));
+  }
+  // The mesa's share of the height here, and whether this is bare cliff.
+  function mesaAt(m, x, z) {
+    const v = mesaOut(m, x, z) / m.cliff;
+    if (v > 3.2) return { f: 0, rock: false };
+    let f = mesaProfile(v), ramp = 0;
+    for (const r of m.ramps) {
+      const dx = x - r.a[0], dz = z - r.a[1];
+      const s = dx * r.ux + dz * r.uz, l = Math.abs(-dx * r.uz + dz * r.ux);
+      if (s < -6 || s > r.len + 6) continue;
+      const w = (1 - smoothstep(r.w / 2, r.w / 2 + 3.5, l)) * (1 - smoothstep(r.len, r.len + 6, s)) * smoothstep(-6, 0, s);
+      if (w <= 0) continue;
+      f = lerp(f, clamp(s / r.len, 0, 1), w);
+      ramp = Math.max(ramp, w);
+    }
+    return { f, rock: v > -1.05 && v < 0.95 && ramp < 0.5 };
+  }
 
   // ---------- height, built up in layers ----------
   function rawH(x, z) {
@@ -142,6 +221,7 @@ function buildCourse(C, env = {}) {
       const dx = x - m.x, dz = z - m.z;
       h += m.h * Math.exp(-(dx * dx + dz * dz) / (m.r * m.r));
     }
+    for (const m of cell.mesas) h += m.h * mesaAt(m, x, z).f;
     // Fade to a flat skirt at the edge of the property.
     const edge = Math.min(x - bounds.minX, bounds.maxX - x, z - bounds.minZ, bounds.maxZ - z);
     return h * smoothstep(-5, 45, edge);
@@ -221,12 +301,96 @@ function buildCourse(C, env = {}) {
   }
 
   // Painted holes take over inside their rectangle, fading in at the edges.
-  function H(x, z) {
+  function landH(x, z) {
     for (const mh of cellAt(x, z).maps) {
       const w = mh.weight(x, z);
       if (w > 0) return w >= 1 ? mh.height(x, z) : lerp(procH(x, z), mh.height(x, z), w);
     }
     return procH(x, z);
+  }
+  // Tunnels: a floor running straight between the ground at each end, an arch
+  // over it. Where the land would block the arch it is cut down to the floor
+  // (the terrain drawn inside the arch is left out, see world.js).
+  const archTop = (t, l) => {
+    const u = Math.min(1, Math.abs(l) / (t.w / 2));
+    return t.h * 0.58 + t.h * 0.42 * Math.sqrt(Math.max(0, 1 - u * u));
+  };
+  const tunnelFloor = (t, s) => lerp(t.ya, t.yb, clamp(s / t.len, 0, 1));
+  for (const t of allTunnels) {
+    t.ya = landH(t.a[0], t.a[1]); t.yb = landH(t.b[0], t.b[1]);
+    // The stretch inside the rock.
+    t.s0 = t.len; t.s1 = 0;
+    for (let q = 0; q <= t.len; q += 0.5) {
+      const x = t.ax + t.ux * q, z = t.az + t.uz * q;
+      if (landH(x, z) > tunnelFloor(t, q) + t.h * 0.7) { t.s0 = Math.min(t.s0, q); t.s1 = Math.max(t.s1, q); }
+    }
+    if (t.s1 < t.s0) { t.s0 = 0; t.s1 = 0; }
+  }
+  function H(x, z) {
+    let h = landH(x, z);
+    for (const t of cellAt(x, z).tunnels) {
+      const { s, l } = spanLocal(t, x, z);
+      if (s < 0 || s > t.len) continue;
+      const al = Math.abs(l), hw = t.w / 2;
+      if (al > hw + 2.5) continue;
+      const f = tunnelFloor(t, s);
+      if (h < f + archTop(t, Math.min(al, hw)) + 0.6) h = lerp(h, f, 1 - smoothstep(hw - 0.4, hw + 2.5, al));
+    }
+    return h;
+  }
+  for (const b of allBridges) {
+    b.ya = H(b.a[0], b.a[1]) + 0.12; b.yb = H(b.b[0], b.b[1]) + 0.12;
+    b.sag = Math.min(1.8, b.len * 0.025);
+  }
+  const bridgeDeck = (b, s) => { const t = clamp(s / b.len, 0, 1); return lerp(b.ya, b.yb, t) - b.sag * 4 * t * (1 - t); };
+
+  // What something at height y stands on at (x, z): a bridge deck it's on,
+  // the floor of a tunnel it's in, or the land. tol: how far below a deck
+  // still counts as on it. kind: 0 land, 1 bridge, 2 tunnel.
+  function floorInfo(x, z, y, tol = 1.2) {
+    const cell = cellAt(x, z);
+    for (const b of cell.bridges) {
+      const { s, l } = spanLocal(b, x, z);
+      if (s < 0 || s > b.len || Math.abs(l) > b.w / 2) continue;
+      const d = bridgeDeck(b, s);
+      if (y >= d - tol) return { h: d, kind: 1 };
+    }
+    for (const t of cell.tunnels) {
+      const { s, l } = spanLocal(t, x, z);
+      if (s < t.s0 - 3 || s > t.s1 + 3 || Math.abs(l) > t.w / 2) continue;
+      const f = tunnelFloor(t, s);
+      if (y > f + archTop(t, l) + 0.2) continue;
+      if (landH(x, z) > f + archTop(t, l)) return { h: f, kind: 2 };
+    }
+    return { h: H(x, z), kind: 0 };
+  }
+  const floor = (x, z, y, tol) => floorInfo(x, z, y, tol).h;
+  // A ball inside a tunnel bounces off its walls and roof. Returns true if it hit.
+  function tunnelClamp(p, v, r) {
+    for (const t of cellAt(p.x, p.z).tunnels) {
+      const { s, l } = spanLocal(t, p.x, p.z);
+      if (s < t.s0 || s > t.s1) continue;
+      const f = tunnelFloor(t, s), hw = t.w / 2;
+      if (p.y > f + t.h + 1.5 || Math.abs(l) > hw + 3) continue;
+      if (landH(p.x, p.z) < f + t.h * 0.5) continue; // open air over the cut at a mouth
+      let hit = false;
+      const nx = -t.uz, nz = t.ux; // towards +l
+      if (Math.abs(l) > hw - r) {
+        const side = Math.sign(l), vl = v.x * nx + v.z * nz;
+        if (vl * side > 0) { v.x -= 1.5 * vl * nx; v.z -= 1.5 * vl * nz; v.x *= 0.85; v.z *= 0.85; }
+        const back = Math.abs(l) - (hw - r);
+        p.x -= nx * side * back; p.z -= nz * side * back;
+        hit = true;
+      }
+      const top = f + archTop(t, Math.min(Math.abs(l), hw)) - r;
+      if (p.y > top) {
+        if (v.y > 0) v.y = -v.y * 0.45;
+        p.y = top;
+        hit = true;
+      }
+      return hit;
+    }
+    return false;
   }
   // Seat each painted hole on the land around it.
   for (const mh of maps) {
@@ -286,6 +450,7 @@ function buildCourse(C, env = {}) {
   }
   const blocked = (x, z) => {
     for (const w of allWaters) if (waterDist(w, x, z) < 1.5) return true;
+    for (const m of allMesas) if (mesaOut(m, x, z) < m.cliff * 2.5) return true;
     for (const b of allBunkers) if (bunkerDist(b, x, z) < 1.6) return true;
     for (const h of holes) {
       if (Math.hypot(x - h.green.x, z - h.green.z) < h.green.r + 8) return true;
@@ -306,7 +471,7 @@ function buildCourse(C, env = {}) {
       let off = h.hw + 13;
       if (s > L - 40) off = Math.max(off, h.green.r + 14);
       let x = p.x + nx * off, z = p.z + nz * off;
-      for (let k = 0; k < 12 && blocked(x, z); k++) { off += 4; x = p.x + nx * off; z = p.z + nz * off; }
+      for (let k = 0; k < 20 && blocked(x, z); k++) { off += 4; x = p.x + nx * off; z = p.z + nz * off; }
       pts.push([x, z]);
     }
     return pts;
@@ -352,6 +517,7 @@ function buildCourse(C, env = {}) {
       if (Math.abs(x - b.x) > b._bound * 1.3 || Math.abs(z - b.z) > b._bound * 1.3) continue;
       if (bunkerDist(b, x, z) < 1) return S_SAND;
     }
+    for (const m of cell.mesas) if (mesaAt(m, x, z).rock) return S_ROCK;
     if (fringe) return S_FRINGE;
     let n = 0;
     for (const ho of cell.holes) {
@@ -429,7 +595,7 @@ function buildCourse(C, env = {}) {
       const cell = cellAt(x, z);
       if (mapAt(x, z, 0.02)) continue; // painted holes plant their own
       // Open forest away from the holes, with a few meadows.
-      let dens = 0.72 * smoothstep(-0.35, 0.1, nForest(x / 110, z / 110));
+      let dens = 0.72 * smoothstep(-0.35, 0.1, nForest(x / 110, z / 110)) * (C.forest == null ? 1 : C.forest);
       let near = false;
       for (const ho of cell.holes) {
         const q = ho.line.query(x, z);
@@ -443,8 +609,11 @@ function buildCourse(C, env = {}) {
         if (q.s < 1 && q.d < 20) near = true;
       }
       const edge = Math.min(x - bounds.minX, bounds.maxX - x, z - bounds.minZ, bounds.maxZ - z);
-      if (edge < 22) dens = Math.max(dens, 0.9);
+      if (edge < 22) dens = Math.max(dens, C.forest == null ? 0.9 : 0.9 * Math.min(1, C.forest * 3));
       if (near || rnd() > dens) continue;
+      let cliff = false;
+      for (const m of cell.mesas) { const v = mesaOut(m, x, z) / m.cliff; if (v > -2.5 && v < 2) cliff = true; }
+      if (cliff || floorInfo(x, z, 1e9).kind || cell.tunnels.length && cell.tunnels.some((t) => { const q = spanLocal(t, x, z); return q.s > -8 && q.s < t.len + 8 && Math.abs(q.l) < t.w; })) continue;
       if (pathDist(x, z) < 4) continue;
       if (Math.abs(x - club.x) < 42 && Math.abs(z - club.z) < 36) continue;
       let bad = false;
@@ -468,6 +637,22 @@ function buildCourse(C, env = {}) {
         cell.push(t);
       }
   }
+  // Scree at the foot of each mesa's cliffs.
+  for (const m of allMesas) {
+    const n = Math.round((m.rx + m.rz) * 0.35);
+    for (let i = 0; i < n; i++) {
+      const a = rnd() * TAU, lx = Math.cos(a) * m.rx, lz = Math.sin(a) * m.rz;
+      const k = 1 + (m.cliff * (0.9 + rnd() * 1.6)) / Math.hypot(lx, lz);
+      const x = m.x + (lx * m._cos - lz * m._sin) * k, z = m.z + (lx * m._sin + lz * m._cos) * k;
+      const v = mesaOut(m, x, z) / m.cliff;
+      if (v < 0.7 || v > 3) continue;
+      let ok = true;
+      for (const r of m.ramps) { const dx = x - r.a[0], dz = z - r.a[1]; if (Math.abs(-dx * r.uz + dz * r.ux) < r.w && dx * r.ux + dz * r.uz > -8 && dx * r.ux + dz * r.uz < r.len + 8) ok = false; }
+      for (const ho of holes) { const q = ho.line.query(x, z); if (q.d < ho.hw + 3) ok = false; if (Math.hypot(x - ho.green.x, z - ho.green.z) < ho.green.r + 6) ok = false; }
+      if (pathDist(x, z) < 3 || floorInfo(x, z, 1e9).kind) ok = false;
+      if (ok) addRock(x, z, 0.5 + rnd() * rnd() * 2.2, rnd() * TAU);
+    }
+  }
   for (const mh of maps) {
     for (const t of mh.trees) {
       if (Math.abs(t.x - club.x) < 36 && Math.abs(t.z - club.z) < 30) continue;
@@ -488,6 +673,8 @@ function buildCourse(C, env = {}) {
   return {
     holes, bounds, trees, paths, obstacles, clubhouse: Object.assign({ y: clubPadH }, club),
     H, normal, surface, waterLevel, inBounds, nearTrees, stripeS, pathDist,
+    floor, floorInfo, tunnelClamp, archTop, tunnelFloor, bridgeDeck,
+    mesas: allMesas, bridges: allBridges, tunnels: allTunnels, palette: C.palette || null, name: C.name, id: C.id,
     waters: allWaters, bunkers: allBunkers, maps,
     // The painted colour of the ground (and how much of it to use), or null.
     paintColor(x, z) {

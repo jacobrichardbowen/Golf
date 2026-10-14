@@ -5,6 +5,9 @@
 //
 // A "field" supplies: H(x,z), normal(x,z), surface(x,z), waterLevel(x,z),
 // inBounds(x,z), pin {x,y,z} | null, nearTrees(x,z) -> array | null.
+// Optionally floorInfo(x,z,y,tol) -> { h, kind } for ground the ball can pass
+// under (bridge decks, kind 1) or inside (tunnels, kind 2), and
+// tunnelClamp(p, v, r) to keep it inside a tunnel.
 // ---------------------------------------------------------------------------
 
 const G = 10.73;             // gravity, yd/s^2
@@ -15,6 +18,7 @@ const AIR_K = 0.0171;        // rho*A/(2m) expressed per yard
 const RPM2RAD = TAU / 60;
 const MPH = 0.48889;         // yd/s per mph
 const BRAKE = 8;             // yd/s of check from 10k rpm of backspin on a fully grippy surface
+const WIND_PUSH = 1.8;       // how hard the wind gets hold of the ball (a game choice: reading it should matter)
 
 function createBall(x, y, z) {
   return {
@@ -64,11 +68,23 @@ function stepBall(ball, field, wind, dt, events, opts) {
   }
 }
 
+const UP = { x: 0, y: 1, z: 0 };
+// The ground under the ball: height, slope and what it's made of.
+function groundUnder(field, x, z, y, tol) {
+  if (field.floorInfo) {
+    const f = field.floorInfo(x, z, y, tol);
+    if (f.kind === 1) return { h: f.h, n: UP, surf: S_PATH, kind: 1 };
+    if (f.kind === 2) return { h: f.h, n: UP, surf: S_ROCK, kind: 2 };
+    return { h: f.h, n: null, surf: -1, kind: 0 };
+  }
+  return { h: field.H(x, z), n: null, surf: -1, kind: 0 };
+}
+
 function stepFlight(ball, field, wind, dt, events, opts) {
   const p = ball.p, v = ball.v, w = ball.w;
   const gh = field.H(p.x, p.z);
   // Wind is weaker close to the ground.
-  const wf = wind ? 0.45 + 0.55 * clamp((p.y - gh) / 20, 0, 1) : 0;
+  const wf = wind ? (0.45 + 0.55 * clamp((p.y - gh) / 20, 0, 1)) * WIND_PUSH : 0;
   const rx = v.x - (wind ? wind.x * wf : 0), ry = v.y, rz = v.z - (wind ? wind.z * wf : 0);
   const sp = Math.sqrt(rx * rx + ry * ry + rz * rz) || 1e-6;
   const wm = Math.sqrt(w.x * w.x + w.y * w.y + w.z * w.z);
@@ -137,6 +153,12 @@ function stepFlight(ball, field, wind, dt, events, opts) {
     }
   }
 
+  // Tunnel walls and roof.
+  if (field.tunnelClamp && field.tunnelClamp(p, v, BALL_R) && ball.treeCool <= 0) {
+    ball.treeCool = 0.1;
+    events && events.push({ type: 'tree', hard: true });
+  }
+
   // Water surface.
   const wl = field.waterLevel(p.x, p.z);
   if (p.y - BALL_R <= wl) {
@@ -145,7 +167,8 @@ function stepFlight(ball, field, wind, dt, events, opts) {
     return;
   }
 
-  const h = field.H(p.x, p.z);
+  const gr = groundUnder(field, p.x, p.z, p.y - BALL_R, 0.3);
+  const h = gr.h;
   if (p.y - BALL_R > h) return;
 
   // --- Landing ---
@@ -153,14 +176,14 @@ function stepFlight(ball, field, wind, dt, events, opts) {
   if (ball.carry === null) {
     ball.carry = Math.hypot(p.x - ball.start.x, p.z - ball.start.z);
   }
-  const surf = field.surface(p.x, p.z);
+  const surf = gr.kind ? gr.surf : field.surface(p.x, p.z);
   if (surf === S_WATER) {
     ball.mode = 'water';
     events && events.push({ type: 'water' });
     return;
   }
   const P = SURFACES[surf];
-  const n = field.normal(p.x, p.z);
+  const n = gr.n || field.normal(p.x, p.z);
   const vn = v.x * n.x + v.y * n.y + v.z * n.z;
   if (vn >= 0) return;
   const vnA = -vn;
@@ -204,14 +227,15 @@ function stepFlight(ball, field, wind, dt, events, opts) {
 function stepRoll(ball, field, dt, events) {
   const p = ball.p, v = ball.v;
   ball.rollT += dt;
-  const surf = field.surface(p.x, p.z);
-  if (surf === S_WATER || field.waterLevel(p.x, p.z) > p.y - BALL_R) {
+  const g0 = groundUnder(field, p.x, p.z, p.y - BALL_R, 0.3);
+  const surf = g0.kind ? g0.surf : field.surface(p.x, p.z);
+  if (!g0.kind && (surf === S_WATER || field.waterLevel(p.x, p.z) > p.y - BALL_R)) {
     ball.mode = 'water';
     events && events.push({ type: 'water' });
     return;
   }
   const P = SURFACES[surf];
-  const n = field.normal(p.x, p.z);
+  const n = g0.n || field.normal(p.x, p.z);
   // Gravity along the slope.
   const gx = G * n.y * n.x, gy = -G + G * n.y * n.y, gz = G * n.y * n.z;
   let sp = Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
@@ -233,10 +257,19 @@ function stepRoll(ball, field, dt, events) {
     events && events.push({ type: 'oob' });
     return;
   }
-  p.y = field.H(p.x, p.z) + BALL_R;
+  if (field.tunnelClamp) field.tunnelClamp(p, v, BALL_R);
+  const oy = p.y;
+  const g1 = groundUnder(field, p.x, p.z, oy - BALL_R, 0.3);
+  // Rolled off the edge of a bridge, or over a cliff: it falls.
+  const n2 = g1.n || field.normal(p.x, p.z);
+  if (g1.h < oy - BALL_R - 0.25 || (n2.y < 0.55 && v.x * n2.x + v.z * n2.z > 0.2)) {
+    ball.mode = 'flight';
+    ball.carry = ball.carry === null ? 0 : ball.carry;
+    return;
+  }
+  p.y = g1.h + BALL_R;
   if (field.waterLevel(p.x, p.z) === -Infinity) { ball.lastDry.x = p.x; ball.lastDry.z = p.z; }
   // Keep velocity tangent to the new ground.
-  const n2 = field.normal(p.x, p.z);
   const vn = v.x * n2.x + v.y * n2.y + v.z * n2.z;
   v.x -= vn * n2.x; v.y -= vn * n2.y; v.z -= vn * n2.z;
   sp = Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);

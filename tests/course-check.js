@@ -10,6 +10,7 @@ const COLORS = {
   [G.S_TEE]: [120, 190, 90], [G.S_FAIRWAY]: [95, 170, 70], [G.S_FRINGE]: [80, 160, 80],
   [G.S_GREEN]: [110, 200, 100], [G.S_ROUGH]: [55, 110, 40], [G.S_DEEP]: [40, 80, 30],
   [G.S_SAND]: [225, 205, 150], [G.S_WATER]: [50, 100, 170], [G.S_OOB]: [0, 0, 0], [G.S_PATH]: [190, 182, 160],
+  [G.S_ROCK]: [176, 124, 84],
 };
 
 function writePng(file, w, h, rgb) {
@@ -33,8 +34,11 @@ function writePng(file, w, h, rgb) {
 }
 
 const { mapImages } = require('./png');
+let totalProblems = 0;
+for (const DEF of G.COURSES) {
+console.log(`\n== ${DEF.name} ==`);
 const t0 = Date.now();
-const course = G.buildCourse(G.COURSE, { images: mapImages(path.join(__dirname, '..')) });
+const course = G.buildCourse(DEF, { images: mapImages(path.join(__dirname, '..')) });
 const buildMs = Date.now() - t0;
 const b = course.bounds;
 let problems = 0, par = 0;
@@ -139,7 +143,51 @@ if (outDir) {
   const cl = course.clubhouse;
   for (let dz = -9; dz <= 9; dz += 1) for (let dx = -15; dx <= 15; dx += 1) dot(cl.x + dx, cl.z + dz, [140, 60, 50], 0);
   fs.mkdirSync(outDir, { recursive: true });
-  writePng(path.join(outDir, 'course.png'), w, hgt, rgb);
+  writePng(path.join(outDir, `course-${DEF.id}.png`), w, hgt, rgb);
+}
+// Bridges and tunnels: decks above the land under them, tunnels through rock.
+for (const br of course.bridges) {
+  const under = course.H((br.a[0] + br.b[0]) / 2, (br.a[1] + br.b[1]) / 2);
+  const deck = course.bridgeDeck(br, br.len / 2);
+  console.log(`   bridge ${br.len.toFixed(0)}yd, deck ${deck.toFixed(1)} over ground ${under.toFixed(1)}`);
+  if (deck < under + 0.5) { console.log('  ! bridge deck is below the ground'); problems++; }
+}
+for (const t of course.tunnels) {
+  console.log(`   tunnel ${t.len.toFixed(0)}yd, through rock from ${t.s0}yd to ${t.s1}yd`);
+  if (t.s1 - t.s0 < 10) { console.log('  ! tunnel does not pass through any rock'); problems++; }
+  // A ball sent rolling in at one mouth comes out of the other on the floor.
+  const field = course.fieldFor(course.holes[0]);
+  field.pin = null;
+  const s0 = t.s0 - 8, x0 = t.ax + t.ux * s0, z0 = t.az + t.uz * s0;
+  const ball = G.createBall(x0, course.floor(x0, z0, 1e9 * 0) + G.BALL_R, z0);
+  ball.p.y = course.tunnelFloor(t, s0) + G.BALL_R + 0.02;
+  G.startRoll(ball, G.yawFromDir(t.ux, t.uz), 26);
+  let maxY = -Infinity, n = 0;
+  while ((ball.mode === 'roll' || ball.mode === 'flight') && n++ < 240 * 30) {
+    G.stepBall(ball, field, null, G.DT, null, { noTrees: true });
+    const s = (ball.p.x - t.ax) * t.ux + (ball.p.z - t.az) * t.uz;
+    if (s > t.s0 && s < t.s1) maxY = Math.max(maxY, ball.p.y - course.tunnelFloor(t, s));
+  }
+  const sEnd = (ball.p.x - t.ax) * t.ux + (ball.p.z - t.az) * t.uz;
+  console.log(`   ball rolled in at ${s0.toFixed(0)}yd stopped at ${sEnd.toFixed(0)}yd, never more than ${maxY.toFixed(2)}yd above the tunnel floor`);
+  if (sEnd < t.s1 || maxY > 1) { console.log('  ! a ball does not roll through the tunnel'); problems++; }
+}
+for (const br of course.bridges) {
+  // Dropped on the deck it stays on the deck; rolled off the side it falls.
+  const field = course.fieldFor(course.holes[0]);
+  field.pin = null;
+  const sm = br.len / 2, nx = -br.uz, nz = br.ux;
+  const deck = course.bridgeDeck(br, sm);
+  const on = G.createBall(br.ax + br.ux * sm, deck + 3, br.az + br.uz * sm);
+  G.launchBall(on, 0, 0.1, -90, 0, 0);
+  for (let i = 0; i < 240 * 10 && (on.mode === 'flight' || on.mode === 'roll'); i++) G.stepBall(on, field, null, G.DT, null, { noTrees: true });
+  const off = G.createBall(br.ax + br.ux * sm, deck + G.BALL_R, br.az + br.uz * sm);
+  G.startRoll(off, G.yawFromDir(nx, nz), 6);
+  for (let i = 0; i < 240 * 10 && (off.mode === 'flight' || off.mode === 'roll'); i++) G.stepBall(off, field, null, G.DT, null, { noTrees: true });
+  console.log(`   ball dropped on the bridge rests ${(on.p.y - deck).toFixed(2)}yd above the deck; rolled off the side it ends ${(deck - off.p.y).toFixed(1)}yd below (${off.mode})`);
+  if (Math.abs(on.p.y - deck) > 0.2 || off.p.y > deck - 1) { console.log('  ! bridge physics'); problems++; }
 }
 console.log(`Total par ${par}. ${problems ? problems + ' problem(s)' : 'All checks OK'}`);
-process.exit(problems ? 1 : 0);
+totalProblems += problems;
+}
+process.exit(totalProblems ? 1 : 0);

@@ -17,7 +17,7 @@ import re
 ROOT = pathlib.Path(__file__).parent
 SRC = ROOT / "src"
 JS_ORDER = [
-    "util.js", "data.js", "physics.js", "course.js", "terrain.js", "maphole.js", "audio.js",
+    "util.js", "data.js", "physics.js", "course.js", "plains.js", "terrain.js", "maphole.js", "audio.js",
     "assets.js", "publish.js", "atmosphere.js", "wind.js", "world.js", "scenery.js", "equipment.js", "character.js", "cart.js", "ui.js",
     "workshop.js", "net.js", "remote.js", "main.js",
 ]

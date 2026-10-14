@@ -9,13 +9,13 @@ const WindCues = (() => {
   const PALETTE = ['#27428f', '#9c2a2a', '#2c5a33', '#c8962a', '#6b3d8a', '#1f6f74', '#a24a1c', '#33408a', '#7a1f3d'];
   const TRIM = '#e6c25a';
 
-  // Cloth: a field colour, a gold edge and a simple emblem.
-  function clothTexture(color, emblem) {
+  // Cloth: a field colour, an edge and a simple emblem (gold unless given).
+  function clothTexture(color, emblem, trim = TRIM) {
     const c = document.createElement('canvas');
     c.width = 128; c.height = 80;
     const g = c.getContext('2d');
     g.fillStyle = color; g.fillRect(0, 0, 128, 80);
-    g.fillStyle = TRIM;
+    g.fillStyle = trim;
     g.fillRect(0, 0, 128, 6); g.fillRect(0, 74, 128, 6); g.fillRect(0, 0, 6, 80);
     g.globalAlpha = 0.9;
     if (emblem === 'cross') { g.fillRect(28, 34, 50, 12); g.fillRect(47, 16, 12, 48); }
@@ -34,7 +34,7 @@ const WindCues = (() => {
   }
 
   // A flag on a pole, base at the origin. shape: 'banner' | 'pennant'.
-  function makeFlag({ height = 4, w = 1.4, h = 0.9, color = PALETTE[0], emblem = 'disc', shape = 'banner', pole = 0x6b4a2e, phase = Math.random() * 10 } = {}) {
+  function makeFlag({ height = 4, w = 1.4, h = 0.9, color = PALETTE[0], trim = TRIM, emblem = 'disc', shape = 'banner', pole = 0x6b4a2e, phase = Math.random() * 10 } = {}) {
     const g = new THREE.Group();
     g.name = 'flag';
     const poleMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.05, height, 6).translate(0, height / 2, 0),
@@ -52,7 +52,9 @@ const WindCues = (() => {
         p.setY(i, -h / 2 + (p.getY(i) + h / 2) * (1 - 0.85 * u));
       }
     }
-    const cloth = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ map: clothTexture(color, emblem), side: THREE.DoubleSide }));
+    const cloth = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ map: clothTexture(color, emblem, trim), side: THREE.DoubleSide }));
+    cloth.name = 'cloth';
+    g.userData.emblem = emblem;
     cloth.castShadow = true;
     const pivot = new THREE.Group();
     pivot.position.y = height - 0.08;
@@ -60,6 +62,15 @@ const WindCues = (() => {
     g.add(pivot);
     addWaver(pivot, geo, w, phase);
     return g;
+  }
+
+  // Re-dye a flag made by makeFlag.
+  function dye(flag, color, trim) {
+    const cloth = flag.getObjectByName('cloth');
+    if (!cloth) return;
+    if (cloth.material.map) cloth.material.map.dispose();
+    cloth.material.map = clothTexture(color, flag.userData.emblem, trim);
+    cloth.material.needsUpdate = true;
   }
 
   // Stop waving the cloth of flags inside obj (it is being thrown away).
@@ -194,5 +205,5 @@ const WindCues = (() => {
     return { mesh, update };
   }
 
-  return { makeFlag, addWaver, forget, updateFlags, createStreaks, PALETTE };
+  return { makeFlag, addWaver, forget, dye, updateFlags, createStreaks, PALETTE };
 })();

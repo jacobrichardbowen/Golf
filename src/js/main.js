@@ -8,6 +8,23 @@
 // The ball simulates on its own timeline, whatever the player is doing.
 // ---------------------------------------------------------------------------
 
+// Which course to load: from the address (#course=golden or ?course=golden),
+// else the one played last. Switching reloads the page into the other course.
+const COURSE_KEY = 'pinehaven-course';
+const COURSE_ID = (() => {
+  const m = /course=(\w+)/.exec(location.hash) || /[?&]course=(\w+)/.exec(location.search);
+  let id = m && m[1];
+  if (!id) { try { id = localStorage.getItem(COURSE_KEY); } catch (e) { /* storage unavailable */ } }
+  return courseDef(id).id;
+})();
+// rejoin: { code, name, char } to join that online game again after loading.
+function switchCourse(id, rejoin) {
+  try { localStorage.setItem(COURSE_KEY, id); } catch (e) { /* storage unavailable */ }
+  try { if (rejoin) sessionStorage.setItem('pinehaven-rejoin', JSON.stringify(Object.assign({ at: Date.now() }, rejoin))); } catch (e) { /* storage unavailable */ }
+  location.hash = 'course=' + id;
+  location.reload();
+}
+
 function startGame(saved) {
   const MAX_STROKES = 10;
   const PUTT_RANGES = [3, 5, 8, 12, 16, 22, 30, 40, 55];
@@ -31,14 +48,15 @@ function startGame(saved) {
     return null;
   }
   const camera = World.camera;
-  const course = buildCourse(COURSE, { images: (id) => Assets.pixels(id) });
+  const DEF = courseDef(COURSE_ID);
+  const course = buildCourse(DEF, { images: (id) => Assets.pixels(id) });
   const HOLES = course.holes;
   const PAR = HOLES.reduce((a, h) => a + h.par, 0);
   UI.setOverview(World.buildCourse(course), course.bounds);
 
   const cart = Cart.create(course);
   World.add(cart.root);
-  cart.place(COURSE.cartStart.x, COURSE.cartStart.z, (COURSE.cartStart.heading || 0) * DEG);
+  cart.place(DEF.cartStart.x, DEF.cartStart.z, (DEF.cartStart.heading || 0) * DEG);
   const bag = Equipment.createBag();
   World.add(bag.root);
   const caddy = Golfer.createCaddy();
@@ -105,25 +123,30 @@ function startGame(saved) {
     World.setPinVisible(G.hole, v);
   }
 
-  function placePlayer(x, z, yaw) {
-    Object.assign(G.player, { x, z, y: course.H(x, z), yaw, vx: 0, vz: 0, speed: 0 });
+  // The ground to stand on at (x, z) for someone around height y: the land,
+  // or a bridge deck or tunnel floor (y omitted: the land).
+  const standY = (x, z, y) => (y == null ? course.H(x, z) : course.floor(x, z, y + 0.6));
+  function placePlayer(x, z, yaw, yHint) {
+    Object.assign(G.player, { x, z, y: standY(x, z, yHint), yaw, vx: 0, vz: 0, speed: 0 });
     G.camYaw = yaw;
   }
-  function placeCaddy(x, z, yaw) {
-    Object.assign(G.cad, { x, z, y: course.H(x, z), yaw, speed: 0, riding: false, stuck: 0 });
+  function placeCaddy(x, z, yaw, yHint) {
+    Object.assign(G.cad, { x, z, y: standY(x, z, yHint), yaw, speed: 0, riding: false, stuck: 0 });
   }
 
-  // Where you tee up. Online, each golfer has their own spot four yards along
-  // the tee from the next, so nobody stands in anyone's way.
+  // Where you tee up. Online, each golfer has their own spot on the tee: three
+  // abreast, and a second row behind (anyone in your line of sight steps out
+  // of the picture while you address the ball).
+  const TEE_SPOTS = [[0, 0], [-3.5, 0], [3.5, 0], [-3.5, -4.5], [3.5, -4.5], [0, -4.5]];
   function teeSpot(h) {
-    const off = G.mp ? [0, -4, 4][G.mp.slot] || 0 : 0;
-    if (!off) return { x: h.tee.x, z: h.tee.z };
-    const rx = -h.teeDir.z, rz = h.teeDir.x;
+    const [side, along] = G.mp ? TEE_SPOTS[G.mp.slot] || [0, 0] : [0, 0];
+    if (!side && !along) return { x: h.tee.x, z: h.tee.z };
+    const rx = -h.teeDir.z, rz = h.teeDir.x, fx = h.teeDir.x, fz = h.teeDir.z;
     for (const f of [1, 0.75, 0.5]) {
-      const x = h.tee.x + rx * off * f, z = h.tee.z + rz * off * f;
+      const x = h.tee.x + rx * side * f + fx * along, z = h.tee.z + rz * side * f + fz * along;
       if (course.surface(x, z) === S_TEE) return { x, z };
     }
-    return { x: h.tee.x + rx * off * 0.5, z: h.tee.z + rz * off * 0.5 };
+    return { x: h.tee.x + rx * side * 0.5 + fx * along * 0.5, z: h.tee.z + rz * side * 0.5 + fz * along * 0.5 };
   }
 
   // ---------- holes & round ----------
@@ -150,6 +173,12 @@ function startGame(saved) {
     if (golfer) { golfer.root.removeFromParent(); }
     golfer = Golfer.create(CHARACTERS[i]);
     World.add(golfer.root);
+    // Your ball, your cart and your caddy's flag are in your colours.
+    const cs = CHARACTERS[i].colors;
+    World.setBallColor(cs.ball);
+    cart.setColors(cs);
+    caddy.setFlagColors(cs);
+    UI.$('ballMarker').style.setProperty('--c', cs.ui);
   }
 
   function startRound(at, scores) {
@@ -161,15 +190,17 @@ function startGame(saved) {
     UI.show('hud', true);
     activateHole(at);
     G.clubIndex = 0; // the driver, for the opening tee shot
+    G.fetch = null; G.cad.driving = false;
     G.bagWhere = 'caddy';
     G.bagSpot = null;
     const h = hole();
     if (at === 0) {
       // Online, everyone starts side by side, each with their own cart.
-      const cl = course.clubhouse, k = G.mp ? [0, -1, 1][G.mp.slot] || 0 : 0;
-      const pr = rightOf(-0.6), cs = COURSE.cartStart, ch = (cs.heading || 0) * DEG, cr = rightOf(ch);
+      const cl = course.clubhouse, slot = G.mp ? G.mp.slot : 0, k = [0, -1, 1, -2, 2, -3][slot] || 0;
+      const pr = rightOf(-0.6);
       placePlayer(cl.x - 8 + pr.x * 2.2 * k, cl.z - 18 + pr.z * 2.2 * k, -0.6);
-      cart.place(cs.x + cr.x * 3 * k, cs.z + cr.z * 3 * k, ch);
+      const sp = cartSpot(slot);
+      cart.place(sp.x, sp.z, sp.yaw);
       if (G.mp) UI.toast('Out on the course together', 'Everyone plays their own ball. Wait for each other at the end of each hole.', 4200);
       else UI.toast('Welcome to Pinehaven', 'Walk to the 1st tee, or hop in the cart. Your caddy has the bag.', 3800);
     } else {
@@ -188,10 +219,23 @@ function startGame(saved) {
     saveProgress();
   }
 
+  // Where cart number n parks at the start: the n-th clear spot in a row
+  // (everyone works this out the same way, so no two carts share a spot).
+  function cartSpot(n) {
+    const cs = DEF.cartStart, yaw = (cs.heading || 0) * DEG, r = rightOf(yaw), f = dirFromYaw(yaw);
+    const spots = [];
+    for (const row of [0, -4.5, 4.5])
+      for (const k of [0, -1, 1, -2, 2, -3, 3]) {
+        const x = cs.x + r.x * 3 * k + f.x * row, z = cs.z + r.z * 3 * k + f.z * row;
+        if (cart.clearAt(x, z, yaw, course.H(x, z))) spots.push({ x, z, yaw });
+      }
+    return spots[n] || spots[0] || { x: cs.x, z: cs.z, yaw };
+  }
+
   function saveProgress() {
     if (G.mp) return; // online rounds can't be resumed
     const st = store.load();
-    st.round = { scores: G.scores.slice(), next: G.hole };
+    st.round = { scores: G.scores.slice(), next: G.hole, course: DEF.id };
     st.character = G.character;
     store.save(st);
   }
@@ -199,11 +243,18 @@ function startGame(saved) {
   function finishRound() {
     const total = G.scores.reduce((a, s) => a + s, 0);
     const st = store.load();
-    if (!st.best || total < st.best) st.best = total;
+    const best = bestOf(st);
+    if (!best || total < best) setBest(st, total);
     if (!G.mp) st.round = null;
     store.save(st);
     G.inRound = false;
   }
+
+  // Best rounds and saved rounds belong to a course (Pinehaven's from before
+  // there was a choice live in the old places).
+  function bestOf(st) { return DEF.id === 'pinehaven' ? st.best : (st.bests || {})[DEF.id]; }
+  function setBest(st, v) { if (DEF.id === 'pinehaven') st.best = v; else (st.bests = st.bests || {})[DEF.id] = v; }
+  const roundHere = (r) => r && (r.course || 'pinehaven') === DEF.id;
 
   // ---------- character select ----------
   function lineupBase() {
@@ -228,7 +279,7 @@ function startGame(saved) {
     const hex = (n) => '#' + n.toString(16).padStart(6, '0');
     UI.$('selCards').innerHTML = CHARACTERS.map((c, i) =>
       `<button class="sel-card" data-i="${i}"><b>${c.name}</b><span class="h">${c.heightLabel}</span>` +
-      `<span class="sw" aria-hidden="true"><i style="background:${hex(c.hair)}"></i><i style="background:${hex(c.shirt)}"></i><i style="background:${hex(c.pants)}"></i></span>` +
+      `<span class="sw" aria-hidden="true"><i style="background:${hex(c.colors.primary)}"></i><i style="background:${hex(c.colors.secondary)}"></i><i class="ball" style="background:${hex(c.colors.ball)}"></i></span>` +
       `<span class="sw-l">${c.look}</span></button>`).join('');
     UI.$('selCards').querySelectorAll('.sel-card').forEach((el) => {
       el.addEventListener('click', () => {
@@ -272,11 +323,21 @@ function startGame(saved) {
   function updateLineup(dt) {
     const base = lineupBase();
     const gy = course.H(base.x, base.z);
-    const D = 7.2;
     camera.updateProjectionMatrix();
-    const halfW = D * Math.tan((camera.fov * DEG) / 2) * camera.aspect;
+    // On a narrow screen, the three golfers in the selected card's row.
+    const row = camera.aspect < 0.9 && lineup.length > 3 ? Math.floor(G.select.index / 3) * 3 : -1;
+    const shown = lineup.map((_, i) => i).filter((i) => row < 0 || (i >= row && i < row + 3));
+    G.select.shown = shown;
+    const N = shown.length;
+    // Back off on narrow screens so everyone fits.
+    const spread = Math.tan((camera.fov * DEG) / 2) * camera.aspect;
+    const D = Math.max(7.2, (N * 1.15) / 2 / spread / 0.92);
+    const halfW = D * spread;
     lineup.forEach((g, i) => {
-      const ndc = (i - 1) * (2 / 3);
+      const k = shown.indexOf(i);
+      g.root.visible = k >= 0;
+      if (k < 0) return;
+      const ndc = ((k + 0.5) / N) * 2 - 1;
       // The camera looks south (+Z), so screen-right is world -X.
       const x = base.x - ndc * halfW * 0.92, z = base.z;
       g.root.position.set(x, course.H(x, z), z);
@@ -306,7 +367,18 @@ function startGame(saved) {
     return lie === S_TEE ? 0 : 1;
   }
 
+  // Stepping up to the ball you're never quite lined up: a nudge either way,
+  // a degree or two on the green, a few degrees for a full shot.
+  function aimNudge(putt) {
+    if (Math.random() < 0.15) return (Math.random() - 0.5) * (putt ? 0.5 : 1.2) * DEG;
+    const mag = putt ? 0.6 + Math.random() * 1.6 : 1.5 + Math.random() * 3.5;
+    return (Math.random() < 0.5 ? -1 : 1) * mag * DEG;
+  }
+
   function defaultAim() {
+    return wrapAngle(idealAim() + aimNudge(club().putter));
+  }
+  function idealAim() {
     const b = G.ball.p, pin = hole().pin, c = club();
     const yPin = yawFromDir(pin.x - b.x, pin.z - b.z);
     if (c.putter) return yPin;
@@ -372,15 +444,7 @@ function startGame(saved) {
       pts.push({ x: sim.p.x, y: sim.p.y, z: sim.p.z });
       G.preview = { pts, landing: { x: sim.p.x, z: sim.p.z }, end: { x: sim.p.x, z: sim.p.z } };
     }
-    // Only the start of the line is drawn: which way it sets off and how high,
-    // not where it comes down. (The full flight still frames the cameras.)
-    const reach = c.putter ? 1.2 : 14;
-    const near = [];
-    for (const p of G.preview.pts) {
-      if (Math.hypot(p.x - b.x, p.z - b.z) > reach) break;
-      near.push(p);
-    }
-    World.setGuides(near, null, c.putter);
+    // Nothing is drawn: the flight only frames the landing-area cameras.
   }
 
   // ---------- addressing the ball ----------
@@ -562,7 +626,7 @@ function startGame(saved) {
         bag.root.rotateX(-0.2);
       } else {
         const x = c.x + r.x * 0.55 + f.x * 0.2, z = c.z + r.z * 0.55 + f.z * 0.2;
-        bag.root.position.set(x, course.H(x, z), z);
+        bag.root.position.set(x, standY(x, z, c.y), z);
         bag.root.rotation.set(0, Math.PI - c.yaw + 0.6, 0);
         bag.root.rotateX(-0.1);
       }
@@ -573,8 +637,119 @@ function startGame(saved) {
   }
 
   // ---------- the caddy ----------
+  // ---------- the caddy fetches the cart ----------
+  // He sets the bag down beside you and runs off; once he's out of sight the
+  // cart is "on its way" (half a minute if it was a long way off), and he
+  // turns up driving it in from somewhere you aren't looking.
+  const FETCH_NEAR = 30;
+  function canFetch() {
+    return G.mode === 'walk' && !G.fetch && !G.cad.riding && Math.hypot(cart.st.x - G.player.x, cart.st.z - G.player.z) > FETCH_NEAR;
+  }
+  function fetchCart() {
+    if (G.mode !== 'walk' || G.cad.riding) return;
+    if (G.fetch) { UI.toast('Your caddy is already on it', 'The cart is on its way', 1800); return; }
+    const d = Math.hypot(cart.st.x - G.player.x, cart.st.z - G.player.z);
+    if (d <= FETCH_NEAR) { UI.toast('The cart’s right there', 'Walk over and press E to drive', 1800); return; }
+    // Leave the clubs with you.
+    if (G.bagWhere === 'caddy' && !G.bagSpot) {
+      const P = G.player, r = rightOf(P.yaw), x = P.x + r.x * 1.2, z = P.z + r.z * 1.2;
+      G.bagSpot = { x, y: standY(x, z, P.y), z, ry: Math.PI - P.yaw + 0.6 };
+    }
+    G.fetch = { phase: 'leaving', t: 0, wait: d > 120 ? 30 : clamp(d / 5, 5, 30), from: { x: cart.st.x, z: cart.st.z } };
+    UI.toast('“I’ll fetch the cart!”', d > 120 ? 'It’s a long way back: give him half a minute' : 'He won’t be long', 2600);
+    Sound.click();
+  }
+  // Is a point on screen right now?
+  function onScreen(x, y, z) {
+    const p = project(x, y, z);
+    return !p.behind && p.x > -40 && p.x < p.w + 40 && p.y > -40 && p.y < p.h + 40;
+  }
+  function updateFetch(dt) {
+    const f = G.fetch, c = G.cad, P = G.player;
+    f.t += dt;
+    if (f.phase === 'leaving') {
+      // Run off (towards the cart if that's possible, else away from you).
+      let dx = f.from.x - c.x, dz = f.from.z - c.z;
+      if (Math.hypot(dx, dz) < 5) { dx = c.x - P.x; dz = c.z - P.z; }
+      const l = Math.hypot(dx, dz) || 1;
+      let mx = dx / l, mz = dz / l, moved = false;
+      for (const a of [0, 0.6, -0.6, 1.2, -1.2, 1.8, -1.8]) {
+        const ca = Math.cos(a), sa = Math.sin(a), vx = mx * ca - mz * sa, vz = mx * sa + mz * ca;
+        if (!blockedAt(c.x + vx * 0.6, c.z + vz * 0.6, true)) { mx = vx; mz = vz; moved = true; break; }
+      }
+      c.speed += ((moved ? RUN : 0) - c.speed) * (1 - Math.exp(-dt * 6));
+      c.x += mx * c.speed * dt; c.z += mz * c.speed * dt;
+      c.yaw += wrapAngle(yawFromDir(mx, mz) - c.yaw) * (1 - Math.exp(-dt * 10));
+      c.y = standY(c.x, c.z, c.y);
+      caddy.root.position.set(c.x, c.y, c.z);
+      caddy.root.rotation.set(0, Math.PI - c.yaw, 0);
+      caddy.update(dt, { mode: 'walk', speed: c.speed });
+      const gone = !onScreen(c.x, c.y + 1, c.z) || Math.hypot(c.x - P.x, c.z - P.z) > 60 || f.t > 12;
+      if (gone && f.t > 1) { caddy.setVisible(false); f.phase = 'away'; f.t = 0; }
+      return;
+    }
+    if (f.phase === 'away') {
+      if (f.t < f.wait) return;
+      const spot = cartArrival();
+      if (!spot) { f.t = f.wait - 2; return; } // nowhere out of sight yet: try again shortly
+      cart.place(spot.x, spot.z, spot.yaw, spot.y);
+      c.driving = true;
+      caddy.setVisible(true);
+      Object.assign(f, { phase: 'arriving', t: 0, best: Infinity, stall: 0, park: null });
+    }
+    if (f.phase === 'arriving') {
+      // Drive in and pull up a few yards to one side of you.
+      const st = cart.st;
+      if (!f.park) {
+        const ax = P.x - st.x, az = P.z - st.z, al = Math.hypot(ax, az) || 1;
+        f.park = { x: P.x - (ax / al) * 3 - (az / al) * 4, z: P.z - (az / al) * 3 + (ax / al) * 4 };
+      }
+      const dx = f.park.x - st.x, dz = f.park.z - st.z, d = Math.hypot(dx, dz);
+      const diff = wrapAngle(yawFromDir(dx, dz) - st.yaw);
+      const arrive = d < 3.5 || Math.hypot(P.x - st.x, P.z - st.z) < 4.5;
+      cart.update(dt, { throttle: arrive ? 0 : Math.abs(diff) > 1.1 ? 0.35 : d < 14 ? 0.3 : 0.8, steer: clamp(diff * 1.8, -1, 1), brake: arrive });
+      if (d < f.best - 0.5) { f.best = d; f.stall = 0; } else f.stall += dt;
+      const s = cart.seatPose(caddy.seatScale);
+      Object.assign(c, { x: s.x, z: s.z, y: s.y, yaw: s.yaw, speed: 0 });
+      caddy.root.position.set(s.x, s.y, s.z);
+      caddy.root.rotation.set(0, Math.PI - s.yaw, 0);
+      caddy.update(dt, { mode: 'seated' });
+      // Pulled up (or stuck on something: he gets out and you walk the last bit).
+      if ((arrive && Math.abs(st.speed) < 0.3) || f.stall > 4 || f.t > 40) {
+        st.speed = 0;
+        const q = cart.exitSpot(false);
+        placeCaddy(q.x, q.z, st.yaw, st.y);
+        c.driving = false;
+        G.fetch = null;
+        UI.toast('“Your cart!”', 'Hop in with E', 2200);
+      }
+    }
+  }
+  // Somewhere 30-45 yards away, out of sight, clear for the cart and at about
+  // your level (not up on a mesa when you're down below), to drive in from.
+  function cartArrival() {
+    const P = G.player;
+    let best = null;
+    for (let k = 0; k < 48; k++) {
+      const a = (k / 48) * TAU, r = 32 + (k % 3) * 6;
+      const x = P.x + Math.cos(a) * r, z = P.z + Math.sin(a) * r;
+      if (!course.inBounds(x, z)) continue;
+      const y = course.H(x, z);
+      if (Math.abs(y - P.y) > 4 || course.waterLevel(x, z) > y - 0.1) continue;
+      const yaw = yawFromDir(P.x - x, P.z - z);
+      if (!cart.clearAt(x, z, yaw, y)) continue;
+      const surf = course.surface(x, z);
+      if (surf === S_GREEN || surf === S_SAND || surf === S_ROCK) continue;
+      const hidden = !onScreen(x, y + 1, z);
+      const score = (hidden ? 0 : 100) + Math.abs(y - P.y) * 3 + (surf === S_PATH ? -2 : 0);
+      if (!best || score < best.score) best = { x, z, y, yaw, score };
+    }
+    return best && best.score < 100 ? best : (G.fetch && G.fetch.t > G.fetch.wait + 8 ? best : null);
+  }
+
   function updateCaddy(dt) {
     const c = G.cad, P = G.player;
+    if (G.fetch) { updateFetch(dt); return; }
     if (c.riding) {
       const s = cart.seatPose(caddy.seatScale, true);
       Object.assign(c, { x: s.x, z: s.z, y: s.y, yaw: s.yaw, speed: 0 });
@@ -600,8 +775,10 @@ function startGame(saved) {
       near = 0.45;
       if (Math.hypot(c.x - spot.x, c.z - spot.z) < 0.75) G.bagSpot = null;
     } else if (G.mode === 'shot') {
+      // Off to the side behind you; online, well back out of everyone's way.
       const b = G.ball.p, d = dirFromYaw(G.aimYaw), r = rightOf(G.aimYaw);
-      tx = b.x - d.x * 3.4 - r.x * 3.6; tz = b.z - d.z * 3.4 - r.z * 3.6;
+      const back = G.mp ? 8 : 3.4, side = G.mp ? 1.5 : 3.6;
+      tx = b.x - d.x * back - r.x * side; tz = b.z - d.z * back - r.z * side;
       near = 0.6;
     } else {
       const dx = c.x - P.x, dz = c.z - P.z, d = Math.hypot(dx, dz) || 1;
@@ -637,10 +814,10 @@ function startGame(saved) {
       const f = dirFromYaw(P.yaw), r = rightOf(P.yaw);
       for (const [b, s] of [[6, -3], [6, 3], [3, -5], [3, 5], [9, 0]]) {
         const x = P.x - f.x * b + r.x * s, z = P.z - f.z * b + r.z * s;
-        if (!blockedAt(x, z, true)) { placeCaddy(x, z, P.yaw); G.bagSpot = null; break; }
+        if (!blockedAt(x, z, true, P.y)) { placeCaddy(x, z, P.yaw, P.y); G.bagSpot = null; break; }
       }
     }
-    c.y = course.H(c.x, c.z);
+    c.y = standY(c.x, c.z, c.y);
     caddy.root.position.set(c.x, c.y, c.z);
     caddy.root.rotation.set(0, Math.PI - c.yaw, 0);
     caddy.update(dt, { mode: 'walk', speed: c.speed, carry: c.speed > 0.4 && G.bagWhere === 'caddy' && !G.bagSpot });
@@ -698,7 +875,9 @@ function startGame(saved) {
   function startDownswing(power, e) {
     G.shotPhase = 'down';
     // A little of the golfer's own variation, more on a full swing.
-    const jitter = ((Math.random() + Math.random() + Math.random()) / 1.5 - 1) * (0.03 + 0.06 * power * power);
+    // Giving it everything sprays it: the last stretch of the backswing adds the most.
+    const flat = Math.max(0, (power - 0.85) / 0.15);
+    const jitter = ((Math.random() + Math.random() + Math.random()) / 1.5 - 1) * (0.03 + 0.06 * power * power + 0.26 * flat * flat);
     Object.assign(G.swing, { t: 0, from: -G.swing.top * power, power, e: e + jitter, fired: false,
       finish: G.swing.putt ? 0.15 + 0.35 * power : 2.3 });
     if (!G.swing.putt) Sound.swing(power);
@@ -1001,10 +1180,16 @@ function startGame(saved) {
     st.name = Net.cleanName(UI.$('lbName').value);
     store.save(st);
   }
+  // In a game each golfer can be played by one person only.
   function renderLobbyChars() {
-    UI.$('lbChars').innerHTML = CHARACTERS.map((c, i) =>
-      `<button class="lb-char${i === lobby.char ? ' on' : ''}" data-i="${i}"><b>${c.name}</b><span>${c.heightLabel}</span></button>`).join('');
-    UI.$('lbChars').querySelectorAll('.lb-char').forEach((el) => el.addEventListener('click', () => {
+    const takenBy = new Map();
+    if (Net.active) for (const p of Net.players) if (p.slot !== Net.slot) takenBy.set(p.char, p.name || defaultName(p.slot));
+    UI.$('lbChars').innerHTML = CHARACTERS.map((c, i) => {
+      const who = takenBy.get(i);
+      return `<button class="lb-char${i === lobby.char ? ' on' : ''}${who ? ' taken' : ''}" data-i="${i}"${who ? ' disabled' : ''}>` +
+        `<i style="background:${c.colors.ui}"></i><b>${c.name}</b><span>${who ? UI.esc(who) : c.heightLabel}</span></button>`;
+    }).join('');
+    UI.$('lbChars').querySelectorAll('.lb-char:not(.taken)').forEach((el) => el.addEventListener('click', () => {
       lobby.char = Number(el.dataset.i);
       renderLobbyChars();
       saveMe();
@@ -1026,11 +1211,16 @@ function startGame(saved) {
     UI.$('lbHost').disabled = UI.$('lbJoin').disabled = lobby.busy;
     if (!inRoom) return;
     UI.text('lbCodeShow', Net.code);
+    UI.text('lbCourse', '· ' + courseDef(Net.room.course || DEF.id).name);
     const pl = Net.players.slice().sort((a, b) => a.slot - b.slot);
+    // The host may have handed us another golfer if ours was taken.
+    const mine = pl.find((p) => p.slot === Net.slot);
+    if (mine && mine.char !== lobby.char) { lobby.char = mine.char; saveMe(); }
+    renderLobbyChars();
     UI.$('lbPlayers').innerHTML = pl.map((p) => {
       const c = CHARACTERS[p.char] || CHARACTERS[0];
       const who = [p.slot === Net.slot ? 'You' : '', p.slot === 0 ? 'Host' : ''].filter(Boolean).join(' · ');
-      return `<li><i style="background:${Remote.COLORS[p.slot]}"></i><b>${UI.esc(p.name || defaultName(p.slot))}</b>` +
+      return `<li><i style="background:${c.colors.ui}"></i><b>${UI.esc(p.name || defaultName(p.slot))}</b>` +
         `<span>${UI.esc(c.name)}</span>${who ? `<em>${who}</em>` : ''}</li>`;
     }).join('');
     UI.show('lbGo', Net.isHost);
@@ -1046,7 +1236,7 @@ function startGame(saved) {
     lobbyView();
     lobbyStatus('Setting up a game…');
     try {
-      await Net.host(lobbyMe());
+      await Net.host(lobbyMe(), { course: DEF.id });
       if (token !== lobby.token) return;
       lobbyStatus('Give your friends the code: they choose Play with friends, type it in and press Join.');
     } catch (e) {
@@ -1069,6 +1259,15 @@ function startGame(saved) {
     try {
       await Net.join(code, lobbyMe());
       if (token !== lobby.token) return;
+      // The game is on the other course: go there, then join again.
+      const there = Net.room.course;
+      if (there && there !== DEF.id) {
+        lobbyStatus(`That game is on ${courseDef(there).name}. Heading there…`);
+        const me = lobbyMe();
+        Net.leave();
+        setTimeout(() => switchCourse(there, { code, name: me.name, char: me.char }), 600);
+        return;
+      }
       lobbyStatus('You’re in. The host tees off when everyone’s here.');
     } catch (e) {
       if (token !== lobby.token) return;
@@ -1091,7 +1290,6 @@ function startGame(saved) {
     G.mp.name = G.mp.players.get(me).name;
     UI.show('lobby', false);
     setCharacter(G.mp.players.get(me).char);
-    World.setBallColor(Remote.COLORS[me]);
     startRound(0, []);
     UI.show('mpList', true);
     renderMpList();
@@ -1100,13 +1298,14 @@ function startGame(saved) {
   function mpPlayer(s, m) {
     let p = G.mp.players.get(s);
     if (!p) {
-      p = { slot: s, name: '', char: clamp((m && m.ch) | 0, 0, CHARACTERS.length - 1), color: Remote.COLORS[s], scores: [], left: false };
+      const char = clamp((m && m.ch) | 0, 0, CHARACTERS.length - 1);
+      p = { slot: s, name: '', char, color: CHARACTERS[char].colors.ui, scores: [], left: false };
       p.name = (m && Net.cleanName(m.nm)) || defaultName(s);
       G.mp.players.set(s, p);
     }
     return p;
   }
-  const validSlot = (s) => s === 0 || s === 1 || s === 2;
+  const validSlot = (s) => Number.isInteger(s) && s >= 0 && s < Net.MAX;
 
   function onRemoteState(m) {
     if (!G.mp || !validSlot(m.s) || m.s === G.mp.slot || !Array.isArray(m.g) || !Array.isArray(m.c) || !Array.isArray(m.k) || !Array.isArray(m.b)) return;
@@ -1190,7 +1389,6 @@ function startGame(saved) {
     Net.leave();
     UI.html('mpList', '');
     UI.show('mpList', false);
-    World.setBallColor('#ffffff');
   }
   // Leave the course for the title screen.
   function backToTitle() {
@@ -1206,11 +1404,11 @@ function startGame(saved) {
     UI.show('hud', false);
     if (golfer) { golfer.root.removeFromParent(); golfer = null; }
     caddy.setVisible(false);
-    G.cad.riding = false;
+    G.cad.riding = false; G.cad.driving = false; G.fetch = null;
     activateHole(0);
     const cl = course.clubhouse;
     placePlayer(cl.x - 8, cl.z - 18, -0.6);
-    cart.place(COURSE.cartStart.x, COURSE.cartStart.z, (COURSE.cartStart.heading || 0) * DEG);
+    cart.place(DEF.cartStart.x, DEF.cartStart.z, (DEF.cartStart.heading || 0) * DEG);
     UI.show('title', true);
   }
 
@@ -1227,7 +1425,7 @@ function startGame(saved) {
       g: [r2(gr.position.x), r2(gr.position.y), r2(gr.position.z), r3(Math.PI - gr.rotation.y)],
       ps: POSE_CODE[pose.mode] || 0, sp: r2(pose.speed || 0), sw: r3(pose.swing || 0), pu: pose.putt ? 1 : 0,
       cl: G.clubIndex, fa: r3(G.mode === 'shot' ? G.setup.face : 0),
-      c: [r2(c.x), r2(c.y), r2(c.z), r3(c.yaw), r2(c.speed)], cr: c.riding ? 1 : 0,
+      c: [r2(c.x), r2(c.y), r2(c.z), r3(c.yaw), r2(c.speed)], cr: c.riding ? 1 : 0, cd: c.driving ? 1 : 0, cv: caddy.root.visible ? 1 : 0,
       cc: !c.riding && c.speed > 0.4 && G.bagWhere === 'caddy' && !G.bagSpot ? 1 : 0,
       k: [r2(k.x), r2(k.y), r2(k.z), r3(k.yaw), r3(k.steer), r3(k.pitch), r3(k.roll)], ks: r2(k.speed),
       bg: onCart ? 0 : [r2(bp.x), r2(bp.y), r2(bp.z), r3(bq.x), r3(bq.y), r3(bq.z), r3(bq.w)], bo: G.clubIndex,
@@ -1248,7 +1446,8 @@ function startGame(saved) {
     }
     const show = (G.mode === 'walk' || G.mode === 'cart' || G.mode === 'shot') && !overlayOpen() && !G.setupView;
     const w = canvas.clientWidth, h = canvas.clientHeight;
-    for (const r of mp.remotes.values()) r.update(dt, camera, show, w, h);
+    const clear = G.mode === 'shot' && !G.ballCam;
+    for (const r of mp.remotes.values()) r.update(dt, camera, show, w, h, clear);
     mp.listT -= dt;
     if (mp.listT <= 0) { mp.listT = 0.5; renderMpList(); }
   }
@@ -1271,6 +1470,8 @@ function startGame(saved) {
 
   // ---------- the cart ----------
   function enterCart() {
+    // Climbing in while the caddy drives it over: he shifts across.
+    if (G.fetch) { G.fetch = null; G.cad.driving = false; caddy.setVisible(true); }
     G.mode = 'cart';
     G.holdFinish = false;
     G.cartLook = 0;
@@ -1282,10 +1483,10 @@ function startGame(saved) {
   function exitCart() {
     const p = cart.exitSpot();
     cart.st.speed = 0;
-    placePlayer(p.x, p.z, cart.st.yaw);
+    placePlayer(p.x, p.z, cart.st.yaw, cart.st.y);
     G.camYaw = cart.st.yaw + G.cartLook;
     const q = cart.exitSpot(true);
-    placeCaddy(q.x, q.z, cart.st.yaw);
+    placeCaddy(q.x, q.z, cart.st.yaw, cart.st.y);
     G.mode = 'walk';
     UI.setMode('walk');
     Sound.engine(0);
@@ -1310,9 +1511,14 @@ function startGame(saved) {
   }
 
   // Can a person stand here? (`isCaddy`: the caddy ignores the player and the bag.)
-  function blockedAt(x, z, isCaddy) {
+  // y: the height of whoever is moving (for bridges and tunnels).
+  function blockedAt(x, z, isCaddy, y) {
     if (!course.inBounds(x, z)) return true;
-    if (course.waterLevel(x, z) > course.H(x, z) + 0.25) return true;
+    const yRef = y == null ? (isCaddy ? G.cad.y : G.player.y) : y;
+    const gy = standY(x, z, yRef);
+    if (course.waterLevel(x, z) > gy + 0.25) return true;
+    // A sudden drop or wall: the edge of a bridge, the side of a tunnel.
+    if (Math.abs(gy - yRef) > 0.9) return true;
     const trees = course.nearTrees(x, z);
     if (trees) for (const t of trees) if (Math.hypot(x - t.x, z - t.z) < t.trunkR + 0.28) return true;
     for (const o of course.obstacles) if (Math.abs(x - o.x) < o.hx + 0.3 && Math.abs(z - o.z) < o.hz + 0.3) return true;
@@ -1347,6 +1553,9 @@ function startGame(saved) {
     const surf = course.surface(P.x, P.z);
     if (surf === S_SAND) target *= 0.6;
     else if (surf === S_DEEP) target *= 0.85;
+    // Steep ground is a scramble (a ramp or a bridge is quicker).
+    const n = course.floorInfo(P.x, P.z, P.y + 0.6).kind ? null : course.normal(P.x, P.z);
+    if (n && n.y < 0.85) target *= clamp(1 - (0.85 - n.y) * 2.4, 0.22, 1);
     const yaw = G.camYaw;
     const fw = dirFromYaw(yaw), rt = rightOf(yaw);
     let mx = fw.x * inp.f + rt.x * inp.r, mz = fw.z * inp.f + rt.z * inp.r;
@@ -1367,7 +1576,7 @@ function startGame(saved) {
       const want = yawFromDir(P.vx, P.vz);
       P.yaw += wrapAngle(want - P.yaw) * (1 - Math.exp(-dt * 12));
     }
-    P.y = course.H(P.x, P.z);
+    P.y = standY(P.x, P.z, P.y);
     if (P.speed > 1) {
       G.stepT -= dt * P.speed;
       if (G.stepT <= 0) { G.stepT = 1.25; Sound.step(surf); }
@@ -1400,22 +1609,26 @@ function startGame(saved) {
   const cam = { pos: new V3(0, 30, 60), look: new V3(0, 0, 0), tPos: new V3(), tLook: new V3() };
   const focus = new V3();
 
+  const _eye = new THREE.Vector3();
   function shotPose(outPos, outLook) {
     const b = G.ball.p, d = dirFromYaw(G.aimYaw), r = rightOf(G.aimYaw);
     const putt = isPutt();
     const s = gScale();
     if (G.setupView) {
-      // Looking down on the ball from just behind it, the target at the top
-      // of the screen: the face against the alignment stick, and where on
-      // the face the ball sits.
-      outPos.set(b.x - d.x * 0.42, b.y + 0.9, b.z - d.z * 0.42);
-      outLook.set(b.x - d.x * 0.03, b.y, b.z - d.z * 0.03);
+      // Through the golfer's own eyes, looking down at the club behind the
+      // ball, the target off to the left: the face against the alignment
+      // stick, and where on the face the ball sits.
+      // (Leaning in along that line, so the ball and club head fill the view.)
+      golfer.joints.head.getWorldPosition(_eye);
+      _eye.x += r.x * 0.1; _eye.y += 0.04; _eye.z += r.z * 0.1;
+      outPos.set(b.x + (_eye.x - b.x) * 0.55, b.y + (_eye.y - b.y) * 0.55, b.z + (_eye.z - b.z) * 0.55);
+      outLook.set(b.x - r.x * 0.05, b.y, b.z - r.z * 0.05);
       World.setAlignmentStick({ x: b.x + r.x * 0.28, z: b.z + r.z * 0.28, yaw: G.aimYaw, face: golfer.faceInfo() });
       return;
     }
     if (G.fp) {
       const st = stanceFor(G.aimYaw);
-      const gy = course.H(st.x, st.z);
+      const gy = standY(st.x, st.z, G.ball.p.y);
       outPos.set(st.x - d.x * 0.15, gy + (putt ? 1.45 : 1.58) * s, st.z - d.z * 0.15);
       const ahead = putt ? clamp(distToPin(), 3, 14) : 45;
       outLook.set(b.x + d.x * ahead, b.y + (putt ? -0.4 : 2), b.z + d.z * ahead);
@@ -1489,7 +1702,10 @@ function startGame(saved) {
         else {
           const dist = Math.hypot(b.x - sh.start.x, b.z - sh.start.z);
           const back = 9 + Math.min(dist * 0.03, 8);
+          // Low behind it inside a tunnel, otherwise up and back.
+          const inside = course.floorInfo(b.x, b.z, b.y).kind === 2;
           cam.tPos.set(b.x - d.x * back, Math.max(b.y, course.H(b.x, b.z)) + 3.5 + Math.min(dist * 0.02, 6), b.z - d.z * back);
+          if (inside) cam.tPos.y = b.y + 1.2;
         }
         rate = sh.putter ? 1.6 : 1.3;
       } else {
@@ -1535,7 +1751,7 @@ function startGame(saved) {
     const kp = 1 - Math.exp(-dt * rate), kl = 1 - Math.exp(-dt * lookRate);
     cam.pos.lerp(cam.tPos, kp);
     cam.look.lerp(cam.tLook, kl);
-    const gh = course.H(cam.pos.x, cam.pos.z);
+    const gh = course.floor(cam.pos.x, cam.pos.z, cam.pos.y);
     if (cam.pos.y < gh + 0.35) cam.pos.y = gh + 0.35;
     camera.position.copy(cam.pos);
     camera.lookAt(cam.look);
@@ -1556,7 +1772,7 @@ function startGame(saved) {
       pose = { mode: 'seated' };
     } else if (G.mode === 'shot') {
       const st = stanceFor(G.aimYaw);
-      Object.assign(P, { x: st.x, z: st.z, y: course.H(st.x, st.z), yaw: st.face, vx: 0, vz: 0, speed: 0 });
+      Object.assign(P, { x: st.x, z: st.z, y: standY(st.x, st.z, G.ball.p.y), yaw: st.face, vx: 0, vz: 0, speed: 0 });
       golfer.root.position.set(st.x, P.y, st.z);
       golfer.root.rotation.set(0, Math.PI - st.face, 0);
       pose = G.shotPhase === 'aim' ? { mode: 'address', putt: isPutt(), club: club().kind } : { mode: 'swing', putt: G.swing.putt, club: club().kind, swing: G.swing.a };
@@ -1568,6 +1784,7 @@ function startGame(saved) {
     }
     golfer.setFace(G.mode === 'shot' ? G.setup.face : 0);
     golfer.update(dt, pose);
+    golfer.setBodyVisible(!(G.setupView && G.mode === 'shot'));
     G.lastPose = pose;
     // Hidden in first person, and when the bag close-up camera is right where he stands.
     const camInside = G.mode === 'bag' && Math.hypot(camera.position.x - P.x, camera.position.z - P.z) < 0.75 * golfer.scale;
@@ -1587,7 +1804,7 @@ function startGame(saved) {
     const opts = [];
     if (ballPlayable() && !G.cardTimer) opts.push(['ball', distTo(G.ball.p.x, G.ball.p.z), REACH]);
     if (bagAccessible()) opts.push(['bag', distTo(bagBase.x, bagBase.z), BAG_REACH]);
-    opts.push(['cart', distTo(cart.st.x, cart.st.z), REACH]);
+    if (!G.fetch || G.fetch.phase === 'arriving') opts.push(['cart', distTo(cart.st.x, cart.st.z), REACH]);
     let best = null, bd = Infinity;
     for (const [k, d, r] of opts) if (d <= r && d < bd) { best = k; bd = d; }
     return best;
@@ -1607,6 +1824,8 @@ function startGame(saved) {
     UI.prompt(act && !touch ? `<kbd>E</kbd>${label}` : null);
     UI.setActionLabel(act);
     UI.$('hud').classList.toggle('fp', G.fp);
+    const fb = canFetch() && Math.hypot(cart.st.x - P.x, cart.st.z - P.z) > 60;
+    if (UI.$('fetchBtn').hidden === fb) UI.$('fetchBtn').hidden = !fb;
     UI.text('inHandClub', club().name);
 
     if (G.ballState === 'tee') UI.objective(`Hole ${G.hole + 1} tee · <b>${Math.round(distTo(h.tee.x, h.tee.z))} yds</b>`);
@@ -1766,6 +1985,7 @@ function startGame(saved) {
     else if (k === 'KeyC') showCard(!!G.cardAfterHole);
     else if (k === 'KeyM') openOverlay('map');
     else if (k === 'KeyN') toggleMute();
+    else if (k === 'KeyG') fetchCart();
     else if (k === 'KeyH' || k === 'Slash') openOverlay('help');
   });
   window.addEventListener('keyup', (e) => {
@@ -1802,7 +2022,8 @@ function startGame(saved) {
     if (G.mode === 'title' || G.mode === 'workshop') return;
     if (G.mode === 'select') {
       // Click a golfer to pick them.
-      const w = canvas.clientWidth, i = clamp(Math.floor((e.clientX / w) * 3), 0, 2);
+      const shown = G.select.shown || CHARACTERS.map((_, k) => k);
+      const w = canvas.clientWidth, i = shown[clamp(Math.floor((e.clientX / w) * shown.length), 0, shown.length - 1)];
       if (i === G.select.index) confirmSelect(); else chooseSelect(i);
       return;
     }
@@ -1893,6 +2114,7 @@ function startGame(saved) {
   UI.$('fpBtn').addEventListener('click', toggleFP);
   UI.$('cardBtn').addEventListener('click', () => showCard(!!G.cardAfterHole));
   UI.$('mapBtn').addEventListener('click', () => openOverlay('map'));
+  UI.$('fetchBtn').addEventListener('click', fetchCart);
   UI.$('mapClose').addEventListener('click', () => closeOverlay('map'));
   UI.$('helpBtn').addEventListener('click', () => openOverlay('help'));
   UI.$('helpClose').addEventListener('click', () => closeOverlay('help'));
@@ -1928,7 +2150,7 @@ function startGame(saved) {
   UI.$('bagMove').addEventListener('click', moveBag);
   UI.$('resumeBtn').addEventListener('click', () => {
     const r = store.load().round;
-    if (r && r.next < HOLES.length) openSelect(r);
+    if (roundHere(r) && r.next < HOLES.length) openSelect(r);
     else onStart();
   });
 
@@ -2041,11 +2263,20 @@ function startGame(saved) {
   UI.text('tPar', PAR);
   UI.text('tYards', UI.fmtYds(HOLES.reduce((a, h) => a + h.yards, 0)));
   const st = store.load();
-  if (st.best) {
+  const best = bestOf(st);
+  if (best) {
     UI.$('bestLine').hidden = false;
-    UI.$('bestLine').textContent = `Your best round: ${st.best} (${UI.fmtToPar(st.best - PAR)})`;
+    UI.$('bestLine').textContent = `Your best round here: ${best} (${UI.fmtToPar(best - PAR)})`;
   }
-  const resumable = (saved && saved.round) || st.round;
+  UI.$('wordmark').innerHTML = `${DEF.title[0]}<span>${DEF.title[1]}</span>`;
+  UI.text('tagline', DEF.tagline);
+  UI.$('coursePick').innerHTML = COURSES.map((c) => `<button data-id="${c.id}" class="${c.id === DEF.id ? 'on' : ''}">${c.name}</button>`).join('');
+  UI.$('coursePick').querySelectorAll('button').forEach((el) => el.addEventListener('click', () => {
+    if (el.dataset.id === DEF.id) return;
+    UI.setLoading(true, `Heading to ${courseDef(el.dataset.id).name}…`);
+    setTimeout(() => switchCourse(el.dataset.id), 30);
+  }));
+  const resumable = [(saved && saved.round), st.round].find(roundHere);
   if (resumable && resumable.next > 0 && resumable.next < HOLES.length) {
     if (saved && saved.round) { const s2 = store.load(); s2.round = saved.round; store.save(s2); }
     UI.$('resumeBtn').hidden = false;
@@ -2057,16 +2288,30 @@ function startGame(saved) {
   titlePose(0, cam.pos, cam.look);
   requestAnimationFrame(frame);
 
+  // Arrived here to join a friend's game on this course: join it again.
+  try {
+    const r = JSON.parse(sessionStorage.getItem('pinehaven-rejoin') || 'null');
+    sessionStorage.removeItem('pinehaven-rejoin');
+    if (r && Date.now() - r.at < 180000 && /^[A-Z]{4}$/.test(r.code)) {
+      openLobby();
+      UI.$('lbName').value = r.name || '';
+      lobby.char = clamp(r.char | 0, 0, CHARACTERS.length - 1);
+      renderLobbyChars();
+      UI.$('lbCode').value = r.code;
+      setTimeout(joinGame, 300);
+    }
+  } catch (e) { /* storage unavailable: join by hand */ }
+
   if (window.claude && window.claude.hot && window.claude.hot.snapshot) {
     try {
-      window.claude.hot.snapshot(() => ({ round: G.inRound && !G.mp ? { scores: G.scores.slice(), next: G.hole } : null }));
+      window.claude.hot.snapshot(() => ({ round: G.inRound && !G.mp ? { scores: G.scores.slice(), next: G.hole, course: DEF.id } : null }));
     } catch (e) { /* optional */ }
   }
 
   // Small API for automated tests and console tinkering.
   return {
-    G, course, cart, bag, swingPress, swingRelease, enterSetup, leaveSetup, takeShot, enterShot, leaveShot, interact, enterCart, exitCart, activateHole,
-    startRound, placePlayer, nextFromCard, showCard, backToTitle, openLobby, recommendedClub, openSelect, chooseSelect, confirmSelect, enterBag, exitBag, selectClub, openWorkshop,
+    G, course, cart, bag, swingPress, swingRelease, enterSetup, leaveSetup, fetchCart, cartArrival, takeShot, enterShot, leaveShot, interact, enterCart, exitCart, activateHole,
+    startRound, placePlayer, setCharacter, nextFromCard, showCard, backToTitle, openLobby, recommendedClub, openSelect, chooseSelect, confirmSelect, enterBag, exitBag, selectClub, openWorkshop,
     get golfer() { return golfer; }, caddy, bagBase,
     swingNow(power, e) {
       if (G.mode !== 'shot' || G.shotPhase !== 'aim') return false;
@@ -2075,7 +2320,7 @@ function startGame(saved) {
       startDownswing(power, e);
       return true;
     },
-    teleportToBall() { const b = G.ball.p; placePlayer(b.x - 1.5, b.z + 1.5, 0); },
+    teleportToBall() { const b = G.ball.p; placePlayer(b.x - 1.5, b.z + 1.5, 0, b.y); },
     dropBall(x, z) { placeBall(x, z, false); },
     // Screen position of a club in the bag (for tests that click it).
     clubScreen(i) {

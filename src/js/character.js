@@ -107,26 +107,34 @@ const Golfer = (() => {
   const cyl = (r1, r2, h, seg = 8) => new THREE.CylinderGeometry(r1, r2, h, seg);
   const ball = (r, w = 10, h = 7) => new THREE.SphereGeometry(r, w, h);
 
-  // G. Surlaw: a tall, lean human with a walrus moustache.
+  // The inward arm angle that brings the hands together at address.
+  const armIn = (D) => Math.atan2(D.armX, D.hands);
+
+  // G. Surlaw: a tall, broad-shouldered human with a walrus moustache, who
+  // stands like the hero of the story.
   const HUMAN_DIMS = {
-    hip: 1.04, hipX: 0.09, thigh: 0.5, shin: 0.48, spine: 0.07, neck: 0.55, head: 0.09,
-    shoulders: 0.49, armX: 0.2, upper: 0.31, hands: 0.575, armIn: 0.334,
+    hip: 1.04, hipX: 0.1, thigh: 0.5, shin: 0.48, spine: 0.07, neck: 0.55, head: 0.09,
+    shoulders: 0.49, armX: 0.235, upper: 0.31, hands: 0.575,
   };
+  HUMAN_DIMS.armIn = armIn(HUMAN_DIMS);
   function humanParts(J, mats) {
     const add = hanger(J);
-    add('hips', 'pelvis', cyl(0.162, 0.15, 0.2, 12), mats.pants).scale.z = 0.64;
-    add('hips', 'belt', cyl(0.168, 0.168, 0.05, 12), mats.belt, 0, 0.085).scale.z = 0.66;
-    add('hips', 'buckle', new THREE.BoxGeometry(0.06, 0.045, 0.02), mats.buckle, 0, 0.085, 0.112);
+    add('hips', 'pelvis', cyl(0.17, 0.155, 0.2, 12), mats.pants).scale.z = 0.66;
+    add('hips', 'belt', cyl(0.174, 0.174, 0.05, 12), mats.belt, 0, 0.085).scale.z = 0.68;
+    add('hips', 'buckle', new THREE.BoxGeometry(0.06, 0.045, 0.02), mats.buckle, 0, 0.085, 0.118);
     for (const s of ['L', 'R']) {
-      add('thigh.' + s, 'upper-leg.' + s, cyl(0.074, 0.062, 0.5), mats.pants, 0, -0.25);
-      add('knee.' + s, 'shin.' + s, cyl(0.06, 0.05, 0.48), mats.pants, 0, -0.24);
-      add('ankle.' + s, 'shoe.' + s, new THREE.BoxGeometry(0.105, 0.07, 0.29), mats.shoe, 0, 0, 0.06);
-      add('arm.' + s, 'sleeve.' + s, cyl(0.062, 0.057, 0.16), mats.shirt, 0, -0.065);
-      add('arm.' + s, 'upper-arm.' + s, cyl(0.047, 0.043, 0.31), mats.skin, 0, -0.155);
-      add('elbow.' + s, 'forearm.' + s, cyl(0.043, 0.037, 0.29), mats.skin, 0, -0.145);
-      add('elbow.' + s, 'hand.' + s, new THREE.IcosahedronGeometry(0.048, 0), mats.skin, 0, -0.305);
+      add('thigh.' + s, 'upper-leg.' + s, cyl(0.08, 0.066, 0.5), mats.pants, 0, -0.25);
+      add('knee.' + s, 'shin.' + s, cyl(0.064, 0.053, 0.48), mats.pants, 0, -0.24);
+      add('ankle.' + s, 'shoe.' + s, new THREE.BoxGeometry(0.11, 0.07, 0.3), mats.shoe, 0, 0, 0.06);
+      add('arm.' + s, 'shoulder.' + s, ball(0.078, 10, 7), mats.shirt, 0, -0.015).scale.set(1.05, 0.9, 1);
+      add('arm.' + s, 'sleeve.' + s, cyl(0.07, 0.062, 0.16), mats.shirt, 0, -0.065);
+      add('arm.' + s, 'upper-arm.' + s, cyl(0.054, 0.047, 0.31), mats.skin, 0, -0.155);
+      add('elbow.' + s, 'forearm.' + s, cyl(0.047, 0.039, 0.29), mats.skin, 0, -0.145);
+      add('elbow.' + s, 'hand.' + s, new THREE.IcosahedronGeometry(0.052, 0), mats.skin, 0, -0.305);
     }
-    add('spine', 'torso', cyl(0.195, 0.158, 0.52, 12), mats.shirt, 0, 0.27).scale.z = 0.6;
+    // A broad chest tapering to the waist.
+    add('spine', 'torso', cyl(0.238, 0.162, 0.52, 12), mats.shirt, 0, 0.27).scale.z = 0.64;
+    add('spine', 'chest', ball(0.16, 12, 8), mats.shirt, 0, 0.38, 0.03).scale.set(1.3, 0.75, 0.75);
     for (const sx of [-1, 1]) {
       const flap = add('spine', 'collar', new THREE.BoxGeometry(0.075, 0.012, 0.06), mats.shirt, sx * 0.045, 0.535, 0.06);
       flap.rotation.set(0.5, 0, sx * -0.35);
@@ -189,12 +197,158 @@ const Golfer = (() => {
     add('head', 'braid-ring', cyl(0.05, 0.05, 0.035, 10), mats.buckle, 0, -0.24, 0.12);
   }
 
+  // A. Salt: a sporty human, a little shorter than Surlaw, with a swept-up
+  // quiff, sideburns and a neat chin beard.
+  const SALT_DIMS = {
+    hip: 1.01, hipX: 0.094, thigh: 0.485, shin: 0.465, spine: 0.07, neck: 0.54, head: 0.09,
+    shoulders: 0.48, armX: 0.215, upper: 0.305, hands: 0.565,
+  };
+  SALT_DIMS.armIn = armIn(SALT_DIMS);
+  function saltParts(J, mats) {
+    const add = hanger(J);
+    add('hips', 'pelvis', cyl(0.162, 0.15, 0.2, 12), mats.pants).scale.z = 0.66;
+    add('hips', 'belt', cyl(0.167, 0.167, 0.05, 12), mats.belt, 0, 0.085).scale.z = 0.68;
+    add('hips', 'buckle', new THREE.BoxGeometry(0.055, 0.04, 0.02), mats.buckle, 0, 0.085, 0.113);
+    for (const s of ['L', 'R']) {
+      add('thigh.' + s, 'upper-leg.' + s, cyl(0.076, 0.063, 0.485), mats.pants, 0, -0.243);
+      add('knee.' + s, 'shin.' + s, cyl(0.061, 0.051, 0.465), mats.pants, 0, -0.232);
+      add('ankle.' + s, 'shoe.' + s, new THREE.BoxGeometry(0.105, 0.075, 0.285), mats.shoe, 0, 0, 0.06);
+      add('ankle.' + s, 'sole.' + s, new THREE.BoxGeometry(0.11, 0.02, 0.29), mats.buckle, 0, -0.04, 0.06);
+      add('arm.' + s, 'shoulder.' + s, ball(0.07, 10, 7), mats.shirt, 0, -0.015);
+      add('arm.' + s, 'sleeve.' + s, cyl(0.066, 0.06, 0.15), mats.shirt, 0, -0.06);
+      add('arm.' + s, 'cuff.' + s, cyl(0.061, 0.061, 0.025), mats.pants, 0, -0.135);
+      add('arm.' + s, 'upper-arm.' + s, cyl(0.05, 0.045, 0.3), mats.skin, 0, -0.15);
+      add('elbow.' + s, 'forearm.' + s, cyl(0.045, 0.038, 0.285), mats.skin, 0, -0.142);
+      add('elbow.' + s, 'hand.' + s, new THREE.IcosahedronGeometry(0.049, 0), mats.skin, 0, -0.3);
+    }
+    add('spine', 'torso', cyl(0.212, 0.165, 0.5, 12), mats.shirt, 0, 0.26).scale.z = 0.62;
+    add('spine', 'stripe', cyl(0.214, 0.205, 0.05, 12), mats.pants, 0, 0.36).scale.z = 0.63;
+    for (const sx of [-1, 1]) {
+      const flap = add('spine', 'collar', new THREE.BoxGeometry(0.075, 0.012, 0.06), mats.pants, sx * 0.045, 0.515, 0.065);
+      flap.rotation.set(0.5, 0, sx * -0.35);
+    }
+    add('neck', 'neck-skin', cyl(0.05, 0.054, 0.12), mats.skin, 0, 0.04);
+    add('head', 'face', new THREE.IcosahedronGeometry(0.11, 1), mats.skin, 0, 0.1).scale.set(0.94, 1.08, 1);
+    add('head', 'jaw', ball(0.075, 10, 6), mats.skin, 0, 0.035, 0.035).scale.set(1.15, 0.8, 1);
+    add('head', 'nose', new THREE.ConeGeometry(0.019, 0.055, 6).rotateX(Math.PI / 2), mats.skin, 0, 0.1, 0.115);
+    for (const sx of [-1, 1]) {
+      add('head', 'ear', ball(0.026, 6, 5), mats.skin, sx * 0.102, 0.1, -0.005).scale.set(0.45, 1, 0.8);
+      add('head', 'eye', ball(0.012, 6, 4), mats.eye, sx * 0.037, 0.118, 0.1);
+      add('head', 'brow', new THREE.BoxGeometry(0.046, 0.013, 0.02), mats.hair, sx * 0.04, 0.143, 0.099).rotation.z = sx * 0.12;
+      add('head', 'sideburn', new THREE.BoxGeometry(0.018, 0.075, 0.035), mats.hair, sx * 0.1, 0.085, 0.03);
+    }
+    const hair = add('head', 'hair', new THREE.SphereGeometry(0.118, 14, 8, 0, TAU, 0, Math.PI * 0.6), mats.hair, 0, 0.115, -0.012);
+    hair.rotation.x = -0.55;
+    hair.scale.set(1.04, 1.02, 1.06);
+    // The quiff, swept up and back off the forehead.
+    const quiff = add('head', 'quiff', ball(0.075, 10, 7), mats.hair, 0, 0.215, 0.05);
+    quiff.scale.set(1.2, 0.7, 1.15);
+    quiff.rotation.x = -0.4;
+    add('head', 'chin-beard', ball(0.03, 8, 6), mats.hair, 0, -0.005, 0.098).scale.set(1, 1.3, 0.7);
+  }
+
+  // B. B. Beetor: lanky and long-limbed, hunched forward on bent knees, with a
+  // long face, a balding head, slicked-back hair at the sides and a pencil
+  // moustache. Upright he'd be the tallest of them all.
+  const BEETOR_DIMS = {
+    hip: 1.2, hipX: 0.085, thigh: 0.585, shin: 0.555, spine: 0.06, neck: 0.56, head: 0.1,
+    shoulders: 0.5, armX: 0.19, upper: 0.37, hands: 0.68,
+  };
+  BEETOR_DIMS.armIn = armIn(BEETOR_DIMS);
+  function beetorParts(J, mats) {
+    const add = hanger(J);
+    add('hips', 'pelvis', cyl(0.14, 0.13, 0.2, 12), mats.pants).scale.z = 0.66;
+    add('hips', 'belt', cyl(0.145, 0.145, 0.04, 12), mats.belt, 0, 0.08).scale.z = 0.68;
+    for (const s of ['L', 'R']) {
+      add('thigh.' + s, 'upper-leg.' + s, cyl(0.06, 0.05, 0.585), mats.pants, 0, -0.292);
+      add('knee.' + s, 'knee-cap.' + s, ball(0.054, 8, 6), mats.pants, 0, 0, 0.006);
+      add('knee.' + s, 'shin.' + s, cyl(0.05, 0.041, 0.555), mats.pants, 0, -0.277);
+      add('ankle.' + s, 'shoe.' + s, new THREE.BoxGeometry(0.095, 0.06, 0.34), mats.shoe, 0, -0.005, 0.08);
+      add('arm.' + s, 'shoulder.' + s, ball(0.058, 8, 6), mats.shirt, 0, -0.01);
+      add('arm.' + s, 'sleeve.' + s, cyl(0.05, 0.044, 0.37), mats.shirt, 0, -0.185);
+      add('elbow.' + s, 'forearm.' + s, cyl(0.043, 0.036, 0.3), mats.shirt, 0, -0.15);
+      add('elbow.' + s, 'cuff.' + s, cyl(0.032, 0.032, 0.04), mats.skin, 0, -0.31);
+      add('elbow.' + s, 'hand.' + s, new THREE.IcosahedronGeometry(0.05, 0), mats.skin, 0, -0.35).scale.set(0.8, 1.35, 0.8);
+    }
+    // A narrow jacket over a white shirt and a thin black tie.
+    add('spine', 'torso', cyl(0.168, 0.145, 0.56, 12), mats.shirt, 0, 0.29).scale.z = 0.6;
+    add('spine', 'shirt-front', new THREE.BoxGeometry(0.07, 0.24, 0.02), mats.belt, 0, 0.44, 0.088).material = mats.white;
+    add('spine', 'tie', new THREE.BoxGeometry(0.022, 0.26, 0.012), mats.eye, 0, 0.43, 0.098);
+    for (const sx of [-1, 1]) {
+      const lapel = add('spine', 'lapel', new THREE.BoxGeometry(0.06, 0.2, 0.018), mats.shirt, sx * 0.052, 0.47, 0.09);
+      lapel.rotation.z = sx * 0.3;
+    }
+    add('neck', 'neck-skin', cyl(0.038, 0.044, 0.15), mats.skin, 0, 0.055);
+    add('head', 'face', new THREE.IcosahedronGeometry(0.105, 1), mats.skin, 0, 0.115).scale.set(0.88, 1.28, 0.98);
+    add('head', 'nose', new THREE.ConeGeometry(0.021, 0.075, 6).rotateX(Math.PI / 2), mats.skin, 0, 0.11, 0.112);
+    for (const sx of [-1, 1]) {
+      add('head', 'ear', ball(0.03, 6, 5), mats.skin, sx * 0.093, 0.11, -0.005).scale.set(0.45, 1.15, 0.8);
+      add('head', 'eye', ball(0.011, 6, 4), mats.eye, sx * 0.034, 0.142, 0.094);
+      add('head', 'brow', new THREE.BoxGeometry(0.04, 0.007, 0.012), mats.hair, sx * 0.037, 0.168, 0.093).rotation.z = sx * -0.25;
+      // The pencil moustache: two thin lines meeting under the nose.
+      const m = add('head', 'moustache', new THREE.BoxGeometry(0.042, 0.0065, 0.008), mats.hair, sx * 0.021, 0.072, 0.105);
+      m.rotation.z = sx * -0.16;
+    }
+    // Balding: a band of slicked-back hair round the back and sides only.
+    const band = add('head', 'hair', new THREE.SphereGeometry(0.109, 16, 8, 0, TAU, Math.PI * 0.3, Math.PI * 0.27), mats.hair, 0, 0.13, -0.02);
+    band.rotation.x = -0.5;
+    band.scale.set(1.02, 1.15, 1.04);
+  }
+
+  // R. Cord: an elf. Slender, with long pointed ears, long fair hair, a tunic
+  // and tall boots.
+  const CORD_DIMS = {
+    hip: 1.0, hipX: 0.085, thigh: 0.48, shin: 0.46, spine: 0.07, neck: 0.5, head: 0.09,
+    shoulders: 0.45, armX: 0.19, upper: 0.3, hands: 0.55,
+  };
+  CORD_DIMS.armIn = armIn(CORD_DIMS);
+  function cordParts(J, mats) {
+    const add = hanger(J);
+    add('hips', 'pelvis', cyl(0.15, 0.14, 0.2, 12), mats.pants).scale.z = 0.66;
+    // The tunic flares over the hips.
+    add('hips', 'tunic-hem', cyl(0.165, 0.205, 0.2, 14, true), mats.shirt, 0, -0.04).scale.z = 0.72;
+    add('hips', 'belt', cyl(0.158, 0.158, 0.045, 12), mats.belt, 0, 0.08).scale.z = 0.7;
+    add('hips', 'buckle', new THREE.BoxGeometry(0.045, 0.04, 0.02), mats.buckle, 0, 0.08, 0.11);
+    for (const s of ['L', 'R']) {
+      add('thigh.' + s, 'upper-leg.' + s, cyl(0.067, 0.056, 0.48), mats.pants, 0, -0.24);
+      add('knee.' + s, 'shin.' + s, cyl(0.054, 0.045, 0.46), mats.pants, 0, -0.23);
+      add('knee.' + s, 'boot.' + s, cyl(0.06, 0.054, 0.3, 10), mats.shoe, 0, -0.31);
+      add('ankle.' + s, 'shoe.' + s, new THREE.BoxGeometry(0.095, 0.07, 0.27), mats.shoe, 0, 0, 0.06);
+      add('ankle.' + s, 'toe.' + s, new THREE.ConeGeometry(0.035, 0.08, 6).rotateX(Math.PI / 2), mats.shoe, 0, 0.0, 0.22);
+      add('arm.' + s, 'sleeve.' + s, cyl(0.056, 0.046, 0.3), mats.shirt, 0, -0.15);
+      add('elbow.' + s, 'forearm.' + s, cyl(0.045, 0.04, 0.27), mats.shirt, 0, -0.135);
+      add('elbow.' + s, 'cuff.' + s, cyl(0.046, 0.046, 0.04), mats.pants, 0, -0.25);
+      add('elbow.' + s, 'hand.' + s, new THREE.IcosahedronGeometry(0.044, 0), mats.skin, 0, -0.29);
+    }
+    add('spine', 'torso', cyl(0.18, 0.152, 0.5, 12), mats.shirt, 0, 0.26).scale.z = 0.6;
+    add('spine', 'trim', new THREE.BoxGeometry(0.03, 0.34, 0.012), mats.pants, 0, 0.3, 0.095);
+    add('neck', 'neck-skin', cyl(0.04, 0.046, 0.12), mats.skin, 0, 0.04);
+    add('head', 'face', new THREE.IcosahedronGeometry(0.104, 1), mats.skin, 0, 0.1).scale.set(0.88, 1.12, 0.96);
+    add('head', 'chin', new THREE.ConeGeometry(0.05, 0.06, 8).rotateX(Math.PI), mats.skin, 0, 0.008, 0.035);
+    add('head', 'nose', new THREE.ConeGeometry(0.016, 0.05, 6).rotateX(Math.PI / 2), mats.skin, 0, 0.1, 0.106);
+    for (const sx of [-1, 1]) {
+      // Long ears, pointing up and back.
+      const ear = add('head', 'ear', new THREE.ConeGeometry(0.03, 0.17, 6), mats.skin, sx * 0.105, 0.15, -0.02);
+      ear.rotation.set(-0.5, 0, sx * -0.95);
+      ear.scale.z = 0.45;
+      add('head', 'eye', ball(0.013, 6, 4), mats.eye, sx * 0.036, 0.118, 0.094).scale.set(1.3, 0.8, 1);
+      add('head', 'brow', new THREE.BoxGeometry(0.045, 0.009, 0.015), mats.hair, sx * 0.04, 0.142, 0.094).rotation.z = sx * -0.28;
+      // Locks of hair framing the face.
+      add('head', 'lock', new THREE.BoxGeometry(0.03, 0.2, 0.035), mats.hair, sx * 0.09, 0.05, 0.035).rotation.z = sx * -0.08;
+    }
+    const hair = add('head', 'hair', new THREE.SphereGeometry(0.117, 14, 8, 0, TAU, 0, Math.PI * 0.6), mats.hair, 0, 0.11, -0.012);
+    hair.rotation.x = -0.35;
+    hair.scale.set(1.04, 1.05, 1.07);
+    // Long hair down the back.
+    add('head', 'hair-back', new THREE.BoxGeometry(0.19, 0.3, 0.05), mats.hair, 0, -0.03, -0.09).rotation.x = 0.12;
+  }
+
   function materialsFor(style) {
     const L = (role, c) => { const m = new THREE.MeshLambertMaterial({ color: c }); m.name = role; return m; };
     return {
       skin: L('skin', style.skin), shirt: L('shirt', style.shirt), pants: L('pants', style.pants),
       hair: L('hair', style.hair), shoe: L('shoe', style.shoe || 0xf4f4f0), eye: L('eye', 0x1b1b1b),
-      belt: L('belt', 0x3a2a1c), buckle: L('buckle', 0xd8b13c),
+      belt: L('belt', 0x3a2a1c), buckle: L('buckle', 0xd8b13c), white: L('white', 0xf2f0ea),
     };
   }
 
@@ -202,8 +356,17 @@ const Golfer = (() => {
   // characters are scaled from it to their own height.
   const BODIES = {
     golfer: { name: 'W. McBeaty & caddy body', dims: DEFAULT_DIMS, height: BASE_HEIGHT, parts: defaultParts, size: '5′9″' },
-    'golfer-surlaw': { name: 'G. Surlaw body (human)', dims: HUMAN_DIMS, height: 2.0, parts: humanParts, size: '6′0″' },
+    'golfer-surlaw': { name: 'G. Surlaw body (human)', dims: HUMAN_DIMS, height: 2.0, parts: humanParts, size: '6′0″',
+      // Chest out, shoulders back, feet planted wide.
+      posture: { bend: -0.13, splay: 0.095, chin: 0.07 } },
     'golfer-froth': { name: 'F. Froth body (dwarf)', dims: DWARF_DIMS, height: 1.62, parts: dwarfParts, size: '4′10″' },
+    'golfer-salt': { name: 'A. Salt body (human)', dims: SALT_DIMS, height: 1.944, parts: saltParts, size: '5′10″',
+      posture: { bend: -0.02, splay: 0.03 } },
+    'golfer-beetor': { name: 'B. B. Beetor body (human)', dims: BEETOR_DIMS, height: 2.16, parts: beetorParts, size: '6′5″',
+      // Hunched over on bent knees.
+      posture: { bend: 0.42, knee: 0.46, lean: 0.03 } },
+    'golfer-cord': { name: 'R. Cord body (elf)', dims: CORD_DIMS, height: 1.889, parts: cordParts, size: '5′8″',
+      posture: { bend: -0.03, splay: 0.02 } },
   };
   const bodyOf = (style) => style.body || 'golfer';
   // The character who wears a body (for its colors and previews).
@@ -376,6 +539,21 @@ const Golfer = (() => {
         T.bend += Math.sin(t * 1.6) * 0.012; // breathing
         if (s.lookAt) T.headY = clamp(s.lookAt, -1, 1);
       }
+      // How this body stands about: a hunch, a puffed-out chest, bent knees.
+      const PO = B.posture;
+      if (PO && s.mode !== 'address' && s.mode !== 'swing' && s.mode !== 'seated') {
+        const f = s.mode === 'walk' ? 0.75 : 1;
+        const bend = (PO.bend || 0) * f, k = (PO.knee || 0) * f;
+        T.bend += bend;
+        T.lean += (PO.lean || 0) * f;
+        T.headX -= bend * 0.9 + (PO.chin || 0);  // keep looking ahead
+        T.splay += (PO.splay || 0) * (s.mode === 'walk' ? 0.35 : 1);
+        if (k) {
+          T.knee0 += k; T.knee1 += k;
+          T.thigh0 -= k * 0.55; T.thigh1 -= k * 0.55;
+          T.hipsY -= D.thigh * (1 - Math.cos(k * 0.55)) + D.shin * (1 - Math.cos(k * 0.45));
+        }
+      }
     }
 
     function apply() {
@@ -479,24 +657,39 @@ const Golfer = (() => {
     }
 
     function setVisible(v) { root.visible = v; }
+    // Hide everything but the club (looking down through his own eyes).
+    let bodyShown = true;
+    function setBodyVisible(v) {
+      if (v === bodyShown) return;
+      bodyShown = v;
+      root.traverse((o) => {
+        if (!o.isMesh) return;
+        let q = o;
+        while (q && q !== club) q = q.parent;
+        if (!q) o.visible = v;
+      });
+    }
     apply();
 
     // Sizes for sitting in the cart: hips above the seat, eyes above the hips.
     const seatScale = mscale * (D.hip - 0.09) / (DEFAULT_DIMS.hip - 0.09);
     const eyeScale = mscale * (D.spine + D.neck + D.head + 0.2) / (DEFAULT_DIMS.spine + DEFAULT_DIMS.neck + DEFAULT_DIMS.head + 0.2);
-    return { root, update, setClub, setFace, faceInfo, addressOffset, setVisible, scale, seatScale, eyeScale, style, joints: J };
+    return { root, update, setClub, setFace, faceInfo, addressOffset, setVisible, setBodyVisible, scale, seatScale, eyeScale, style, joints: J };
   }
 
   // Map a club from the bag to its model.
   const kindFor = (club) => club.kind;
 
   // The caddy, with a flag on a pole strapped to his back: the wind goes where he goes.
-  function createCaddy() {
+  // colors: the golfer's colours for the flag (field and emblem).
+  function createCaddy(colors) {
     const c = create(CADDY);
     const f = WindCues.makeFlag({ height: 2.5, w: 0.9, h: 0.58, color: WindCues.PALETTE[0], emblem: 'disc', pole: 0x5a4330 });
     f.position.set(0.12, -0.2, -0.3); // in the spine joint's frame (unscaled body)
     f.rotation.x = -0.1;
     c.joints.spine.add(f);
+    c.setFlagColors = (cs) => WindCues.dye(f, hexColor(cs.primary), hexColor(cs.secondary));
+    if (colors) c.setFlagColors(colors);
     return c;
   }
 

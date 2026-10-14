@@ -99,9 +99,15 @@ const Cart = (() => {
 
     const st = { x: 0, z: 0, y: 0, yaw: 0, speed: 0, steer: 0, pitch: 0, roll: 0, spin: 0, surf: S_ROUGH };
 
-    function place(x, z, yaw) {
+    // The ground under a wheel: the land, or a bridge deck or tunnel floor
+    // the cart is on.
+    const ground = (x, z) => (course.floor ? course.floor(x, z, st.y + 0.6) : course.H(x, z));
+
+    // yHint: the height it's being put at (for a spot on a bridge or in a tunnel).
+    function place(x, z, yaw, yHint) {
       st.x = x; st.z = z; st.yaw = yaw; st.speed = 0; st.steer = 0;
-      st.y = course.H(x, z);
+      st.y = yHint != null ? yHint : course.H(x, z);
+      st.y = ground(x, z);
       settle(1);
       sync();
     }
@@ -109,12 +115,16 @@ const Cart = (() => {
     const fwd = () => ({ x: Math.sin(st.yaw), z: -Math.cos(st.yaw) });
 
     // Is the cart's footprint clear at (x, z, yaw)?
-    function clearAt(x, z, yaw) {
+    // yRef: the height it's driving at (default: where it is now).
+    function clearAt(x, z, yaw, yRef = st.y) {
       const fx = Math.sin(yaw), fz = -Math.cos(yaw);
       for (const k of [-0.95, 0, 0.95]) {
         const px = x + fx * k, pz = z + fz * k;
         if (!course.inBounds(px, pz)) return false;
-        if (course.waterLevel(px, pz) > course.H(px, pz) - 0.05) return false;
+        const gy = course.floor ? course.floor(px, pz, yRef + 0.6) : course.H(px, pz);
+        if (course.waterLevel(px, pz) > gy - 0.05) return false;
+        // Off the side of a bridge, or into a tunnel wall.
+        if (Math.abs(gy - yRef) > 1.1) return false;
         const trees = course.nearTrees(px, pz);
         if (trees) for (const t of trees) if (Math.hypot(px - t.x, pz - t.z) < t.trunkR + 0.68) return false;
         for (const o of course.obstacles) if (Math.abs(px - o.x) < o.hx + 0.7 && Math.abs(pz - o.z) < o.hz + 0.7) return false;
@@ -126,10 +136,10 @@ const Cart = (() => {
     function settle(k) {
       const f = fwd(), rx = -f.z, rz = f.x;
       const hb = WHEELBASE / 2, ht = 0.6;
-      const hFL = course.H(st.x + f.x * hb + rx * -ht, st.z + f.z * hb + rz * -ht);
-      const hFR = course.H(st.x + f.x * hb + rx * ht, st.z + f.z * hb + rz * ht);
-      const hRL = course.H(st.x - f.x * hb + rx * -ht, st.z - f.z * hb + rz * -ht);
-      const hRR = course.H(st.x - f.x * hb + rx * ht, st.z - f.z * hb + rz * ht);
+      const hFL = ground(st.x + f.x * hb + rx * -ht, st.z + f.z * hb + rz * -ht);
+      const hFR = ground(st.x + f.x * hb + rx * ht, st.z + f.z * hb + rz * ht);
+      const hRL = ground(st.x - f.x * hb + rx * -ht, st.z - f.z * hb + rz * -ht);
+      const hRR = ground(st.x - f.x * hb + rx * ht, st.z - f.z * hb + rz * ht);
       const y = (hFL + hFR + hRL + hRR) / 4;
       const pitch = Math.atan2((hFL + hFR) / 2 - (hRL + hRR) / 2, WHEELBASE);
       const roll = Math.atan2((hFR + hRR) / 2 - (hFL + hRL) / 2, ht * 2);
@@ -154,7 +164,7 @@ const Cart = (() => {
       else st.speed -= Math.sign(st.speed) * Math.min(Math.abs(st.speed), drag * dt);
       // Slopes
       const f = fwd();
-      const slope = (course.H(st.x + f.x, st.z + f.z) - course.H(st.x - f.x, st.z - f.z)) / 2;
+      const slope = (ground(st.x + f.x, st.z + f.z) - ground(st.x - f.x, st.z - f.z)) / 2;
       st.speed -= G * slope * 0.55 * dt;
       if (st.speed > maxF) st.speed = Math.max(maxF, st.speed - 12 * dt);
       st.speed = clamp(st.speed, -MAX_REV, MAX_FWD);
@@ -207,16 +217,37 @@ const Cart = (() => {
     // Somewhere free to step out: driver's side first, then the other side.
     function exitSpot(passenger) {
       const f = fwd(), rx = -f.z, rz = f.x;
+      // Somewhere at the cart's own level (not off the side of a bridge).
+      const level = (x, z) => Math.abs(ground(x, z) - st.y) < 0.9;
       for (const side of passenger ? [1, -1] : [-1, 1]) {
         for (const d of [1.25, 1.8, 2.4]) {
           const x = st.x + rx * side * d, z = st.z + rz * side * d;
-          if (course.inBounds(x, z) && course.waterLevel(x, z) === -Infinity) return { x, z };
+          if (course.inBounds(x, z) && course.waterLevel(x, z) === -Infinity && level(x, z)) return { x, z };
         }
       }
-      return { x: st.x - f.x * 2.2, z: st.z - f.z * 2.2 };
+      const b = passenger ? -2.6 : -2.2;
+      return { x: st.x + f.x * b + rx * (passenger ? 0.5 : -0.5), z: st.z + f.z * b + rz * (passenger ? 0.5 : -0.5) };
     }
 
-    return { root, st, update, place, seatPose, eyePose, exitSpot, sync, bagMount };
+    // Paint the cart in a golfer's colours: the body in the first, the seats
+    // and roof in the second (materials named body, seats and roof).
+    function setColors(colors) {
+      model.traverse((o) => {
+        if (!o.isMesh) return;
+        const list = Array.isArray(o.material) ? o.material : [o.material];
+        const out = list.map((m) => {
+          const n = (m.name || '').toLowerCase();
+          const c = n.startsWith('body') ? colors.primary : n.startsWith('seat') || n.startsWith('roof') ? colors.secondary : null;
+          if (c == null || !m.color) return m;
+          if (!m.userData.own) { m = m.clone(); m.userData.own = true; }
+          m.color.setHex(c);
+          return m;
+        });
+        o.material = Array.isArray(o.material) ? out : out[0];
+      });
+    }
+
+    return { root, st, update, place, seatPose, eyePose, exitSpot, sync, bagMount, setColors, clearAt };
   }
 
   return { create };

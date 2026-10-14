@@ -297,14 +297,16 @@ kbd { font-family: var(--f-display); font-weight: 600; font-size: 0.9em; padding
 .sel-head { text-align: center; }
 .sel-head .eyebrow { font-size: clamp(18px, 3vw, 26px); }
 .sel-sub { margin: 4px 0 0; color: var(--chalk); font-size: 14px; text-shadow: 0 1px 6px rgba(0,0,0,0.7); }
-.sel-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: auto; }
+.sel-cards { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; margin-top: auto; }
+@media (max-width: 900px) { .sel-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; } }
 .sel-card { background: var(--plate); border: 2px solid var(--plate-edge); border-radius: 8px; padding: 10px 8px 8px; text-align: center; color: var(--chalk); display: grid; gap: 4px; justify-items: center; }
 .sel-card:hover { border-color: rgba(242, 194, 48, 0.6); }
 .sel-card.on { border-color: var(--flag); background: rgba(24, 48, 34, 0.92); box-shadow: 0 0 0 3px rgba(242,194,48,0.25); }
-.sel-card b { font-family: var(--f-display); font-size: clamp(17px, 2.6vw, 24px); font-weight: 800; text-transform: uppercase; letter-spacing: 0.02em; }
+.sel-card b { font-family: var(--f-display); font-size: clamp(15px, 1.75vw, 22px); white-space: nowrap; font-weight: 800; text-transform: uppercase; letter-spacing: 0.02em; }
 .sel-card .h { font-family: var(--f-display); font-weight: 600; font-size: 15px; color: var(--flag); font-variant-numeric: tabular-nums; }
 .sel-card .sw { display: flex; gap: 5px; }
-.sel-card .sw i { width: 14px; height: 14px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.5); }
+.sel-card .sw i { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(255,255,255,0.5); }
+.sel-card .sw i.ball { border-radius: 50%; margin-left: 4px; }
 .sel-card .sw-l { font-size: 12px; color: var(--muted); }
 .sel-actions { display: flex; justify-content: center; gap: 12px; margin-top: 12px; }
 
@@ -391,7 +393,10 @@ label.btn { display: inline-block; cursor: pointer; }
 .lb-field input:focus, .lb-join input:focus { outline: 2px solid var(--flag); outline-offset: 1px; }
 .lb-chars { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .lb-char { background: rgba(255,255,255,0.04); border: 2px solid var(--plate-edge); border-radius: 6px; padding: 8px 6px; display: grid; gap: 3px; justify-items: center; }
-.lb-char b { font-family: var(--f-display); font-size: 18px; font-weight: 800; text-transform: uppercase; color: var(--chalk); }
+.lb-char b { font-family: var(--f-display); font-size: 17px; font-weight: 800; text-transform: uppercase; color: var(--chalk); white-space: nowrap; }
+.lb-char > i { width: 12px; height: 12px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.5); box-shadow: 0 0 0 1px rgba(255,255,255,0.35); }
+.lb-char.taken { opacity: 0.45; cursor: default; }
+.lb-char.taken span { color: var(--muted); }
 .lb-char span { font-family: var(--f-display); font-size: 13px; color: var(--flag); }
 .lb-char.on { border-color: var(--flag); background: rgba(242,194,48,0.12); }
 .lb-start { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
@@ -418,7 +423,7 @@ label.btn { display: inline-block; cursor: pointer; }
 .mp-list li.gone { opacity: 0.55; }
 #hud[data-mode="bag"] .mp-list { display: none; }
 @media (max-height: 560px) { #hud[data-mode="shot"] .mp-list { display: none; } }
-.mp-tag span { font-size: 13px; }
+.mp-tag span { font-size: 13px; box-shadow: 0 0 0 1px rgba(255,255,255,0.25); }
 .sc-table th.pl { text-transform: none; letter-spacing: 0.02em; font-size: 15px; color: var(--paper-ink); white-space: nowrap; width: auto; padding-right: 8px; }
 .sc-table th.pl i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; border: 1px solid rgba(0,0,0,0.45); vertical-align: 0; }
 .sc-table th.pl small { color: var(--paper-muted); font-size: 12px; }
@@ -437,6 +442,16 @@ label.btn { display: inline-block; cursor: pointer; }
   .lb-players li { padding: 4px 10px; }
   .lb-status { margin-top: 8px; }
 }
+
+/* ---------- Course choice and build tag ---------- */
+.course-pick { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.course-pick button { border: 1.5px solid rgba(243, 241, 231, 0.45); background: rgba(10, 24, 18, 0.55); color: var(--chalk); border-radius: 999px; padding: 6px 14px;
+  font-family: var(--f-display); font-weight: 700; font-size: 15px; letter-spacing: 0.08em; text-transform: uppercase; }
+.course-pick button.on { background: var(--chalk); color: var(--paper-ink); border-color: var(--chalk); }
+.course-pick button:not(.on):hover { border-color: var(--chalk); }
+.build-tag { position: absolute; right: calc(var(--gutter) + env(safe-area-inset-right, 0px)); bottom: calc(var(--gutter) + env(safe-area-inset-bottom, 0px)); margin: 0;
+  font-family: var(--f-display); font-weight: 600; font-size: 13px; letter-spacing: 0.16em; color: rgba(243, 241, 231, 0.6); text-shadow: 0 1px 4px rgba(0,0,0,0.6); }
+.lb-code span { font-family: var(--f-display); font-size: 15px; letter-spacing: 0.08em; color: var(--chalk); }
 
 </style>
 </head>
@@ -465,6 +480,7 @@ label.btn { display: inline-block; cursor: pointer; }
     <div class="top-right">
       <div class="tr-row">
         <div class="mini-btns">
+          <button class="mini" id="fetchBtn" title="Send your caddy for the cart (G)" hidden>Fetch cart</button>
           <button class="mini" id="mapBtn" title="Course map (M)">Map</button>
           <button class="mini" id="cardBtn" title="Scorecard (C)">Card</button>
           <button class="mini" id="muteBtn" title="Sound on/off (N)">Sound</button>
@@ -534,8 +550,9 @@ label.btn { display: inline-block; cursor: pointer; }
   <div id="title" class="screen title-screen">
     <div class="title-wrap">
       <p class="eyebrow"><span id="tHoles">9</span> holes · Par <span id="tPar">36</span> · <span id="tYards">3,182</span> yards</p>
-      <h1 class="wordmark">Pinehaven<span>Golf Club</span></h1>
-      <p class="tagline">Walk the course, take the cart, play all nine.</p>
+      <h1 class="wordmark" id="wordmark">Pinehaven<span>Golf Club</span></h1>
+      <p class="tagline" id="tagline">Walk the course, take the cart, play all nine.</p>
+      <div class="course-pick" id="coursePick" role="group" aria-label="Course"></div>
       <div class="title-actions">
         <button class="btn primary" id="startBtn">Tee off</button>
         <button class="btn" id="resumeBtn" hidden>Resume round</button>
@@ -545,6 +562,7 @@ label.btn { display: inline-block; cursor: pointer; }
       </div>
       <p class="best" id="bestLine" hidden></p>
     </div>
+    <p class="build-tag">v008</p>
   </div>
 
   <div id="select" class="select-screen" hidden>
@@ -576,7 +594,7 @@ label.btn { display: inline-block; cursor: pointer; }
         </div>
       </div>
       <div class="lb-room" id="lbRoom" hidden>
-        <p class="lb-code">Game code <b id="lbCodeShow">----</b></p>
+        <p class="lb-code">Game code <b id="lbCodeShow">----</b> <span id="lbCourse"></span></p>
         <ul class="lb-players" id="lbPlayers"></ul>
         <button class="btn primary" id="lbGo" hidden>Tee off</button>
         <p class="lb-wait" id="lbWait" hidden>Waiting for the host to tee off…</p>
@@ -651,12 +669,12 @@ label.btn { display: inline-block; cursor: pointer; }
       <ol class="steps">
         <li><b>Walk</b> with <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> and look around with the mouse (click the course to capture it). Hold <kbd>Shift</kbd> to run. On touch screens, use the stick on the left and drag on the right.</li>
         <li><b>Change clubs</b> at your bag: your caddy carries it and sets it down whenever he stops (it rides on the cart while you drive). Walk up to it, press <kbd>E</kbd> and click a club. Near the cart you can leave the bag strapped on the back instead.</li>
-        <li><b>Play a shot:</b> walk up to your ball and press <kbd>E</kbd>. Aim with <kbd>A</kbd> <kbd>D</kbd> or the mouse. <b>Hold</b> <kbd>Space</kbd> and your golfer winds up; let go and he swings. How far back he gets is how hard he hits. Hang at the top too long and he tenses up.</li>
-        <li><b>Shape it:</b> press <kbd>Q</kbd> for a close look at the club behind the ball. <kbd>A</kbd> <kbd>D</kbd> turn the face: open starts the ball right and curves it right, closed the other way. <kbd>W</kbd> <kbd>S</kbd> push the club out or pull it in: off the heel it fades, off the toe it draws, and either costs a little distance.</li>
-        <li><b>Read the wind</b> from the world: streaks in the air, the flags on every tee, around the course and on your caddy's back.</li>
-        <li><b>Drive the cart:</b> press <kbd>E</kbd> next to it to hop in, <kbd>W</kbd> <kbd>S</kbd> to drive, <kbd>A</kbd> <kbd>D</kbd> to steer, <kbd>Space</kbd> to brake, <kbd>E</kbd> to get out.</li>
+        <li><b>Play a shot:</b> walk up to your ball and press <kbd>E</kbd>. You're only roughly lined up, so check the line and aim with <kbd>A</kbd> <kbd>D</kbd> or the mouse. <b>Hold</b> <kbd>Space</kbd> and your golfer winds up; let go and he swings. How far back he gets is how hard he hits. Hang at the top too long and he tenses up.</li>
+        <li><b>Shape it:</b> press <kbd>Q</kbd> to look down at the club behind the ball through your golfer's eyes. <kbd>A</kbd> <kbd>D</kbd> turn the face: open starts the ball right and curves it right, closed the other way. <kbd>W</kbd> <kbd>S</kbd> push the club out or pull it in: off the heel it fades, off the toe it draws, and either costs a little distance.</li>
+        <li><b>Read the wind</b> from the world: streaks in the air, the flags on every tee, around the course and on your caddy's back. It moves the ball a long way.</li>
+        <li><b>Drive the cart:</b> press <kbd>E</kbd> next to it to hop in, <kbd>W</kbd> <kbd>S</kbd> to drive, <kbd>A</kbd> <kbd>D</kbd> to steer, <kbd>Space</kbd> to brake, <kbd>E</kbd> to get out. Left it a long way back? Press <kbd>G</kbd> (or <b>Fetch cart</b>) and your caddy runs off to bring it round.</li>
         <li><b>Hole out</b>, then follow the marker to the next tee.</li>
-        <li><b>Play with friends:</b> on the title screen, one player picks <b>Host a game</b> and reads out the four-letter code; up to two friends type it in on their own devices and join. Everyone plays their own ball at the same time, and the next hole starts when you've all holed out.</li>
+        <li><b>Play with friends:</b> on the title screen, one player picks <b>Host a game</b> and reads out the four-letter code; up to five friends type it in on their own devices and join. Everyone plays their own ball at the same time, and the next hole starts when you've all holed out.</li>
       </ol>
       <dl class="keys">
         <div><dt><kbd>V</kbd></dt><dd>First or third person</dd></div>
@@ -10091,7 +10109,7 @@ const PUTTER_INDEX = CLUBS.length - 1;
 
 // Surface ids.
 const S_TEE = 0, S_FAIRWAY = 1, S_FRINGE = 2, S_GREEN = 3, S_ROUGH = 4,
-  S_DEEP = 5, S_SAND = 6, S_WATER = 7, S_OOB = 8, S_PATH = 9;
+  S_DEEP = 5, S_SAND = 6, S_WATER = 7, S_OOB = 8, S_PATH = 9, S_ROCK = 10;
 
 // bounce: restitution on landing     mu: turf friction during a bounce
 // grip:   how strongly backspin bites roll / rollV: rolling resistance (constant / speed-scaled)
@@ -10107,6 +10125,7 @@ const SURFACES = [
   { id: S_WATER,   name: 'Water',      label: 'In the water',      bounce: 0.0,  mu: 1.0,  grip: 0.0,  roll: 9.0,  rollV: 9.0, lie: 0.0,  spinLie: 0.0 },
   { id: S_OOB,     name: 'Out of bounds', label: 'Out of bounds',  bounce: 0.2,  mu: 0.7,  grip: 0.2,  roll: 0.6,  rollV: 2.0, lie: 0.7,  spinLie: 0.5 },
   { id: S_PATH,    name: 'Cart path',  label: 'On the cart path',  bounce: 0.55, mu: 0.25, grip: 0.25, roll: 0.05, rollV: 0.12, lie: 0.95, spinLie: 0.8 },
+  { id: S_ROCK,    name: 'Rock',       label: 'On the rocks',      bounce: 0.58, mu: 0.35, grip: 0.15, roll: 0.07, rollV: 0.2, lie: 0.8, spinLie: 0.5 },
 ];
 
 // Distance multiplier for a club from a given lie.
@@ -10137,16 +10156,31 @@ function spinLieFactor(club, surf) {
 }
 
 // The cast. Heights in yards (6 ft = 2 yd); `body` is the model each one wears.
+// `colors`: the golfer's two colours (their cart, their caddy's flag) and
+// their ball. `ui` is the colour that stands for them on screen.
 const CHARACTERS = [
-  { id: 'surlaw', name: 'G. Surlaw', body: 'golfer-surlaw', height: 2.0, heightLabel: '6′0″', look: 'White hair, gray shirt, cyan-blue pants',
-    hair: 0xebe9e2, shirt: 0x8d9296, pants: 0x27b5d8, skin: 0xe2b18f, shoe: 0xf4f4f0 },
-  { id: 'froth', name: 'F. Froth', body: 'golfer-froth', height: 1.667, heightLabel: '5′0″', look: 'Brown hair, forest green shirt, gold pants',
-    hair: 0x6b4426, shirt: 0x2c5a33, pants: 0xd4a52f, skin: 0xd9a27c, shoe: 0xf4f4f0 },
-  { id: 'mcbeaty', name: 'W. McBeaty', body: 'golfer', height: 1.333, heightLabel: '4′0″', look: 'Orange hair, red shirt, white pants',
-    hair: 0xe2702a, shirt: 0xc8302c, pants: 0xf5f5f0, skin: 0xf0c3a2, shoe: 0x3a3a3a },
+  { id: 'surlaw', name: 'G. Surlaw', body: 'golfer-surlaw', height: 2.0, heightLabel: '6′0″', look: 'Human. Cyan-blue and gray',
+    hair: 0xebe9e2, shirt: 0x8d9296, pants: 0x27b5d8, skin: 0xe2b18f, shoe: 0xf4f4f0,
+    colors: { primary: 0x27b5d8, secondary: 0x8d9296, ball: 0x2cc3ec, ui: '#2cc3ec' } },
+  { id: 'froth', name: 'F. Froth', body: 'golfer-froth', height: 1.667, heightLabel: '5′0″', look: 'Dwarf. Green and gold',
+    hair: 0x6b4426, shirt: 0x2c5a33, pants: 0xd4a52f, skin: 0xd9a27c, shoe: 0xf4f4f0,
+    colors: { primary: 0x2c5a33, secondary: 0xd4a52f, ball: 0xf6c21a, ui: '#f6c21a' } },
+  { id: 'mcbeaty', name: 'W. McBeaty', body: 'golfer', height: 1.333, heightLabel: '4′0″', look: 'Human. White and red',
+    hair: 0xe2702a, shirt: 0xc8302c, pants: 0xf5f5f0, skin: 0xf0c3a2, shoe: 0x3a3a3a,
+    colors: { primary: 0xf5f5f0, secondary: 0xc8302c, ball: 0xe0261c, ui: '#ff4d3d' } },
+  { id: 'salt', name: 'A. Salt', body: 'golfer-salt', height: 1.944, heightLabel: '5′10″', look: 'Human. Black and red',
+    hair: 0xa8432a, shirt: 0x1d1d21, pants: 0xb3202a, skin: 0xe6b48e, shoe: 0x1d1d21,
+    colors: { primary: 0x1d1d21, secondary: 0xb3202a, ball: 0x161618, ui: '#c9c9cf' } },
+  { id: 'beetor', name: 'B. B. Beetor', body: 'golfer-beetor', height: 2.139, heightLabel: '6′5″', look: 'Human. Brown and dark gray',
+    hair: 0x17140f, shirt: 0x7a4a26, pants: 0x3e4045, skin: 0xebcfb6, shoe: 0x221a14,
+    colors: { primary: 0x7a4a26, secondary: 0x3e4045, ball: 0xa8501a, ui: '#c8763a' } },
+  { id: 'cord', name: 'R. Cord', body: 'golfer-cord', height: 1.889, heightLabel: '5′8″', look: 'Elf. Orange and blue',
+    hair: 0xe9d79a, shirt: 0xf07a1e, pants: 0x2b5fb8, skin: 0xf2d2b4, shoe: 0x6b4a2e,
+    colors: { primary: 0xf07a1e, secondary: 0x2b5fb8, ball: 0xff8c1a, ui: '#ff9a35' } },
 ];
 // The caddy uses McBeaty's build, dressed all in white.
 const CADDY = Object.assign({}, CHARACTERS[2], { id: 'caddy', name: 'Caddy', shirt: 0xf5f5f0, pants: 0xf5f5f0 });
+const hexColor = (n) => '#' + n.toString(16).padStart(6, '0');
 
 function scoreName(strokes, par) {
   if (strokes === 1) return 'Hole in one!';
@@ -10169,6 +10203,9 @@ function scoreName(strokes, par) {
 //
 // A "field" supplies: H(x,z), normal(x,z), surface(x,z), waterLevel(x,z),
 // inBounds(x,z), pin {x,y,z} | null, nearTrees(x,z) -> array | null.
+// Optionally floorInfo(x,z,y,tol) -> { h, kind } for ground the ball can pass
+// under (bridge decks, kind 1) or inside (tunnels, kind 2), and
+// tunnelClamp(p, v, r) to keep it inside a tunnel.
 // ---------------------------------------------------------------------------
 
 const G = 10.73;             // gravity, yd/s^2
@@ -10179,6 +10216,7 @@ const AIR_K = 0.0171;        // rho*A/(2m) expressed per yard
 const RPM2RAD = TAU / 60;
 const MPH = 0.48889;         // yd/s per mph
 const BRAKE = 8;             // yd/s of check from 10k rpm of backspin on a fully grippy surface
+const WIND_PUSH = 1.8;       // how hard the wind gets hold of the ball (a game choice: reading it should matter)
 
 function createBall(x, y, z) {
   return {
@@ -10228,11 +10266,23 @@ function stepBall(ball, field, wind, dt, events, opts) {
   }
 }
 
+const UP = { x: 0, y: 1, z: 0 };
+// The ground under the ball: height, slope and what it's made of.
+function groundUnder(field, x, z, y, tol) {
+  if (field.floorInfo) {
+    const f = field.floorInfo(x, z, y, tol);
+    if (f.kind === 1) return { h: f.h, n: UP, surf: S_PATH, kind: 1 };
+    if (f.kind === 2) return { h: f.h, n: UP, surf: S_ROCK, kind: 2 };
+    return { h: f.h, n: null, surf: -1, kind: 0 };
+  }
+  return { h: field.H(x, z), n: null, surf: -1, kind: 0 };
+}
+
 function stepFlight(ball, field, wind, dt, events, opts) {
   const p = ball.p, v = ball.v, w = ball.w;
   const gh = field.H(p.x, p.z);
   // Wind is weaker close to the ground.
-  const wf = wind ? 0.45 + 0.55 * clamp((p.y - gh) / 20, 0, 1) : 0;
+  const wf = wind ? (0.45 + 0.55 * clamp((p.y - gh) / 20, 0, 1)) * WIND_PUSH : 0;
   const rx = v.x - (wind ? wind.x * wf : 0), ry = v.y, rz = v.z - (wind ? wind.z * wf : 0);
   const sp = Math.sqrt(rx * rx + ry * ry + rz * rz) || 1e-6;
   const wm = Math.sqrt(w.x * w.x + w.y * w.y + w.z * w.z);
@@ -10301,6 +10351,12 @@ function stepFlight(ball, field, wind, dt, events, opts) {
     }
   }
 
+  // Tunnel walls and roof.
+  if (field.tunnelClamp && field.tunnelClamp(p, v, BALL_R) && ball.treeCool <= 0) {
+    ball.treeCool = 0.1;
+    events && events.push({ type: 'tree', hard: true });
+  }
+
   // Water surface.
   const wl = field.waterLevel(p.x, p.z);
   if (p.y - BALL_R <= wl) {
@@ -10309,7 +10365,8 @@ function stepFlight(ball, field, wind, dt, events, opts) {
     return;
   }
 
-  const h = field.H(p.x, p.z);
+  const gr = groundUnder(field, p.x, p.z, p.y - BALL_R, 0.3);
+  const h = gr.h;
   if (p.y - BALL_R > h) return;
 
   // --- Landing ---
@@ -10317,14 +10374,14 @@ function stepFlight(ball, field, wind, dt, events, opts) {
   if (ball.carry === null) {
     ball.carry = Math.hypot(p.x - ball.start.x, p.z - ball.start.z);
   }
-  const surf = field.surface(p.x, p.z);
+  const surf = gr.kind ? gr.surf : field.surface(p.x, p.z);
   if (surf === S_WATER) {
     ball.mode = 'water';
     events && events.push({ type: 'water' });
     return;
   }
   const P = SURFACES[surf];
-  const n = field.normal(p.x, p.z);
+  const n = gr.n || field.normal(p.x, p.z);
   const vn = v.x * n.x + v.y * n.y + v.z * n.z;
   if (vn >= 0) return;
   const vnA = -vn;
@@ -10368,14 +10425,15 @@ function stepFlight(ball, field, wind, dt, events, opts) {
 function stepRoll(ball, field, dt, events) {
   const p = ball.p, v = ball.v;
   ball.rollT += dt;
-  const surf = field.surface(p.x, p.z);
-  if (surf === S_WATER || field.waterLevel(p.x, p.z) > p.y - BALL_R) {
+  const g0 = groundUnder(field, p.x, p.z, p.y - BALL_R, 0.3);
+  const surf = g0.kind ? g0.surf : field.surface(p.x, p.z);
+  if (!g0.kind && (surf === S_WATER || field.waterLevel(p.x, p.z) > p.y - BALL_R)) {
     ball.mode = 'water';
     events && events.push({ type: 'water' });
     return;
   }
   const P = SURFACES[surf];
-  const n = field.normal(p.x, p.z);
+  const n = g0.n || field.normal(p.x, p.z);
   // Gravity along the slope.
   const gx = G * n.y * n.x, gy = -G + G * n.y * n.y, gz = G * n.y * n.z;
   let sp = Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
@@ -10397,10 +10455,19 @@ function stepRoll(ball, field, dt, events) {
     events && events.push({ type: 'oob' });
     return;
   }
-  p.y = field.H(p.x, p.z) + BALL_R;
+  if (field.tunnelClamp) field.tunnelClamp(p, v, BALL_R);
+  const oy = p.y;
+  const g1 = groundUnder(field, p.x, p.z, oy - BALL_R, 0.3);
+  // Rolled off the edge of a bridge, or over a cliff: it falls.
+  const n2 = g1.n || field.normal(p.x, p.z);
+  if (g1.h < oy - BALL_R - 0.25 || (n2.y < 0.55 && v.x * n2.x + v.z * n2.z > 0.2)) {
+    ball.mode = 'flight';
+    ball.carry = ball.carry === null ? 0 : ball.carry;
+    return;
+  }
+  p.y = g1.h + BALL_R;
   if (field.waterLevel(p.x, p.z) === -Infinity) { ball.lastDry.x = p.x; ball.lastDry.z = p.z; }
   // Keep velocity tangent to the new ground.
-  const n2 = field.normal(p.x, p.z);
   const vn = v.x * n2.x + v.y * n2.y + v.z * n2.z;
   v.x -= vn * n2.x; v.y -= vn * n2.y; v.z -= vn * n2.z;
   sp = Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
@@ -10714,6 +10781,206 @@ const COURSE = {
   ],
 };
 
+// ===== plains.js =====
+// ---------------------------------------------------------------------------
+// Golden Plains — 9 holes, par 36, on a windswept, hilly plain of golden
+// grass dotted with rocky, grass-topped mesas. Built the same way as
+// Pinehaven's generated holes (see course.js for the fields), plus:
+//
+//   mesas    steep-sided plateaus { x, z, rx, rz, rot, h (yards high),
+//            cliff (yards wide), ramps: [{ a: foot, b: top, w }] }
+//   bridges  rope suspension bridges { a, b, w }: deck from a to b at the
+//            height of the ground at each end, walkable and drivable
+//   tunnels  arches straight through the rock { a, b, w, h }: walk, drive or
+//            play a ball through them
+//
+// Holes give these in their own frame; `mesas` at the top level are in
+// course coordinates (scenery between the holes).
+// ---------------------------------------------------------------------------
+
+const GOLDEN_PLAINS = {
+  id: 'golden', name: 'Golden Plains',
+  title: ['Golden Plains', 'Golf Links'],
+  tagline: 'Wind, grass and mesas. Rope bridges, a tunnel, nowhere to hide.',
+  seed: 31,
+  hills: 9,
+  forest: 0.06,
+  palette: {
+    surfaces: {
+      [S_TEE]: [122, 170, 62], [S_FAIRWAY]: [134, 168, 56], [S_FRINGE]: [116, 162, 58], [S_GREEN]: [100, 178, 76],
+      [S_ROUGH]: [176, 160, 70], [S_DEEP]: [206, 172, 86], [S_OOB]: [206, 172, 86], [S_PATH]: [210, 194, 160],
+    },
+    mottle: [226, 200, 126],
+    outer: 0xb89a4e,
+  },
+  clubhouse: { x: 58, z: 22, heading: 0 },
+  cartStart: { x: 30, z: 14, heading: 0 },
+  // Big mesas out between the holes.
+  mesas: [
+    { x: 190, z: -210, rx: 52, rz: 40, rot: 20, h: 22 },
+    { x: 205, z: -830, rx: 58, rz: 46, rot: -15, h: 26 },
+    { x: -95, z: -760, rx: 44, rz: 60, rot: 10, h: 20 },
+    { x: -130, z: -300, rx: 40, rz: 34, rot: 35, h: 18 },
+    { x: 520, z: -560, rx: 46, rz: 40, h: 24 },
+  ],
+  holes: [
+    {
+      name: 'Prairie Gate', par: 4, seed: 101, at: [0, 0, 0], wind: [5, 12],
+      path: [[0, 0], [0, -230], [22, -382]],
+      fairway: { start: 40, width: 40 },
+      green: { r: 15, tilt: [0.008, -0.010] },
+      pin: [3, -3],
+      bunkers: [
+        { x: 27, z: -240, rx: 8, rz: 12, rot: 0 },
+        { x: 44, z: -378, rx: 6, rz: 9, rot: 10 },
+        { x: 6, z: -400, rx: 9, rz: 4, rot: -5 },
+      ],
+      water: [],
+      mounds: [],
+      // A rock stands guard on the left of the landing area.
+      mesas: [{ x: -64, z: -250, rx: 26, rz: 40, rot: 10, h: 14 }],
+    },
+    {
+      // From a lookout high on a mesa down to a green on the plain.
+      name: 'The Lookout', par: 3, seed: 113, at: [90, -460, 90], wind: [6, 13],
+      path: [[0, 0], [0, -172]],
+      fairway: { start: 130, width: 28 },
+      green: { r: 15, tilt: [-0.006, -0.012] },
+      pin: [-3, 2],
+      bunkers: [
+        { x: -18, z: -180, rx: 6, rz: 9, rot: 20 },
+        { x: 20, z: -165, rx: 5, rz: 8, rot: 0 },
+      ],
+      water: [],
+      mounds: [],
+      mesas: [{ x: 0, z: 0, rx: 26, rz: 24, h: 15, ramps: [{ a: [51, 45], b: [15, 13], w: 7 }] }],
+    },
+    {
+      // Mesa to mesa over a creek far below. Walk (or drive) the rope bridge.
+      name: 'Sky Bridge', par: 3, seed: 127, at: [340, -490, 0], wind: [6, 14],
+      path: [[0, 0], [0, -165]],
+      fairway: { start: 140, width: 30 },
+      green: { r: 14, tilt: [0.006, -0.010] },
+      pin: [2, -2],
+      bunkers: [{ x: -20, z: -160, rx: 5, rz: 7, rot: 0 }],
+      water: [{ x: 0, z: -80, rx: 75, rz: 22, rot: 0 }],
+      mounds: [{ x: 0, z: -80, r: 34, h: -5 }],
+      mesas: [
+        { x: 0, z: 0, rx: 34, rz: 24, h: 18, ramps: [{ a: [-46, 62], b: [-13, 18], w: 7 }] },
+        { x: 0, z: -170, rx: 38, rz: 34, h: 18, ramps: [{ a: [33, -249], b: [12, -198], w: 7 }] },
+      ],
+      bridges: [{ a: [16, -15], b: [16, -145], w: 3.4 }],
+    },
+    {
+      // A great arch through the rock: go round to the left, or thread it.
+      name: 'The Keyhole', par: 4, seed: 131, at: [395, -770, 0], wind: [5, 12], cartSide: -1,
+      path: [[0, 0], [0, -190], [-70, -255], [-34, -332], [4, -382]],
+      fairway: { start: 45, width: 38 },
+      green: { r: 15, tilt: [0.008, -0.012] },
+      pin: [-3, -3],
+      bunkers: [
+        { x: -32, z: -385, rx: 6, rz: 10, rot: 0 },
+        { x: 30, z: -372, rx: 6, rz: 9, rot: 0 },
+      ],
+      water: [],
+      mounds: [],
+      mesas: [{ x: 10, z: -255, rx: 46, rz: 28, h: 15 }],
+      tunnels: [{ a: [6, -198], b: [6, -312], w: 12, h: 9 }],
+    },
+    {
+      // Up a broad ramp to finish on top of a table mesa.
+      name: 'Table Top', par: 5, seed: 149, at: [350, -1190, 270], wind: [6, 14],
+      path: [[0, 0], [0, -260], [-20, -400], [-10, -515]],
+      fairway: { start: 45, width: 36 },
+      green: { r: 15, tilt: [-0.006, -0.012] },
+      pin: [4, -3],
+      bunkers: [
+        { x: 24, z: -230, rx: 7, rz: 12, rot: 0 },
+        { x: -36, z: -505, rx: 6, rz: 9, rot: 0 },
+        { x: 14, z: -534, rx: 8, rz: 4, rot: 0 },
+      ],
+      water: [],
+      mounds: [],
+      mesas: [{
+        x: -12, z: -440, rx: 70, rz: 120, h: 12,
+        ramps: [{ a: [-4, -256], b: [-6, -326], w: 36 }, { a: [-94, -512], b: [-58, -485], w: 8 }],
+      }],
+    },
+    {
+      // Hoodoos: rock spires standing in the fairway, and the wind howling.
+      name: 'Hoodoos', par: 5, seed: 157, at: [-235, -1060, 180], wind: [8, 16],
+      path: [[0, 0], [0, -260], [-12, -420], [0, -505]],
+      fairway: { start: 45, width: 38 },
+      green: { r: 15, tilt: [0.006, -0.014] },
+      pin: [-3, 2],
+      bunkers: [
+        { x: 26, z: -500, rx: 6, rz: 9, rot: 0 },
+        { x: -30, z: -488, rx: 6, rz: 8, rot: 0 },
+      ],
+      water: [],
+      mounds: [],
+      mesas: [
+        { x: 6, z: -268, rx: 7, rz: 7, h: 15, cliff: 2.5 },
+        { x: -36, z: -196, rx: 9, rz: 8, h: 18, cliff: 3 },
+        { x: 38, z: -360, rx: 8, rz: 10, h: 17, cliff: 3 },
+      ],
+    },
+    {
+      // Between two great rocks.
+      name: 'Gatekeepers', par: 3, seed: 163, at: [-290, -520, 180], wind: [6, 14],
+      path: [[0, 0], [0, -155]],
+      fairway: { start: 120, width: 26 },
+      green: { r: 12, tilt: [0.006, -0.012] },
+      pin: [2, -2],
+      bunkers: [{ x: 0, z: -174, rx: 9, rz: 4, rot: 0 }],
+      water: [],
+      mounds: [],
+      mesas: [
+        { x: -40, z: -150, rx: 11, rz: 13, h: 20, cliff: 3 },
+        { x: 40, z: -145, rx: 11, rz: 15, h: 20, cliff: 3 },
+      ],
+    },
+    {
+      // Off a mesa, then over the creek: cross it on the rope bridge.
+      name: 'Canyon Run', par: 5, seed: 173, at: [-265, -310, 180], wind: [6, 14],
+      path: [[0, 0], [0, -280], [18, -530]],
+      fairway: { start: 60, width: 38 },
+      green: { r: 15, tilt: [-0.008, -0.010] },
+      pin: [3, 3],
+      bunkers: [
+        { x: -24, z: -270, rx: 7, rz: 12, rot: 0 },
+        { x: 40, z: -526, rx: 6, rz: 9, rot: 0 },
+      ],
+      water: [{ x: 4, z: -360, rx: 60, rz: 9, rot: 0 }],
+      mounds: [{ x: 4, z: -360, r: 22, h: -3 }],
+      mesas: [{ x: 0, z: 4, rx: 22, rz: 20, h: 12, ramps: [{ a: [54, 20], b: [18, 9], w: 7 }] }],
+      bridges: [{ a: [24, -338], b: [24, -383], w: 3.4 }],
+    },
+    {
+      // Home to a green up on a little plateau: run it up the ramp.
+      name: 'Homestead', par: 4, seed: 181, at: [-250, 250, 69], wind: [5, 12],
+      path: [[0, 0], [0, -200], [-14, -335]],
+      fairway: { start: 45, width: 38 },
+      green: { r: 15, tilt: [0.006, -0.010] },
+      pin: [-3, -2],
+      bunkers: [
+        { x: 22, z: -205, rx: 7, rz: 11, rot: 0 },
+        { x: -40, z: -330, rx: 5, rz: 8, rot: 0 },
+      ],
+      water: [],
+      mounds: [],
+      mesas: [{ x: -14, z: -340, rx: 32, rz: 30, h: 6, cliff: 3, ramps: [{ a: [-14, -266], b: [-14, -306], w: 24 }] }],
+    },
+  ],
+};
+
+// The courses you can play: the first is the default.
+const COURSES = [COURSE, GOLDEN_PLAINS];
+COURSE.id = COURSE.id || 'pinehaven';
+COURSE.title = COURSE.title || ['Pinehaven', 'Golf Club'];
+COURSE.tagline = COURSE.tagline || 'Walk the course, take the cart, play all nine.';
+function courseDef(id) { return COURSES.find((c) => c.id === id) || COURSES[0]; }
+
 // ===== terrain.js =====
 // ---------------------------------------------------------------------------
 // Builds the whole course as one continuous world: an analytic height
@@ -10740,11 +11007,15 @@ function placeHole(def) {
     return Object.assign({}, e, { x, z, rot: fx * (e.rot || 0) + hdg });
   };
   const M = (m) => { const [x, z] = P([m.x, m.z]); return Object.assign({}, m, { x, z }); };
+  const AB = (o) => Object.assign({}, o, { a: P(o.a), b: P(o.b) });
   return {
     path: def.path.map(P),
     bunkers: (def.bunkers || []).map(E),
     water: (def.water || []).map(E),
     mounds: (def.mounds || []).map(M),
+    mesas: (def.mesas || []).map((m) => Object.assign(E(m), { ramps: (m.ramps || []).map(AB) })),
+    bridges: (def.bridges || []).map(AB),
+    tunnels: (def.tunnels || []).map(AB),
     tilt: V(def.green.tilt || [0, 0]),
     pin: V(def.pin),
   };
@@ -10789,6 +11060,7 @@ function buildCourse(C, env = {}) {
       green: { x: last[0], z: last[1], r: def.green.r },
       hw: def.fairway.width / 2, fwStart: def.fairway.start, tilt: w.tilt,
       bunkers: w.bunkers.map(prepEllipse), waters: w.water.map(prepEllipse), mounds: w.mounds,
+      mesas: w.mesas, bridges: w.bridges, tunnels: w.tunnels,
       pinOffset: w.pin,
     };
     let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
@@ -10803,6 +11075,24 @@ function buildCourse(C, env = {}) {
   const allBunkers = holes.flatMap((h) => h.bunkers);
   const allWaters = holes.flatMap((h) => h.waters);
   const allMounds = holes.flatMap((h) => h.mounds);
+  // Mesas: steep-sided plateaus (rocky cliffs, grassy tops), with ramps up.
+  // Bridges span gaps between them; tunnels run through them.
+  const allMesas = holes.flatMap((h) => h.mesas || []).concat((C.mesas || []).map((m) => Object.assign({}, m, { ramps: m.ramps || [] })));
+  for (const m of allMesas) {
+    prepEllipse(m);
+    m.cliff = m.cliff || 5;
+    for (const r of m.ramps) {
+      const dx = r.b[0] - r.a[0], dz = r.b[1] - r.a[1];
+      r.len = Math.hypot(dx, dz); r.ux = dx / r.len; r.uz = dz / r.len; r.w = r.w || 7;
+    }
+  }
+  const prepSpan = (o) => {
+    const dx = o.b[0] - o.a[0], dz = o.b[1] - o.a[1];
+    o.ax = o.a[0]; o.az = o.a[1]; o.len = Math.hypot(dx, dz); o.ux = dx / o.len; o.uz = dz / o.len;
+    return o;
+  };
+  const allBridges = holes.flatMap((h) => h.bridges || []).concat(C.bridges || []).map((b) => prepSpan(Object.assign({ w: 3.4 }, b)));
+  const allTunnels = holes.flatMap((h) => h.tunnels || []).concat(C.tunnels || []).map((t) => prepSpan(Object.assign({ w: 12, h: 9 }, t)));
 
   // Course bounds
   let bMinX = C.clubhouse.x - 60, bMaxX = C.clubhouse.x + 60, bMinZ = C.clubhouse.z - 60, bMaxZ = C.clubhouse.z + 60;
@@ -10810,19 +11100,25 @@ function buildCourse(C, env = {}) {
     bMinX = Math.min(bMinX, h.bbox.minX); bMaxX = Math.max(bMaxX, h.bbox.maxX);
     bMinZ = Math.min(bMinZ, h.bbox.minZ); bMaxZ = Math.max(bMaxZ, h.bbox.maxZ);
   }
+  for (const m of allMesas) {
+    const r = m._bound + m.cliff * 3;
+    bMinX = Math.min(bMinX, m.x - r); bMaxX = Math.max(bMaxX, m.x + r);
+    bMinZ = Math.min(bMinZ, m.z - r); bMaxZ = Math.max(bMaxZ, m.z + r);
+  }
   const bounds = { minX: Math.floor(bMinX - 50), maxX: Math.ceil(bMaxX + 50), minZ: Math.floor(bMinZ - 50), maxZ: Math.ceil(bMaxZ + 50) };
   const inBounds = (x, z) => x > bounds.minX && x < bounds.maxX && z > bounds.minZ && z < bounds.maxZ;
 
   // ---------- spatial index ----------
   const grid = new Map();
   const ckey = (ix, iz) => ix * 100003 + iz;
-  const EMPTY = { holes: [], bunkers: [], waters: [], mounds: [], paths: [], maps: [] };
+  const KINDS = () => ({ holes: [], bunkers: [], waters: [], mounds: [], paths: [], maps: [], mesas: [], bridges: [], tunnels: [] });
+  const EMPTY = KINDS();
   function register(kind, obj, minX, maxX, minZ, maxZ) {
     for (let ix = Math.floor(minX / CELL); ix <= Math.floor(maxX / CELL); ix++)
       for (let iz = Math.floor(minZ / CELL); iz <= Math.floor(maxZ / CELL); iz++) {
         const k = ckey(ix, iz);
         let cell = grid.get(k);
-        if (!cell) grid.set(k, (cell = { holes: [], bunkers: [], waters: [], mounds: [], paths: [], maps: [] }));
+        if (!cell) grid.set(k, (cell = KINDS()));
         if (!cell[kind].includes(obj)) cell[kind].push(obj);
       }
   }
@@ -10834,6 +11130,22 @@ function buildCourse(C, env = {}) {
   for (const w of allWaters) { const r = w._bound * 1.45; register('waters', w, w.x - r, w.x + r, w.z - r, w.z + r); }
   for (const m of allMounds) { const r = m.r * 2.6; register('mounds', m, m.x - r, m.x + r, m.z - r, m.z + r); }
   for (const mh of maps) register('maps', mh, mh.bbox.minX, mh.bbox.maxX, mh.bbox.minZ, mh.bbox.maxZ);
+  for (const m of allMesas) {
+    const r = m._bound * 1.15 + m.cliff * 3.5;
+    let minX = m.x - r, maxX = m.x + r, minZ = m.z - r, maxZ = m.z + r;
+    for (const ra of m.ramps) for (const q of [ra.a, ra.b]) {
+      minX = Math.min(minX, q[0] - 12); maxX = Math.max(maxX, q[0] + 12); minZ = Math.min(minZ, q[1] - 12); maxZ = Math.max(maxZ, q[1] + 12);
+    }
+    register('mesas', m, minX, maxX, minZ, maxZ);
+  }
+  const registerSpan = (kind, o, pad) => register(kind, o, Math.min(o.a[0], o.b[0]) - pad, Math.max(o.a[0], o.b[0]) + pad, Math.min(o.a[1], o.b[1]) - pad, Math.max(o.a[1], o.b[1]) + pad);
+  for (const b of allBridges) registerSpan('bridges', b, b.w + 2);
+  for (const t of allTunnels) registerSpan('tunnels', t, t.w + 4);
+  // Where a point is along a bridge or tunnel: s from its start, l to its side.
+  const spanLocal = (o, x, z) => {
+    const dx = x - o.ax, dz = z - o.az;
+    return { s: dx * o.ux + dz * o.uz, l: -dx * o.uz + dz * o.ux };
+  };
 
   // ---------- per-hole helpers ----------
   const greenEdge = (h, x, z) => h.green.r * (1 + 0.1 * nEdge(x / 8 + 40, z / 8));
@@ -10843,6 +11155,40 @@ function buildCourse(C, env = {}) {
     const dx = x - h.tee.x, dz = z - h.tee.z;
     return { along: dx * h.teeDir.x + dz * h.teeDir.z, side: dx * -h.teeDir.z + dz * h.teeDir.x };
   };
+
+  // ---------- mesas ----------
+  // How far (yards) a point lies outside a mesa's rim (negative: on top),
+  // with a ragged, uneven edge.
+  function mesaOut(m, x, z) {
+    const dx = x - m.x, dz = z - m.z;
+    const lx = dx * m._cos + dz * m._sin, lz = -dx * m._sin + dz * m._cos;
+    const ed = Math.sqrt((lx * lx) / (m.rx * m.rx) + (lz * lz) / (m.rz * m.rz));
+    if (ed < 1e-4) return -Math.min(m.rx, m.rz);
+    const r = Math.hypot(lx, lz) / ed; // the rim's distance from the centre this way
+    const wob = 1 + 0.06 * nEdge(x / 26 + m.x * 0.01, z / 26) + 0.025 * nBump(x / 7, z / 7);
+    return Math.hypot(lx, lz) - r * wob;
+  }
+  // 1 on top, 0 on the plain: a cliff with a ledge part way down and a
+  // scree slope at its foot. v counts cliff widths outward from the rim.
+  function mesaProfile(v) {
+    return 0.64 * (1 - smoothstep(-1, -0.15, v)) + 0.28 * (1 - smoothstep(0.1, 0.85, v)) + 0.08 * (1 - smoothstep(0.85, 3, v));
+  }
+  // The mesa's share of the height here, and whether this is bare cliff.
+  function mesaAt(m, x, z) {
+    const v = mesaOut(m, x, z) / m.cliff;
+    if (v > 3.2) return { f: 0, rock: false };
+    let f = mesaProfile(v), ramp = 0;
+    for (const r of m.ramps) {
+      const dx = x - r.a[0], dz = z - r.a[1];
+      const s = dx * r.ux + dz * r.uz, l = Math.abs(-dx * r.uz + dz * r.ux);
+      if (s < -6 || s > r.len + 6) continue;
+      const w = (1 - smoothstep(r.w / 2, r.w / 2 + 3.5, l)) * (1 - smoothstep(r.len, r.len + 6, s)) * smoothstep(-6, 0, s);
+      if (w <= 0) continue;
+      f = lerp(f, clamp(s / r.len, 0, 1), w);
+      ramp = Math.max(ramp, w);
+    }
+    return { f, rock: v > -1.05 && v < 0.95 && ramp < 0.5 };
+  }
 
   // ---------- height, built up in layers ----------
   function rawH(x, z) {
@@ -10859,6 +11205,7 @@ function buildCourse(C, env = {}) {
       const dx = x - m.x, dz = z - m.z;
       h += m.h * Math.exp(-(dx * dx + dz * dz) / (m.r * m.r));
     }
+    for (const m of cell.mesas) h += m.h * mesaAt(m, x, z).f;
     // Fade to a flat skirt at the edge of the property.
     const edge = Math.min(x - bounds.minX, bounds.maxX - x, z - bounds.minZ, bounds.maxZ - z);
     return h * smoothstep(-5, 45, edge);
@@ -10938,12 +11285,96 @@ function buildCourse(C, env = {}) {
   }
 
   // Painted holes take over inside their rectangle, fading in at the edges.
-  function H(x, z) {
+  function landH(x, z) {
     for (const mh of cellAt(x, z).maps) {
       const w = mh.weight(x, z);
       if (w > 0) return w >= 1 ? mh.height(x, z) : lerp(procH(x, z), mh.height(x, z), w);
     }
     return procH(x, z);
+  }
+  // Tunnels: a floor running straight between the ground at each end, an arch
+  // over it. Where the land would block the arch it is cut down to the floor
+  // (the terrain drawn inside the arch is left out, see world.js).
+  const archTop = (t, l) => {
+    const u = Math.min(1, Math.abs(l) / (t.w / 2));
+    return t.h * 0.58 + t.h * 0.42 * Math.sqrt(Math.max(0, 1 - u * u));
+  };
+  const tunnelFloor = (t, s) => lerp(t.ya, t.yb, clamp(s / t.len, 0, 1));
+  for (const t of allTunnels) {
+    t.ya = landH(t.a[0], t.a[1]); t.yb = landH(t.b[0], t.b[1]);
+    // The stretch inside the rock.
+    t.s0 = t.len; t.s1 = 0;
+    for (let q = 0; q <= t.len; q += 0.5) {
+      const x = t.ax + t.ux * q, z = t.az + t.uz * q;
+      if (landH(x, z) > tunnelFloor(t, q) + t.h * 0.7) { t.s0 = Math.min(t.s0, q); t.s1 = Math.max(t.s1, q); }
+    }
+    if (t.s1 < t.s0) { t.s0 = 0; t.s1 = 0; }
+  }
+  function H(x, z) {
+    let h = landH(x, z);
+    for (const t of cellAt(x, z).tunnels) {
+      const { s, l } = spanLocal(t, x, z);
+      if (s < 0 || s > t.len) continue;
+      const al = Math.abs(l), hw = t.w / 2;
+      if (al > hw + 2.5) continue;
+      const f = tunnelFloor(t, s);
+      if (h < f + archTop(t, Math.min(al, hw)) + 0.6) h = lerp(h, f, 1 - smoothstep(hw - 0.4, hw + 2.5, al));
+    }
+    return h;
+  }
+  for (const b of allBridges) {
+    b.ya = H(b.a[0], b.a[1]) + 0.12; b.yb = H(b.b[0], b.b[1]) + 0.12;
+    b.sag = Math.min(1.8, b.len * 0.025);
+  }
+  const bridgeDeck = (b, s) => { const t = clamp(s / b.len, 0, 1); return lerp(b.ya, b.yb, t) - b.sag * 4 * t * (1 - t); };
+
+  // What something at height y stands on at (x, z): a bridge deck it's on,
+  // the floor of a tunnel it's in, or the land. tol: how far below a deck
+  // still counts as on it. kind: 0 land, 1 bridge, 2 tunnel.
+  function floorInfo(x, z, y, tol = 1.2) {
+    const cell = cellAt(x, z);
+    for (const b of cell.bridges) {
+      const { s, l } = spanLocal(b, x, z);
+      if (s < 0 || s > b.len || Math.abs(l) > b.w / 2) continue;
+      const d = bridgeDeck(b, s);
+      if (y >= d - tol) return { h: d, kind: 1 };
+    }
+    for (const t of cell.tunnels) {
+      const { s, l } = spanLocal(t, x, z);
+      if (s < t.s0 - 3 || s > t.s1 + 3 || Math.abs(l) > t.w / 2) continue;
+      const f = tunnelFloor(t, s);
+      if (y > f + archTop(t, l) + 0.2) continue;
+      if (landH(x, z) > f + archTop(t, l)) return { h: f, kind: 2 };
+    }
+    return { h: H(x, z), kind: 0 };
+  }
+  const floor = (x, z, y, tol) => floorInfo(x, z, y, tol).h;
+  // A ball inside a tunnel bounces off its walls and roof. Returns true if it hit.
+  function tunnelClamp(p, v, r) {
+    for (const t of cellAt(p.x, p.z).tunnels) {
+      const { s, l } = spanLocal(t, p.x, p.z);
+      if (s < t.s0 || s > t.s1) continue;
+      const f = tunnelFloor(t, s), hw = t.w / 2;
+      if (p.y > f + t.h + 1.5 || Math.abs(l) > hw + 3) continue;
+      if (landH(p.x, p.z) < f + t.h * 0.5) continue; // open air over the cut at a mouth
+      let hit = false;
+      const nx = -t.uz, nz = t.ux; // towards +l
+      if (Math.abs(l) > hw - r) {
+        const side = Math.sign(l), vl = v.x * nx + v.z * nz;
+        if (vl * side > 0) { v.x -= 1.5 * vl * nx; v.z -= 1.5 * vl * nz; v.x *= 0.85; v.z *= 0.85; }
+        const back = Math.abs(l) - (hw - r);
+        p.x -= nx * side * back; p.z -= nz * side * back;
+        hit = true;
+      }
+      const top = f + archTop(t, Math.min(Math.abs(l), hw)) - r;
+      if (p.y > top) {
+        if (v.y > 0) v.y = -v.y * 0.45;
+        p.y = top;
+        hit = true;
+      }
+      return hit;
+    }
+    return false;
   }
   // Seat each painted hole on the land around it.
   for (const mh of maps) {
@@ -11003,6 +11434,7 @@ function buildCourse(C, env = {}) {
   }
   const blocked = (x, z) => {
     for (const w of allWaters) if (waterDist(w, x, z) < 1.5) return true;
+    for (const m of allMesas) if (mesaOut(m, x, z) < m.cliff * 2.5) return true;
     for (const b of allBunkers) if (bunkerDist(b, x, z) < 1.6) return true;
     for (const h of holes) {
       if (Math.hypot(x - h.green.x, z - h.green.z) < h.green.r + 8) return true;
@@ -11023,7 +11455,7 @@ function buildCourse(C, env = {}) {
       let off = h.hw + 13;
       if (s > L - 40) off = Math.max(off, h.green.r + 14);
       let x = p.x + nx * off, z = p.z + nz * off;
-      for (let k = 0; k < 12 && blocked(x, z); k++) { off += 4; x = p.x + nx * off; z = p.z + nz * off; }
+      for (let k = 0; k < 20 && blocked(x, z); k++) { off += 4; x = p.x + nx * off; z = p.z + nz * off; }
       pts.push([x, z]);
     }
     return pts;
@@ -11069,6 +11501,7 @@ function buildCourse(C, env = {}) {
       if (Math.abs(x - b.x) > b._bound * 1.3 || Math.abs(z - b.z) > b._bound * 1.3) continue;
       if (bunkerDist(b, x, z) < 1) return S_SAND;
     }
+    for (const m of cell.mesas) if (mesaAt(m, x, z).rock) return S_ROCK;
     if (fringe) return S_FRINGE;
     let n = 0;
     for (const ho of cell.holes) {
@@ -11146,7 +11579,7 @@ function buildCourse(C, env = {}) {
       const cell = cellAt(x, z);
       if (mapAt(x, z, 0.02)) continue; // painted holes plant their own
       // Open forest away from the holes, with a few meadows.
-      let dens = 0.72 * smoothstep(-0.35, 0.1, nForest(x / 110, z / 110));
+      let dens = 0.72 * smoothstep(-0.35, 0.1, nForest(x / 110, z / 110)) * (C.forest == null ? 1 : C.forest);
       let near = false;
       for (const ho of cell.holes) {
         const q = ho.line.query(x, z);
@@ -11160,8 +11593,11 @@ function buildCourse(C, env = {}) {
         if (q.s < 1 && q.d < 20) near = true;
       }
       const edge = Math.min(x - bounds.minX, bounds.maxX - x, z - bounds.minZ, bounds.maxZ - z);
-      if (edge < 22) dens = Math.max(dens, 0.9);
+      if (edge < 22) dens = Math.max(dens, C.forest == null ? 0.9 : 0.9 * Math.min(1, C.forest * 3));
       if (near || rnd() > dens) continue;
+      let cliff = false;
+      for (const m of cell.mesas) { const v = mesaOut(m, x, z) / m.cliff; if (v > -2.5 && v < 2) cliff = true; }
+      if (cliff || floorInfo(x, z, 1e9).kind || cell.tunnels.length && cell.tunnels.some((t) => { const q = spanLocal(t, x, z); return q.s > -8 && q.s < t.len + 8 && Math.abs(q.l) < t.w; })) continue;
       if (pathDist(x, z) < 4) continue;
       if (Math.abs(x - club.x) < 42 && Math.abs(z - club.z) < 36) continue;
       let bad = false;
@@ -11185,6 +11621,22 @@ function buildCourse(C, env = {}) {
         cell.push(t);
       }
   }
+  // Scree at the foot of each mesa's cliffs.
+  for (const m of allMesas) {
+    const n = Math.round((m.rx + m.rz) * 0.35);
+    for (let i = 0; i < n; i++) {
+      const a = rnd() * TAU, lx = Math.cos(a) * m.rx, lz = Math.sin(a) * m.rz;
+      const k = 1 + (m.cliff * (0.9 + rnd() * 1.6)) / Math.hypot(lx, lz);
+      const x = m.x + (lx * m._cos - lz * m._sin) * k, z = m.z + (lx * m._sin + lz * m._cos) * k;
+      const v = mesaOut(m, x, z) / m.cliff;
+      if (v < 0.7 || v > 3) continue;
+      let ok = true;
+      for (const r of m.ramps) { const dx = x - r.a[0], dz = z - r.a[1]; if (Math.abs(-dx * r.uz + dz * r.ux) < r.w && dx * r.ux + dz * r.uz > -8 && dx * r.ux + dz * r.uz < r.len + 8) ok = false; }
+      for (const ho of holes) { const q = ho.line.query(x, z); if (q.d < ho.hw + 3) ok = false; if (Math.hypot(x - ho.green.x, z - ho.green.z) < ho.green.r + 6) ok = false; }
+      if (pathDist(x, z) < 3 || floorInfo(x, z, 1e9).kind) ok = false;
+      if (ok) addRock(x, z, 0.5 + rnd() * rnd() * 2.2, rnd() * TAU);
+    }
+  }
   for (const mh of maps) {
     for (const t of mh.trees) {
       if (Math.abs(t.x - club.x) < 36 && Math.abs(t.z - club.z) < 30) continue;
@@ -11205,6 +11657,8 @@ function buildCourse(C, env = {}) {
   return {
     holes, bounds, trees, paths, obstacles, clubhouse: Object.assign({ y: clubPadH }, club),
     H, normal, surface, waterLevel, inBounds, nearTrees, stripeS, pathDist,
+    floor, floorInfo, tunnelClamp, archTop, tunnelFloor, bridgeDeck,
+    mesas: allMesas, bridges: allBridges, tunnels: allTunnels, palette: C.palette || null, name: C.name, id: C.id,
     waters: allWaters, bunkers: allBunkers, maps,
     // The painted colour of the ground (and how much of it to use), or null.
     paintColor(x, z) {
@@ -12894,13 +13348,13 @@ const WindCues = (() => {
   const PALETTE = ['#27428f', '#9c2a2a', '#2c5a33', '#c8962a', '#6b3d8a', '#1f6f74', '#a24a1c', '#33408a', '#7a1f3d'];
   const TRIM = '#e6c25a';
 
-  // Cloth: a field colour, a gold edge and a simple emblem.
-  function clothTexture(color, emblem) {
+  // Cloth: a field colour, an edge and a simple emblem (gold unless given).
+  function clothTexture(color, emblem, trim = TRIM) {
     const c = document.createElement('canvas');
     c.width = 128; c.height = 80;
     const g = c.getContext('2d');
     g.fillStyle = color; g.fillRect(0, 0, 128, 80);
-    g.fillStyle = TRIM;
+    g.fillStyle = trim;
     g.fillRect(0, 0, 128, 6); g.fillRect(0, 74, 128, 6); g.fillRect(0, 0, 6, 80);
     g.globalAlpha = 0.9;
     if (emblem === 'cross') { g.fillRect(28, 34, 50, 12); g.fillRect(47, 16, 12, 48); }
@@ -12919,7 +13373,7 @@ const WindCues = (() => {
   }
 
   // A flag on a pole, base at the origin. shape: 'banner' | 'pennant'.
-  function makeFlag({ height = 4, w = 1.4, h = 0.9, color = PALETTE[0], emblem = 'disc', shape = 'banner', pole = 0x6b4a2e, phase = Math.random() * 10 } = {}) {
+  function makeFlag({ height = 4, w = 1.4, h = 0.9, color = PALETTE[0], trim = TRIM, emblem = 'disc', shape = 'banner', pole = 0x6b4a2e, phase = Math.random() * 10 } = {}) {
     const g = new THREE.Group();
     g.name = 'flag';
     const poleMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.05, height, 6).translate(0, height / 2, 0),
@@ -12937,7 +13391,9 @@ const WindCues = (() => {
         p.setY(i, -h / 2 + (p.getY(i) + h / 2) * (1 - 0.85 * u));
       }
     }
-    const cloth = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ map: clothTexture(color, emblem), side: THREE.DoubleSide }));
+    const cloth = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ map: clothTexture(color, emblem, trim), side: THREE.DoubleSide }));
+    cloth.name = 'cloth';
+    g.userData.emblem = emblem;
     cloth.castShadow = true;
     const pivot = new THREE.Group();
     pivot.position.y = height - 0.08;
@@ -12945,6 +13401,15 @@ const WindCues = (() => {
     g.add(pivot);
     addWaver(pivot, geo, w, phase);
     return g;
+  }
+
+  // Re-dye a flag made by makeFlag.
+  function dye(flag, color, trim) {
+    const cloth = flag.getObjectByName('cloth');
+    if (!cloth) return;
+    if (cloth.material.map) cloth.material.map.dispose();
+    cloth.material.map = clothTexture(color, flag.userData.emblem, trim);
+    cloth.material.needsUpdate = true;
   }
 
   // Stop waving the cloth of flags inside obj (it is being thrown away).
@@ -13079,7 +13544,7 @@ const WindCues = (() => {
     return { mesh, update };
   }
 
-  return { makeFlag, addWaver, forget, updateFlags, createStreaks, PALETTE };
+  return { makeFlag, addWaver, forget, dye, updateFlags, createStreaks, PALETTE };
 })();
 
 // ===== world.js =====
@@ -13537,8 +14002,19 @@ const World = (() => {
     [70, 86, 58],    // under water
     [64, 112, 40],   // oob
     [196, 186, 162], // cart path
+    [176, 124, 84],  // rock
   ];
+  // Sandstone layers on a mesa's cliffs.
+  const STRATA = [[204, 146, 94], [182, 116, 74], [218, 178, 126], [164, 102, 66], [196, 136, 86], [226, 192, 140]];
   let nMottle = null;
+  let surfRGB = SURF_RGB, mottleRGB = [132, 134, 64];
+  function usePalette(pal) {
+    surfRGB = SURF_RGB.slice();
+    mottleRGB = [132, 134, 64];
+    if (!pal) return;
+    for (const [k, v] of Object.entries(pal.surfaces || {})) surfRGB[Number(k)] = v;
+    if (pal.mottle) mottleRGB = pal.mottle;
+  }
 
   // Paints rows [r0, r1) of a w x h image covering [x0, x0+size] x [z0, z0+size].
   function paintRows(data, w, ppy, x0, z0, r0, r1) {
@@ -13547,7 +14023,7 @@ const World = (() => {
       for (let px = 0; px < w; px++) {
         const x = x0 + (px + 0.5) / ppy;
         const s = course.surface(x, z);
-        const c = SURF_RGB[s];
+        const c = surfRGB[s];
         const gx = Math.floor(x * 3), gz = Math.floor(z * 3);
         let k = 1 + (hash2(gx, gz) - 0.5) * 0.07;
         let r = c[0], gg = c[1], bb = c[2];
@@ -13558,10 +14034,16 @@ const World = (() => {
           k *= (Math.floor((x * 0.8 + z * 0.6) / 2.2) & 1) ? 1.04 : 0.965;
         } else if (s === S_SAND || s === S_PATH) {
           k = 1 + (hash2(gx, gz) - 0.5) * 0.12;
+        } else if (s === S_ROCK) {
+          // Bands by height, wavering a little, with grit.
+          const y = course.H(x, z) * 0.62 + nMottle(x / 9, z / 9) * 0.8;
+          const band = STRATA[((Math.floor(y) % STRATA.length) + STRATA.length) % STRATA.length];
+          r = band[0]; gg = band[1]; bb = band[2];
+          k = 1 + (hash2(gx, gz) - 0.5) * 0.16;
         } else if (s === S_DEEP || s === S_OOB || s === S_ROUGH) {
           const m = nMottle(x / 26, z / 26);
           const t = smoothstep(0.1, 0.7, m) * (s === S_ROUGH ? 0.3 : 0.55);
-          r = lerp(r, 132, t); gg = lerp(gg, 134, t); bb = lerp(bb, 64, t);
+          r = lerp(r, mottleRGB[0], t); gg = lerp(gg, mottleRGB[1], t); bb = lerp(bb, mottleRGB[2], t);
           k *= 1 + 0.10 * nMottle(x / 6 + 50, z / 6) + 0.05 * (hash2(gx >> 1, gz >> 1) - 0.5);
         }
         if (s !== S_SAND && s !== S_WATER && s !== S_PATH) k *= 1 + 0.05 * nMottle(x / 15 - 20, z / 15 + 20);
@@ -13587,15 +14069,47 @@ const World = (() => {
     return tex;
   }
 
+  // Tunnels: the ground drawn inside each arch is left out, so you can see
+  // (and walk, and hit a ball) through. Shared by every terrain tile.
+  const MAX_TUNNELS = 4;
+  const tunnelU = {
+    tunN: { value: 0 },
+    tun0: { value: Array.from({ length: MAX_TUNNELS }, () => new THREE.Vector4()) },
+    tun1: { value: Array.from({ length: MAX_TUNNELS }, () => new THREE.Vector4()) },
+    tun2: { value: Array.from({ length: MAX_TUNNELS }, () => new THREE.Vector4()) },
+  };
+  function setTunnels(list) {
+    tunnelU.tunN.value = Math.min(list.length, MAX_TUNNELS);
+    list.slice(0, MAX_TUNNELS).forEach((t, i) => {
+      tunnelU.tun0.value[i].set(t.ax, t.az, t.ux, t.uz);
+      tunnelU.tun1.value[i].set(t.s0 - 3, t.s1 + 3, t.w / 2, t.h);
+      tunnelU.tun2.value[i].set(t.ya, t.yb, t.len, 0);
+    });
+  }
   function terrainMaterial(map) {
     const mat = new THREE.MeshLambertMaterial({ map });
     mat.onBeforeCompile = (shader) => {
       shader.uniforms.detailMap = { value: detailTex };
+      Object.assign(shader.uniforms, tunnelU);
       shader.vertexShader = shader.vertexShader
-        .replace('#include <common>', '#include <common>\nvarying vec2 vWXZ;')
-        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWXZ = (modelMatrix * vec4(transformed, 1.0)).xz;');
+        .replace('#include <common>', '#include <common>\nvarying vec2 vWXZ;\nvarying vec3 vWP;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWP = (modelMatrix * vec4(transformed, 1.0)).xyz; vWXZ = vWP.xz;');
       shader.fragmentShader = shader.fragmentShader
-        .replace('#include <common>', '#include <common>\nvarying vec2 vWXZ;\nuniform sampler2D detailMap;')
+        .replace('#include <common>', `#include <common>
+          varying vec2 vWXZ; varying vec3 vWP; uniform sampler2D detailMap;
+          uniform int tunN; uniform vec4 tun0[${MAX_TUNNELS}]; uniform vec4 tun1[${MAX_TUNNELS}]; uniform vec4 tun2[${MAX_TUNNELS}];`)
+        .replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
+          for (int i = 0; i < ${MAX_TUNNELS}; i++) {
+            if (i >= tunN) break;
+            vec2 d = vWP.xz - tun0[i].xy;
+            float s = dot(d, tun0[i].zw), l = -d.x * tun0[i].w + d.y * tun0[i].z;
+            if (s > tun1[i].x && s < tun1[i].y && abs(l) < tun1[i].z) {
+              float f = mix(tun2[i].x, tun2[i].y, clamp(s / tun2[i].z, 0.0, 1.0));
+              float u = min(1.0, abs(l) / tun1[i].z);
+              float top = tun1[i].w * (0.58 + 0.42 * sqrt(max(0.0, 1.0 - u * u)));
+              if (vWP.y > f + 0.15 && vWP.y < f + top) discard;
+            }
+          }`)
         .replace('#include <map_fragment>', `#include <map_fragment>
           float dn = texture2D(detailMap, vWXZ * 0.9).r * 0.55 + texture2D(detailMap, vWXZ * 0.11).r * 0.45;
           diffuseColor.rgb *= 0.82 + 0.36 * dn;`);
@@ -14116,6 +14630,144 @@ const World = (() => {
     }
   }
 
+  // ---------- tunnels and suspension bridges --------------------------------
+  // The inside of a tunnel: rough rock walls and roof over a sandy floor, with
+  // a ring of stone round each mouth to tidy the edge of the cut.
+  function archProfile(t, n) {
+    const pts = [];
+    const hw = t.w / 2;
+    for (let i = 0; i <= n; i++) {
+      const a = Math.PI * (i / n);              // 0 = right wall foot, PI = left
+      const l = Math.cos(a) * hw;
+      pts.push([l, course.archTop(t, l) * Math.min(1, Math.sin(a) * 4 + 0.02)]);
+    }
+    return pts;
+  }
+  function buildTunnel(t, group) {
+    if (t.s1 <= t.s0) return;
+    const rock = new THREE.MeshLambertMaterial({ color: 0x8a6448, side: THREE.DoubleSide });
+    const floorMat = new THREE.MeshLambertMaterial({ color: 0xc8a676 });
+    const prof = archProfile(t, 18);
+    const sA = t.s0 - 2.5, sB = t.s1 + 2.5, n = Math.max(2, Math.ceil((sB - sA) / 2));
+    const nx = -t.uz, nz = t.ux;
+    const pos = [], idx = [];
+    const rnd = mulberry32(Math.round(t.ax * 13 + t.az * 7));
+    for (let k = 0; k <= n; k++) {
+      const sk = sA + ((sB - sA) * k) / n, f = course.tunnelFloor(t, sk);
+      for (let i = 0; i < prof.length; i++) {
+        const j = 0.25 * (rnd() - 0.5) * Math.min(1, prof[i][1] / 2); // lumpy rock
+        const l = prof[i][0] * (1 + j * 0.1), y = prof[i][1] + j;
+        pos.push(t.ax + t.ux * sk + nx * l, f + y, t.az + t.uz * sk + nz * l);
+      }
+    }
+    const m = prof.length;
+    for (let k = 0; k < n; k++)
+      for (let i = 0; i < m - 1; i++) {
+        const a = k * m + i, b2 = a + 1, c2 = a + m, d = c2 + 1;
+        idx.push(a, c2, b2, b2, c2, d);
+      }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    geo.setIndex(idx);
+    geo.computeVertexNormals();
+    const tube = new THREE.Mesh(geo, rock);
+    tube.receiveShadow = tube.castShadow = true; // the roof shades the way through
+    group.add(tube);
+    // The floor.
+    const fg = new THREE.PlaneGeometry(t.w - 0.2, sB - sA, 1, n).rotateX(-Math.PI / 2);
+    const fp = fg.attributes.position;
+    for (let i = 0; i < fp.count; i++) {
+      const lx = fp.getX(i), sz = -fp.getZ(i) + (sA + sB) / 2;
+      fp.setXYZ(i, t.ax + t.ux * sz + nx * lx, course.tunnelFloor(t, sz) + 0.04, t.az + t.uz * sz + nz * lx);
+    }
+    fg.computeVertexNormals();
+    const fl = new THREE.Mesh(fg, floorMat);
+    fl.receiveShadow = true;
+    group.add(fl);
+    // A rough stone ring round each mouth.
+    for (const sm of [t.s0, t.s1]) {
+      const f = course.tunnelFloor(t, sm), ring = new THREE.Group();
+      const hw = t.w / 2;
+      for (let i = 0; i <= 12; i++) {
+        const a = Math.PI * (i / 12), l = Math.cos(a) * (hw + 0.5);
+        const y = course.archTop(t, Math.cos(a) * hw) * Math.min(1, Math.sin(a) * 4 + 0.02) + 0.4;
+        const st = new THREE.Mesh(new THREE.DodecahedronGeometry(1.1 + rnd() * 0.6, 0), rock);
+        st.position.set(nx * l, y, nz * l);
+        st.scale.set(1, 0.8, 1.3);
+        st.rotation.set(rnd() * 3, rnd() * 3, rnd() * 3);
+        st.castShadow = true;
+        ring.add(st);
+      }
+      ring.position.set(t.ax + t.ux * sm, f, t.az + t.uz * sm);
+      group.add(ring);
+    }
+  }
+
+  // A rope suspension bridge: plank deck, rope rails on hangers, posts at
+  // each end. Wide enough for the cart.
+  function buildBridge(br, group) {
+    const g = new THREE.Group();
+    const wood = new THREE.MeshLambertMaterial({ color: 0x8a6a46 });
+    const dark = new THREE.MeshLambertMaterial({ color: 0x5c4430 });
+    const rope = new THREE.MeshLambertMaterial({ color: 0xc9b48a });
+    const nx = -br.uz, nz = br.ux, yaw = Math.atan2(br.ux, br.uz);
+    const at = (s, l, dy) => new THREE.Vector3(br.ax + br.ux * s + nx * l, course.bridgeDeck(br, s) + dy, br.az + br.uz * s + nz * l);
+    const rnd = mulberry32(Math.round(br.ax * 3 + br.az * 11));
+    const plank = new THREE.BoxGeometry(br.w + 0.3, 0.09, 0.42);
+    const n = Math.floor(br.len / 0.5);
+    const planks = new THREE.InstancedMesh(plank, wood, n + 1);
+    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(1, 1, 1);
+    for (let i = 0; i <= n; i++) {
+      const sk = Math.min(br.len, i * 0.5), p0 = at(sk, 0, -0.05);
+      const slope = (course.bridgeDeck(br, Math.min(br.len, sk + 0.3)) - course.bridgeDeck(br, Math.max(0, sk - 0.3))) / 0.6;
+      q.setFromEuler(new THREE.Euler(-Math.atan(slope), yaw, (rnd() - 0.5) * 0.03, 'YXZ'));
+      planks.setMatrixAt(i, m4.compose(p0, q, sc));
+    }
+    planks.castShadow = planks.receiveShadow = true;
+    g.add(planks);
+    // Stringers under the planks.
+    for (const l of [-br.w / 2 + 0.2, br.w / 2 - 0.2]) {
+      const pts = [];
+      for (let i = 0; i <= 16; i++) pts.push(at((br.len * i) / 16, l, -0.15));
+      g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 32, 0.07, 5), dark));
+    }
+    // Rope rails hang between the posts, a little above the deck.
+    for (const l of [-br.w / 2 - 0.1, br.w / 2 + 0.1]) {
+      const pts = [];
+      for (let i = 0; i <= 20; i++) {
+        const sk = (br.len * i) / 20, t = i / 20;
+        pts.push(at(sk, l, 1.05 + 0.5 * Math.pow(2 * t - 1, 2)));
+      }
+      const rail = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 40, 0.05, 5), rope);
+      rail.castShadow = true;
+      g.add(rail);
+      for (let sk = 2; sk < br.len - 1; sk += 2) {
+        const t = sk / br.len, top = at(sk, l, 1.05 + 0.5 * Math.pow(2 * t - 1, 2)), bot = at(sk, l, 0);
+        const hang = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, top.y - bot.y, 4), rope);
+        hang.position.set(bot.x, (top.y + bot.y) / 2, bot.z);
+        g.add(hang);
+      }
+      for (const sk of [0, br.len]) {
+        const p0 = at(sk, l, 0);
+        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.16, 2.2, 7), dark);
+        post.position.set(p0.x, p0.y + 0.7, p0.z);
+        post.castShadow = true;
+        g.add(post);
+      }
+    }
+    group.add(g);
+  }
+  // A bridge on the overview map.
+  function drawSpan(og, o, b, color, w) {
+    og.save();
+    og.strokeStyle = color; og.lineWidth = Math.max(1.5, w * LO_PPY);
+    og.beginPath();
+    og.moveTo((o.a[0] - b.minX) * LO_PPY, (o.a[1] - b.minZ) * LO_PPY);
+    og.lineTo((o.b[0] - b.minX) * LO_PPY, (o.b[1] - b.minZ) * LO_PPY);
+    og.stroke();
+    og.restore();
+  }
+
   function buildClubhouse(group) {
     const c = course.clubhouse;
     const g = Assets.object('clubhouse');
@@ -14137,6 +14789,8 @@ const World = (() => {
   function buildCourse(c) {
     course = c;
     nMottle = makePerlin(555);
+    usePalette(c.palette);
+    setTunnels(c.tunnels || []);
     const group = new THREE.Group();
     const b = c.bounds;
     const W = b.maxX - b.minX, D = b.maxZ - b.minZ;
@@ -14152,6 +14806,10 @@ const World = (() => {
         if (bb.maxX > x0 - 10 && bb.minX < x0 + CHUNK + 10 && bb.maxZ > z0 - 10 && bb.minZ < z0 + CHUNK + 10) return true;
       }
       for (const p of c.paths) for (const [x, z] of p.pts) if (x > x0 - 5 && x < x0 + CHUNK + 5 && z > z0 - 5 && z < z0 + CHUNK + 5) return true;
+      for (const m of c.mesas || []) {
+        const r = m._bound + m.cliff * 3;
+        if (m.x + r > x0 && m.x - r < x0 + CHUNK && m.z + r > z0 && m.z - r < z0 + CHUNK) return true;
+      }
       const cl = c.clubhouse;
       return cl.x > x0 - 50 && cl.x < x0 + CHUNK + 50 && cl.z > z0 - 50 && cl.z < z0 + CHUNK + 50;
     };
@@ -14195,7 +14853,7 @@ const World = (() => {
     ring.holes.push(holePath);
     const outerGeo = new THREE.ShapeGeometry(ring);
     outerGeo.rotateX(-Math.PI / 2);
-    const outer = new THREE.Mesh(outerGeo, new THREE.MeshLambertMaterial({ color: 0x41702c }));
+    const outer = new THREE.Mesh(outerGeo, new THREE.MeshLambertMaterial({ color: (c.palette && c.palette.outer) || 0x41702c }));
     outer.receiveShadow = true;
     group.add(outer);
 
@@ -14230,6 +14888,8 @@ const World = (() => {
     og.fillRect((cl.x - 15 - b.minX) * LO_PPY, (cl.z - 9 - b.minZ) * LO_PPY, 30 * LO_PPY, 18 * LO_PPY);
 
     for (const mh of c.maps) buildPainted(mh, group);
+    for (const t of c.tunnels || []) buildTunnel(t, group);
+    for (const br of c.bridges || []) { buildBridge(br, group); drawSpan(og, br, b, '#8a6a46', br.w); }
     buildTrees(group);
     for (const h of c.holes) { buildPin(h, group); buildTeeMarkers(h, group); buildCourseFlags(h, group); }
     buildClubhouse(group);
@@ -14291,9 +14951,10 @@ const World = (() => {
     b.peg.visible = !!onTee && b.mesh.visible;
     if (onTee) b.peg.position.set(p.x, p.y - BALL_R + 0.03, p.z);
     if (!course) return;
-    const gh = course.H(p.x, p.z);
+    const fl = course.floorInfo ? course.floorInfo(p.x, p.z, p.y - BALL_R, 0.3) : { h: course.H(p.x, p.z), kind: 0 };
+    const gh = fl.h;
     const agl = Math.max(0, p.y - BALL_R - gh);
-    const n = course.normal(p.x, p.z);
+    const n = fl.kind ? { x: 0, y: 1, z: 0 } : course.normal(p.x, p.z);
     b.shadow.visible = b.mesh.visible && mode !== 'holed';
     b.shadow.position.set(p.x + n.x * 0.02, gh + 0.02, p.z + n.z * 0.02);
     b.shadow.quaternion.setFromUnitVectors(_zAxis, _n.set(n.x, n.y, n.z));
@@ -14915,26 +15576,34 @@ const Golfer = (() => {
   const cyl = (r1, r2, h, seg = 8) => new THREE.CylinderGeometry(r1, r2, h, seg);
   const ball = (r, w = 10, h = 7) => new THREE.SphereGeometry(r, w, h);
 
-  // G. Surlaw: a tall, lean human with a walrus moustache.
+  // The inward arm angle that brings the hands together at address.
+  const armIn = (D) => Math.atan2(D.armX, D.hands);
+
+  // G. Surlaw: a tall, broad-shouldered human with a walrus moustache, who
+  // stands like the hero of the story.
   const HUMAN_DIMS = {
-    hip: 1.04, hipX: 0.09, thigh: 0.5, shin: 0.48, spine: 0.07, neck: 0.55, head: 0.09,
-    shoulders: 0.49, armX: 0.2, upper: 0.31, hands: 0.575, armIn: 0.334,
+    hip: 1.04, hipX: 0.1, thigh: 0.5, shin: 0.48, spine: 0.07, neck: 0.55, head: 0.09,
+    shoulders: 0.49, armX: 0.235, upper: 0.31, hands: 0.575,
   };
+  HUMAN_DIMS.armIn = armIn(HUMAN_DIMS);
   function humanParts(J, mats) {
     const add = hanger(J);
-    add('hips', 'pelvis', cyl(0.162, 0.15, 0.2, 12), mats.pants).scale.z = 0.64;
-    add('hips', 'belt', cyl(0.168, 0.168, 0.05, 12), mats.belt, 0, 0.085).scale.z = 0.66;
-    add('hips', 'buckle', new THREE.BoxGeometry(0.06, 0.045, 0.02), mats.buckle, 0, 0.085, 0.112);
+    add('hips', 'pelvis', cyl(0.17, 0.155, 0.2, 12), mats.pants).scale.z = 0.66;
+    add('hips', 'belt', cyl(0.174, 0.174, 0.05, 12), mats.belt, 0, 0.085).scale.z = 0.68;
+    add('hips', 'buckle', new THREE.BoxGeometry(0.06, 0.045, 0.02), mats.buckle, 0, 0.085, 0.118);
     for (const s of ['L', 'R']) {
-      add('thigh.' + s, 'upper-leg.' + s, cyl(0.074, 0.062, 0.5), mats.pants, 0, -0.25);
-      add('knee.' + s, 'shin.' + s, cyl(0.06, 0.05, 0.48), mats.pants, 0, -0.24);
-      add('ankle.' + s, 'shoe.' + s, new THREE.BoxGeometry(0.105, 0.07, 0.29), mats.shoe, 0, 0, 0.06);
-      add('arm.' + s, 'sleeve.' + s, cyl(0.062, 0.057, 0.16), mats.shirt, 0, -0.065);
-      add('arm.' + s, 'upper-arm.' + s, cyl(0.047, 0.043, 0.31), mats.skin, 0, -0.155);
-      add('elbow.' + s, 'forearm.' + s, cyl(0.043, 0.037, 0.29), mats.skin, 0, -0.145);
-      add('elbow.' + s, 'hand.' + s, new THREE.IcosahedronGeometry(0.048, 0), mats.skin, 0, -0.305);
+      add('thigh.' + s, 'upper-leg.' + s, cyl(0.08, 0.066, 0.5), mats.pants, 0, -0.25);
+      add('knee.' + s, 'shin.' + s, cyl(0.064, 0.053, 0.48), mats.pants, 0, -0.24);
+      add('ankle.' + s, 'shoe.' + s, new THREE.BoxGeometry(0.11, 0.07, 0.3), mats.shoe, 0, 0, 0.06);
+      add('arm.' + s, 'shoulder.' + s, ball(0.078, 10, 7), mats.shirt, 0, -0.015).scale.set(1.05, 0.9, 1);
+      add('arm.' + s, 'sleeve.' + s, cyl(0.07, 0.062, 0.16), mats.shirt, 0, -0.065);
+      add('arm.' + s, 'upper-arm.' + s, cyl(0.054, 0.047, 0.31), mats.skin, 0, -0.155);
+      add('elbow.' + s, 'forearm.' + s, cyl(0.047, 0.039, 0.29), mats.skin, 0, -0.145);
+      add('elbow.' + s, 'hand.' + s, new THREE.IcosahedronGeometry(0.052, 0), mats.skin, 0, -0.305);
     }
-    add('spine', 'torso', cyl(0.195, 0.158, 0.52, 12), mats.shirt, 0, 0.27).scale.z = 0.6;
+    // A broad chest tapering to the waist.
+    add('spine', 'torso', cyl(0.238, 0.162, 0.52, 12), mats.shirt, 0, 0.27).scale.z = 0.64;
+    add('spine', 'chest', ball(0.16, 12, 8), mats.shirt, 0, 0.38, 0.03).scale.set(1.3, 0.75, 0.75);
     for (const sx of [-1, 1]) {
       const flap = add('spine', 'collar', new THREE.BoxGeometry(0.075, 0.012, 0.06), mats.shirt, sx * 0.045, 0.535, 0.06);
       flap.rotation.set(0.5, 0, sx * -0.35);
@@ -14997,12 +15666,158 @@ const Golfer = (() => {
     add('head', 'braid-ring', cyl(0.05, 0.05, 0.035, 10), mats.buckle, 0, -0.24, 0.12);
   }
 
+  // A. Salt: a sporty human, a little shorter than Surlaw, with a swept-up
+  // quiff, sideburns and a neat chin beard.
+  const SALT_DIMS = {
+    hip: 1.01, hipX: 0.094, thigh: 0.485, shin: 0.465, spine: 0.07, neck: 0.54, head: 0.09,
+    shoulders: 0.48, armX: 0.215, upper: 0.305, hands: 0.565,
+  };
+  SALT_DIMS.armIn = armIn(SALT_DIMS);
+  function saltParts(J, mats) {
+    const add = hanger(J);
+    add('hips', 'pelvis', cyl(0.162, 0.15, 0.2, 12), mats.pants).scale.z = 0.66;
+    add('hips', 'belt', cyl(0.167, 0.167, 0.05, 12), mats.belt, 0, 0.085).scale.z = 0.68;
+    add('hips', 'buckle', new THREE.BoxGeometry(0.055, 0.04, 0.02), mats.buckle, 0, 0.085, 0.113);
+    for (const s of ['L', 'R']) {
+      add('thigh.' + s, 'upper-leg.' + s, cyl(0.076, 0.063, 0.485), mats.pants, 0, -0.243);
+      add('knee.' + s, 'shin.' + s, cyl(0.061, 0.051, 0.465), mats.pants, 0, -0.232);
+      add('ankle.' + s, 'shoe.' + s, new THREE.BoxGeometry(0.105, 0.075, 0.285), mats.shoe, 0, 0, 0.06);
+      add('ankle.' + s, 'sole.' + s, new THREE.BoxGeometry(0.11, 0.02, 0.29), mats.buckle, 0, -0.04, 0.06);
+      add('arm.' + s, 'shoulder.' + s, ball(0.07, 10, 7), mats.shirt, 0, -0.015);
+      add('arm.' + s, 'sleeve.' + s, cyl(0.066, 0.06, 0.15), mats.shirt, 0, -0.06);
+      add('arm.' + s, 'cuff.' + s, cyl(0.061, 0.061, 0.025), mats.pants, 0, -0.135);
+      add('arm.' + s, 'upper-arm.' + s, cyl(0.05, 0.045, 0.3), mats.skin, 0, -0.15);
+      add('elbow.' + s, 'forearm.' + s, cyl(0.045, 0.038, 0.285), mats.skin, 0, -0.142);
+      add('elbow.' + s, 'hand.' + s, new THREE.IcosahedronGeometry(0.049, 0), mats.skin, 0, -0.3);
+    }
+    add('spine', 'torso', cyl(0.212, 0.165, 0.5, 12), mats.shirt, 0, 0.26).scale.z = 0.62;
+    add('spine', 'stripe', cyl(0.214, 0.205, 0.05, 12), mats.pants, 0, 0.36).scale.z = 0.63;
+    for (const sx of [-1, 1]) {
+      const flap = add('spine', 'collar', new THREE.BoxGeometry(0.075, 0.012, 0.06), mats.pants, sx * 0.045, 0.515, 0.065);
+      flap.rotation.set(0.5, 0, sx * -0.35);
+    }
+    add('neck', 'neck-skin', cyl(0.05, 0.054, 0.12), mats.skin, 0, 0.04);
+    add('head', 'face', new THREE.IcosahedronGeometry(0.11, 1), mats.skin, 0, 0.1).scale.set(0.94, 1.08, 1);
+    add('head', 'jaw', ball(0.075, 10, 6), mats.skin, 0, 0.035, 0.035).scale.set(1.15, 0.8, 1);
+    add('head', 'nose', new THREE.ConeGeometry(0.019, 0.055, 6).rotateX(Math.PI / 2), mats.skin, 0, 0.1, 0.115);
+    for (const sx of [-1, 1]) {
+      add('head', 'ear', ball(0.026, 6, 5), mats.skin, sx * 0.102, 0.1, -0.005).scale.set(0.45, 1, 0.8);
+      add('head', 'eye', ball(0.012, 6, 4), mats.eye, sx * 0.037, 0.118, 0.1);
+      add('head', 'brow', new THREE.BoxGeometry(0.046, 0.013, 0.02), mats.hair, sx * 0.04, 0.143, 0.099).rotation.z = sx * 0.12;
+      add('head', 'sideburn', new THREE.BoxGeometry(0.018, 0.075, 0.035), mats.hair, sx * 0.1, 0.085, 0.03);
+    }
+    const hair = add('head', 'hair', new THREE.SphereGeometry(0.118, 14, 8, 0, TAU, 0, Math.PI * 0.6), mats.hair, 0, 0.115, -0.012);
+    hair.rotation.x = -0.55;
+    hair.scale.set(1.04, 1.02, 1.06);
+    // The quiff, swept up and back off the forehead.
+    const quiff = add('head', 'quiff', ball(0.075, 10, 7), mats.hair, 0, 0.215, 0.05);
+    quiff.scale.set(1.2, 0.7, 1.15);
+    quiff.rotation.x = -0.4;
+    add('head', 'chin-beard', ball(0.03, 8, 6), mats.hair, 0, -0.005, 0.098).scale.set(1, 1.3, 0.7);
+  }
+
+  // B. B. Beetor: lanky and long-limbed, hunched forward on bent knees, with a
+  // long face, a balding head, slicked-back hair at the sides and a pencil
+  // moustache. Upright he'd be the tallest of them all.
+  const BEETOR_DIMS = {
+    hip: 1.2, hipX: 0.085, thigh: 0.585, shin: 0.555, spine: 0.06, neck: 0.56, head: 0.1,
+    shoulders: 0.5, armX: 0.19, upper: 0.37, hands: 0.68,
+  };
+  BEETOR_DIMS.armIn = armIn(BEETOR_DIMS);
+  function beetorParts(J, mats) {
+    const add = hanger(J);
+    add('hips', 'pelvis', cyl(0.14, 0.13, 0.2, 12), mats.pants).scale.z = 0.66;
+    add('hips', 'belt', cyl(0.145, 0.145, 0.04, 12), mats.belt, 0, 0.08).scale.z = 0.68;
+    for (const s of ['L', 'R']) {
+      add('thigh.' + s, 'upper-leg.' + s, cyl(0.06, 0.05, 0.585), mats.pants, 0, -0.292);
+      add('knee.' + s, 'knee-cap.' + s, ball(0.054, 8, 6), mats.pants, 0, 0, 0.006);
+      add('knee.' + s, 'shin.' + s, cyl(0.05, 0.041, 0.555), mats.pants, 0, -0.277);
+      add('ankle.' + s, 'shoe.' + s, new THREE.BoxGeometry(0.095, 0.06, 0.34), mats.shoe, 0, -0.005, 0.08);
+      add('arm.' + s, 'shoulder.' + s, ball(0.058, 8, 6), mats.shirt, 0, -0.01);
+      add('arm.' + s, 'sleeve.' + s, cyl(0.05, 0.044, 0.37), mats.shirt, 0, -0.185);
+      add('elbow.' + s, 'forearm.' + s, cyl(0.043, 0.036, 0.3), mats.shirt, 0, -0.15);
+      add('elbow.' + s, 'cuff.' + s, cyl(0.032, 0.032, 0.04), mats.skin, 0, -0.31);
+      add('elbow.' + s, 'hand.' + s, new THREE.IcosahedronGeometry(0.05, 0), mats.skin, 0, -0.35).scale.set(0.8, 1.35, 0.8);
+    }
+    // A narrow jacket over a white shirt and a thin black tie.
+    add('spine', 'torso', cyl(0.168, 0.145, 0.56, 12), mats.shirt, 0, 0.29).scale.z = 0.6;
+    add('spine', 'shirt-front', new THREE.BoxGeometry(0.07, 0.24, 0.02), mats.belt, 0, 0.44, 0.088).material = mats.white;
+    add('spine', 'tie', new THREE.BoxGeometry(0.022, 0.26, 0.012), mats.eye, 0, 0.43, 0.098);
+    for (const sx of [-1, 1]) {
+      const lapel = add('spine', 'lapel', new THREE.BoxGeometry(0.06, 0.2, 0.018), mats.shirt, sx * 0.052, 0.47, 0.09);
+      lapel.rotation.z = sx * 0.3;
+    }
+    add('neck', 'neck-skin', cyl(0.038, 0.044, 0.15), mats.skin, 0, 0.055);
+    add('head', 'face', new THREE.IcosahedronGeometry(0.105, 1), mats.skin, 0, 0.115).scale.set(0.88, 1.28, 0.98);
+    add('head', 'nose', new THREE.ConeGeometry(0.021, 0.075, 6).rotateX(Math.PI / 2), mats.skin, 0, 0.11, 0.112);
+    for (const sx of [-1, 1]) {
+      add('head', 'ear', ball(0.03, 6, 5), mats.skin, sx * 0.093, 0.11, -0.005).scale.set(0.45, 1.15, 0.8);
+      add('head', 'eye', ball(0.011, 6, 4), mats.eye, sx * 0.034, 0.142, 0.094);
+      add('head', 'brow', new THREE.BoxGeometry(0.04, 0.007, 0.012), mats.hair, sx * 0.037, 0.168, 0.093).rotation.z = sx * -0.25;
+      // The pencil moustache: two thin lines meeting under the nose.
+      const m = add('head', 'moustache', new THREE.BoxGeometry(0.042, 0.0065, 0.008), mats.hair, sx * 0.021, 0.072, 0.105);
+      m.rotation.z = sx * -0.16;
+    }
+    // Balding: a band of slicked-back hair round the back and sides only.
+    const band = add('head', 'hair', new THREE.SphereGeometry(0.109, 16, 8, 0, TAU, Math.PI * 0.3, Math.PI * 0.27), mats.hair, 0, 0.13, -0.02);
+    band.rotation.x = -0.5;
+    band.scale.set(1.02, 1.15, 1.04);
+  }
+
+  // R. Cord: an elf. Slender, with long pointed ears, long fair hair, a tunic
+  // and tall boots.
+  const CORD_DIMS = {
+    hip: 1.0, hipX: 0.085, thigh: 0.48, shin: 0.46, spine: 0.07, neck: 0.5, head: 0.09,
+    shoulders: 0.45, armX: 0.19, upper: 0.3, hands: 0.55,
+  };
+  CORD_DIMS.armIn = armIn(CORD_DIMS);
+  function cordParts(J, mats) {
+    const add = hanger(J);
+    add('hips', 'pelvis', cyl(0.15, 0.14, 0.2, 12), mats.pants).scale.z = 0.66;
+    // The tunic flares over the hips.
+    add('hips', 'tunic-hem', cyl(0.165, 0.205, 0.2, 14, true), mats.shirt, 0, -0.04).scale.z = 0.72;
+    add('hips', 'belt', cyl(0.158, 0.158, 0.045, 12), mats.belt, 0, 0.08).scale.z = 0.7;
+    add('hips', 'buckle', new THREE.BoxGeometry(0.045, 0.04, 0.02), mats.buckle, 0, 0.08, 0.11);
+    for (const s of ['L', 'R']) {
+      add('thigh.' + s, 'upper-leg.' + s, cyl(0.067, 0.056, 0.48), mats.pants, 0, -0.24);
+      add('knee.' + s, 'shin.' + s, cyl(0.054, 0.045, 0.46), mats.pants, 0, -0.23);
+      add('knee.' + s, 'boot.' + s, cyl(0.06, 0.054, 0.3, 10), mats.shoe, 0, -0.31);
+      add('ankle.' + s, 'shoe.' + s, new THREE.BoxGeometry(0.095, 0.07, 0.27), mats.shoe, 0, 0, 0.06);
+      add('ankle.' + s, 'toe.' + s, new THREE.ConeGeometry(0.035, 0.08, 6).rotateX(Math.PI / 2), mats.shoe, 0, 0.0, 0.22);
+      add('arm.' + s, 'sleeve.' + s, cyl(0.056, 0.046, 0.3), mats.shirt, 0, -0.15);
+      add('elbow.' + s, 'forearm.' + s, cyl(0.045, 0.04, 0.27), mats.shirt, 0, -0.135);
+      add('elbow.' + s, 'cuff.' + s, cyl(0.046, 0.046, 0.04), mats.pants, 0, -0.25);
+      add('elbow.' + s, 'hand.' + s, new THREE.IcosahedronGeometry(0.044, 0), mats.skin, 0, -0.29);
+    }
+    add('spine', 'torso', cyl(0.18, 0.152, 0.5, 12), mats.shirt, 0, 0.26).scale.z = 0.6;
+    add('spine', 'trim', new THREE.BoxGeometry(0.03, 0.34, 0.012), mats.pants, 0, 0.3, 0.095);
+    add('neck', 'neck-skin', cyl(0.04, 0.046, 0.12), mats.skin, 0, 0.04);
+    add('head', 'face', new THREE.IcosahedronGeometry(0.104, 1), mats.skin, 0, 0.1).scale.set(0.88, 1.12, 0.96);
+    add('head', 'chin', new THREE.ConeGeometry(0.05, 0.06, 8).rotateX(Math.PI), mats.skin, 0, 0.008, 0.035);
+    add('head', 'nose', new THREE.ConeGeometry(0.016, 0.05, 6).rotateX(Math.PI / 2), mats.skin, 0, 0.1, 0.106);
+    for (const sx of [-1, 1]) {
+      // Long ears, pointing up and back.
+      const ear = add('head', 'ear', new THREE.ConeGeometry(0.03, 0.17, 6), mats.skin, sx * 0.105, 0.15, -0.02);
+      ear.rotation.set(-0.5, 0, sx * -0.95);
+      ear.scale.z = 0.45;
+      add('head', 'eye', ball(0.013, 6, 4), mats.eye, sx * 0.036, 0.118, 0.094).scale.set(1.3, 0.8, 1);
+      add('head', 'brow', new THREE.BoxGeometry(0.045, 0.009, 0.015), mats.hair, sx * 0.04, 0.142, 0.094).rotation.z = sx * -0.28;
+      // Locks of hair framing the face.
+      add('head', 'lock', new THREE.BoxGeometry(0.03, 0.2, 0.035), mats.hair, sx * 0.09, 0.05, 0.035).rotation.z = sx * -0.08;
+    }
+    const hair = add('head', 'hair', new THREE.SphereGeometry(0.117, 14, 8, 0, TAU, 0, Math.PI * 0.6), mats.hair, 0, 0.11, -0.012);
+    hair.rotation.x = -0.35;
+    hair.scale.set(1.04, 1.05, 1.07);
+    // Long hair down the back.
+    add('head', 'hair-back', new THREE.BoxGeometry(0.19, 0.3, 0.05), mats.hair, 0, -0.03, -0.09).rotation.x = 0.12;
+  }
+
   function materialsFor(style) {
     const L = (role, c) => { const m = new THREE.MeshLambertMaterial({ color: c }); m.name = role; return m; };
     return {
       skin: L('skin', style.skin), shirt: L('shirt', style.shirt), pants: L('pants', style.pants),
       hair: L('hair', style.hair), shoe: L('shoe', style.shoe || 0xf4f4f0), eye: L('eye', 0x1b1b1b),
-      belt: L('belt', 0x3a2a1c), buckle: L('buckle', 0xd8b13c),
+      belt: L('belt', 0x3a2a1c), buckle: L('buckle', 0xd8b13c), white: L('white', 0xf2f0ea),
     };
   }
 
@@ -15010,8 +15825,17 @@ const Golfer = (() => {
   // characters are scaled from it to their own height.
   const BODIES = {
     golfer: { name: 'W. McBeaty & caddy body', dims: DEFAULT_DIMS, height: BASE_HEIGHT, parts: defaultParts, size: '5′9″' },
-    'golfer-surlaw': { name: 'G. Surlaw body (human)', dims: HUMAN_DIMS, height: 2.0, parts: humanParts, size: '6′0″' },
+    'golfer-surlaw': { name: 'G. Surlaw body (human)', dims: HUMAN_DIMS, height: 2.0, parts: humanParts, size: '6′0″',
+      // Chest out, shoulders back, feet planted wide.
+      posture: { bend: -0.13, splay: 0.095, chin: 0.07 } },
     'golfer-froth': { name: 'F. Froth body (dwarf)', dims: DWARF_DIMS, height: 1.62, parts: dwarfParts, size: '4′10″' },
+    'golfer-salt': { name: 'A. Salt body (human)', dims: SALT_DIMS, height: 1.944, parts: saltParts, size: '5′10″',
+      posture: { bend: -0.02, splay: 0.03 } },
+    'golfer-beetor': { name: 'B. B. Beetor body (human)', dims: BEETOR_DIMS, height: 2.16, parts: beetorParts, size: '6′5″',
+      // Hunched over on bent knees.
+      posture: { bend: 0.42, knee: 0.46, lean: 0.03 } },
+    'golfer-cord': { name: 'R. Cord body (elf)', dims: CORD_DIMS, height: 1.889, parts: cordParts, size: '5′8″',
+      posture: { bend: -0.03, splay: 0.02 } },
   };
   const bodyOf = (style) => style.body || 'golfer';
   // The character who wears a body (for its colors and previews).
@@ -15184,6 +16008,21 @@ const Golfer = (() => {
         T.bend += Math.sin(t * 1.6) * 0.012; // breathing
         if (s.lookAt) T.headY = clamp(s.lookAt, -1, 1);
       }
+      // How this body stands about: a hunch, a puffed-out chest, bent knees.
+      const PO = B.posture;
+      if (PO && s.mode !== 'address' && s.mode !== 'swing' && s.mode !== 'seated') {
+        const f = s.mode === 'walk' ? 0.75 : 1;
+        const bend = (PO.bend || 0) * f, k = (PO.knee || 0) * f;
+        T.bend += bend;
+        T.lean += (PO.lean || 0) * f;
+        T.headX -= bend * 0.9 + (PO.chin || 0);  // keep looking ahead
+        T.splay += (PO.splay || 0) * (s.mode === 'walk' ? 0.35 : 1);
+        if (k) {
+          T.knee0 += k; T.knee1 += k;
+          T.thigh0 -= k * 0.55; T.thigh1 -= k * 0.55;
+          T.hipsY -= D.thigh * (1 - Math.cos(k * 0.55)) + D.shin * (1 - Math.cos(k * 0.45));
+        }
+      }
     }
 
     function apply() {
@@ -15287,24 +16126,39 @@ const Golfer = (() => {
     }
 
     function setVisible(v) { root.visible = v; }
+    // Hide everything but the club (looking down through his own eyes).
+    let bodyShown = true;
+    function setBodyVisible(v) {
+      if (v === bodyShown) return;
+      bodyShown = v;
+      root.traverse((o) => {
+        if (!o.isMesh) return;
+        let q = o;
+        while (q && q !== club) q = q.parent;
+        if (!q) o.visible = v;
+      });
+    }
     apply();
 
     // Sizes for sitting in the cart: hips above the seat, eyes above the hips.
     const seatScale = mscale * (D.hip - 0.09) / (DEFAULT_DIMS.hip - 0.09);
     const eyeScale = mscale * (D.spine + D.neck + D.head + 0.2) / (DEFAULT_DIMS.spine + DEFAULT_DIMS.neck + DEFAULT_DIMS.head + 0.2);
-    return { root, update, setClub, setFace, faceInfo, addressOffset, setVisible, scale, seatScale, eyeScale, style, joints: J };
+    return { root, update, setClub, setFace, faceInfo, addressOffset, setVisible, setBodyVisible, scale, seatScale, eyeScale, style, joints: J };
   }
 
   // Map a club from the bag to its model.
   const kindFor = (club) => club.kind;
 
   // The caddy, with a flag on a pole strapped to his back: the wind goes where he goes.
-  function createCaddy() {
+  // colors: the golfer's colours for the flag (field and emblem).
+  function createCaddy(colors) {
     const c = create(CADDY);
     const f = WindCues.makeFlag({ height: 2.5, w: 0.9, h: 0.58, color: WindCues.PALETTE[0], emblem: 'disc', pole: 0x5a4330 });
     f.position.set(0.12, -0.2, -0.3); // in the spine joint's frame (unscaled body)
     f.rotation.x = -0.1;
     c.joints.spine.add(f);
+    c.setFlagColors = (cs) => WindCues.dye(f, hexColor(cs.primary), hexColor(cs.secondary));
+    if (colors) c.setFlagColors(colors);
     return c;
   }
 
@@ -15413,9 +16267,15 @@ const Cart = (() => {
 
     const st = { x: 0, z: 0, y: 0, yaw: 0, speed: 0, steer: 0, pitch: 0, roll: 0, spin: 0, surf: S_ROUGH };
 
-    function place(x, z, yaw) {
+    // The ground under a wheel: the land, or a bridge deck or tunnel floor
+    // the cart is on.
+    const ground = (x, z) => (course.floor ? course.floor(x, z, st.y + 0.6) : course.H(x, z));
+
+    // yHint: the height it's being put at (for a spot on a bridge or in a tunnel).
+    function place(x, z, yaw, yHint) {
       st.x = x; st.z = z; st.yaw = yaw; st.speed = 0; st.steer = 0;
-      st.y = course.H(x, z);
+      st.y = yHint != null ? yHint : course.H(x, z);
+      st.y = ground(x, z);
       settle(1);
       sync();
     }
@@ -15423,12 +16283,16 @@ const Cart = (() => {
     const fwd = () => ({ x: Math.sin(st.yaw), z: -Math.cos(st.yaw) });
 
     // Is the cart's footprint clear at (x, z, yaw)?
-    function clearAt(x, z, yaw) {
+    // yRef: the height it's driving at (default: where it is now).
+    function clearAt(x, z, yaw, yRef = st.y) {
       const fx = Math.sin(yaw), fz = -Math.cos(yaw);
       for (const k of [-0.95, 0, 0.95]) {
         const px = x + fx * k, pz = z + fz * k;
         if (!course.inBounds(px, pz)) return false;
-        if (course.waterLevel(px, pz) > course.H(px, pz) - 0.05) return false;
+        const gy = course.floor ? course.floor(px, pz, yRef + 0.6) : course.H(px, pz);
+        if (course.waterLevel(px, pz) > gy - 0.05) return false;
+        // Off the side of a bridge, or into a tunnel wall.
+        if (Math.abs(gy - yRef) > 1.1) return false;
         const trees = course.nearTrees(px, pz);
         if (trees) for (const t of trees) if (Math.hypot(px - t.x, pz - t.z) < t.trunkR + 0.68) return false;
         for (const o of course.obstacles) if (Math.abs(px - o.x) < o.hx + 0.7 && Math.abs(pz - o.z) < o.hz + 0.7) return false;
@@ -15440,10 +16304,10 @@ const Cart = (() => {
     function settle(k) {
       const f = fwd(), rx = -f.z, rz = f.x;
       const hb = WHEELBASE / 2, ht = 0.6;
-      const hFL = course.H(st.x + f.x * hb + rx * -ht, st.z + f.z * hb + rz * -ht);
-      const hFR = course.H(st.x + f.x * hb + rx * ht, st.z + f.z * hb + rz * ht);
-      const hRL = course.H(st.x - f.x * hb + rx * -ht, st.z - f.z * hb + rz * -ht);
-      const hRR = course.H(st.x - f.x * hb + rx * ht, st.z - f.z * hb + rz * ht);
+      const hFL = ground(st.x + f.x * hb + rx * -ht, st.z + f.z * hb + rz * -ht);
+      const hFR = ground(st.x + f.x * hb + rx * ht, st.z + f.z * hb + rz * ht);
+      const hRL = ground(st.x - f.x * hb + rx * -ht, st.z - f.z * hb + rz * -ht);
+      const hRR = ground(st.x - f.x * hb + rx * ht, st.z - f.z * hb + rz * ht);
       const y = (hFL + hFR + hRL + hRR) / 4;
       const pitch = Math.atan2((hFL + hFR) / 2 - (hRL + hRR) / 2, WHEELBASE);
       const roll = Math.atan2((hFR + hRR) / 2 - (hFL + hRL) / 2, ht * 2);
@@ -15468,7 +16332,7 @@ const Cart = (() => {
       else st.speed -= Math.sign(st.speed) * Math.min(Math.abs(st.speed), drag * dt);
       // Slopes
       const f = fwd();
-      const slope = (course.H(st.x + f.x, st.z + f.z) - course.H(st.x - f.x, st.z - f.z)) / 2;
+      const slope = (ground(st.x + f.x, st.z + f.z) - ground(st.x - f.x, st.z - f.z)) / 2;
       st.speed -= G * slope * 0.55 * dt;
       if (st.speed > maxF) st.speed = Math.max(maxF, st.speed - 12 * dt);
       st.speed = clamp(st.speed, -MAX_REV, MAX_FWD);
@@ -15521,16 +16385,37 @@ const Cart = (() => {
     // Somewhere free to step out: driver's side first, then the other side.
     function exitSpot(passenger) {
       const f = fwd(), rx = -f.z, rz = f.x;
+      // Somewhere at the cart's own level (not off the side of a bridge).
+      const level = (x, z) => Math.abs(ground(x, z) - st.y) < 0.9;
       for (const side of passenger ? [1, -1] : [-1, 1]) {
         for (const d of [1.25, 1.8, 2.4]) {
           const x = st.x + rx * side * d, z = st.z + rz * side * d;
-          if (course.inBounds(x, z) && course.waterLevel(x, z) === -Infinity) return { x, z };
+          if (course.inBounds(x, z) && course.waterLevel(x, z) === -Infinity && level(x, z)) return { x, z };
         }
       }
-      return { x: st.x - f.x * 2.2, z: st.z - f.z * 2.2 };
+      const b = passenger ? -2.6 : -2.2;
+      return { x: st.x + f.x * b + rx * (passenger ? 0.5 : -0.5), z: st.z + f.z * b + rz * (passenger ? 0.5 : -0.5) };
     }
 
-    return { root, st, update, place, seatPose, eyePose, exitSpot, sync, bagMount };
+    // Paint the cart in a golfer's colours: the body in the first, the seats
+    // and roof in the second (materials named body, seats and roof).
+    function setColors(colors) {
+      model.traverse((o) => {
+        if (!o.isMesh) return;
+        const list = Array.isArray(o.material) ? o.material : [o.material];
+        const out = list.map((m) => {
+          const n = (m.name || '').toLowerCase();
+          const c = n.startsWith('body') ? colors.primary : n.startsWith('seat') || n.startsWith('roof') ? colors.secondary : null;
+          if (c == null || !m.color) return m;
+          if (!m.userData.own) { m = m.clone(); m.userData.own = true; }
+          m.color.setHex(c);
+          return m;
+        });
+        o.material = Array.isArray(o.material) ? out : out[0];
+      });
+    }
+
+    return { root, st, update, place, seatPose, eyePose, exitSpot, sync, bagMount, setColors, clearAt };
   }
 
   return { create };
@@ -16274,7 +17159,7 @@ const Workshop = (() => {
 
 // ===== net.js =====
 // ---------------------------------------------------------------------------
-// Online play for up to three golfers, peer to peer over WebRTC (PeerJS).
+// Online play for up to six golfers, peer to peer over WebRTC (PeerJS).
 // One player hosts and gets a four-letter code; friends join with it. Every
 // message goes through the host, who stamps the sender and passes it on.
 //
@@ -16284,7 +17169,8 @@ const Workshop = (() => {
 // ---------------------------------------------------------------------------
 
 const Net = (() => {
-  const MAX = 3;
+  const MAX = 6;      // golfers in a game (one of each character)
+  const CHARS = 6;
   const PREFIX = 'pinehaven-golf-';
   const LETTERS = 'BCDFGHJKLMNPQRSTVWXZ';
   // Without a word for this long, a link counts as dropped. Generous, so a
@@ -16294,6 +17180,7 @@ const Net = (() => {
 
   let peer = null, isHost = false, slot = -1, code = null, started = false;
   let players = []; // [{ slot, char, name }]
+  let room = {};     // what the host says about the game (which course)
   const links = new Map(); // host: slot -> connection; guest: 0 -> connection to the host
   const heard = new Map();
   const handlers = new Map();
@@ -16325,16 +17212,25 @@ const Net = (() => {
   }
 
   const cleanName = (n) => String(n || '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 14);
-  function lobbyMsg() { return { t: 'lobby', players: players.map((p) => ({ ...p })), started }; }
+  function lobbyMsg() { return { t: 'lobby', players: players.map((p) => ({ ...p })), started, room }; }
+  // Each golfer can only be played by one person: the first free one if taken.
+  function freeChar(want, slot) {
+    const taken = players.filter((p) => p.slot !== slot).map((p) => p.char);
+    if (!taken.includes(want)) return want;
+    for (let c = 0; c < CHARS; c++) if (!taken.includes(c)) return c;
+    return want;
+  }
   // Host: send to every guest but one.
   function relay(msg, except) {
     for (const [s, c] of links) if (s !== except && c.open) { try { c.send(msg); } catch (e) { /* closing */ } }
   }
 
   // ---------- hosting ----------
-  function host(me) {
+  // info: what guests should know about the game, e.g. { course }.
+  function host(me, info) {
     leave();
     isHost = true; slot = 0; started = false;
+    room = Object.assign({}, info);
     players = [{ slot: 0, char: me.char | 0, name: cleanName(me.name) }];
     return new Promise((resolve, reject) => {
       let tries = 0, opened = false;
@@ -16356,7 +17252,8 @@ const Net = (() => {
 
   function accept(conn) {
     conn.on('open', () => {
-      const free = [1, 2].find((k) => !players.some((p) => p.slot === k));
+      let free;
+      for (let k = 1; k < MAX && free === undefined; k++) if (!players.some((p) => p.slot === k)) free = k;
       if (started || free === undefined) {
         try { conn.send({ t: 'full', started }); } catch (e) { /* gone */ }
         // Close once the message is through (and for certain a bit later).
@@ -16380,15 +17277,15 @@ const Net = (() => {
     // Only the host speaks for the room.
     if (msg.t === 'welcome' || msg.t === 'lobby' || msg.t === 'start' || msg.t === 'full' || msg.t === 'left') return;
     if (msg.t === 'hello') {
-      if (!players.some((p) => p.slot === s)) players.push({ slot: s, char: msg.char | 0, name: cleanName(msg.name) });
-      links.get(s).send({ t: 'welcome', slot: s, code });
+      if (!players.some((p) => p.slot === s)) players.push({ slot: s, char: freeChar(msg.char | 0, s), name: cleanName(msg.name) });
+      links.get(s).send({ t: 'welcome', slot: s, code, room });
       const m = lobbyMsg();
       relay(m, -1); emit('lobby', m);
       return;
     }
     if (msg.t === 'me') {
       const p = players.find((q) => q.slot === s);
-      if (p) { p.char = msg.char | 0; p.name = cleanName(msg.name); }
+      if (p) { p.char = freeChar(msg.char | 0, s) === (msg.char | 0) ? msg.char | 0 : p.char; p.name = cleanName(msg.name); }
       const m = lobbyMsg();
       relay(m, -1); emit('lobby', m);
       return;
@@ -16432,9 +17329,9 @@ const Net = (() => {
         conn.on('data', (msg) => {
           heard.set(0, performance.now());
           if (!msg || typeof msg !== 'object') return;
-          if (msg.t === 'welcome') { slot = msg.slot; done = true; startPinger(); resolve(slot); return; }
-          if (msg.t === 'full') { fail(msg.started ? 'That round has already started.' : 'That game already has three players.'); return; }
-          if (msg.t === 'lobby') { players = msg.players; started = msg.started; }
+          if (msg.t === 'welcome') { slot = msg.slot; room = msg.room || {}; done = true; startPinger(); resolve(slot); return; }
+          if (msg.t === 'full') { fail(msg.started ? 'That round has already started.' : 'That game already has six players.'); return; }
+          if (msg.t === 'lobby') { players = msg.players; started = msg.started; room = msg.room || {}; }
           if (msg.t === 'start') started = true;
           emit(msg.t, msg);
         });
@@ -16480,7 +17377,7 @@ const Net = (() => {
   // Change your name or golfer while waiting to tee off.
   function setMe(me) {
     const p = players.find((q) => q.slot === slot);
-    if (p) { p.char = me.char | 0; p.name = cleanName(me.name); }
+    if (p) { if (!isHost || freeChar(me.char | 0, slot) === (me.char | 0)) p.char = me.char | 0; p.name = cleanName(me.name); }
     if (isHost) { const m = lobbyMsg(); relay(m, -1); emit('lobby', m); }
     else send({ t: 'me', char: me.char | 0, name: cleanName(me.name) });
   }
@@ -16503,7 +17400,7 @@ const Net = (() => {
     heard.clear();
     if (peer) { try { peer.destroy(); } catch (e) { /* already */ } }
     peer = null;
-    slot = -1; code = null; players = []; isHost = false; started = false;
+    slot = -1; code = null; players = []; isHost = false; started = false; room = {};
   }
 
   return {
@@ -16514,6 +17411,8 @@ const Net = (() => {
     get code() { return code; },
     get players() { return players; },
     get started() { return started; },
+    get room() { return room; },
+    MAX,
   };
 })();
 
@@ -16525,29 +17424,29 @@ const Net = (() => {
 // ---------------------------------------------------------------------------
 
 const Remote = (() => {
-  // Ball, name tag and radar colour for each seat in the game.
-  const COLORS = ['#ffffff', '#ff9a3c', '#ff6fae'];
   const POSES = ['walk', 'address', 'swing', 'seated'];
   const NEAR_CAMERA = 2.6; // yards: closer than this to the camera, people step out of the picture
 
   function create(slot, info, course, hud) {
     const style = CHARACTERS[info.char] || CHARACTERS[0];
+    const cs = style.colors;
     const golfer = Golfer.create(style);
-    const caddy = Golfer.createCaddy();
+    const caddy = Golfer.createCaddy(cs);
     const cart = Cart.create(course);
+    cart.setColors(cs);
     const bag = Equipment.createBag();
-    const ball = World.createBall(COLORS[slot]);
+    const ball = World.createBall(cs.ball);
     for (const o of [golfer.root, caddy.root, cart.root, bag.root]) { o.visible = false; World.add(o); }
 
     const tag = document.createElement('div');
     tag.className = 'marker mp-tag';
     tag.id = 'mpTag' + slot;
-    tag.style.setProperty('--c', COLORS[slot]);
+    tag.style.setProperty('--c', cs.ui);
     tag.innerHTML = '<i></i><span></span>';
     hud.appendChild(tag);
 
     const R = {
-      slot, name: info.name, char: info.char, color: COLORS[slot], style,
+      slot, name: info.name, char: info.char, color: cs.ui, style,
       hole: 0, strokes: 0, ballState: 'tee', have: false, msg: null,
       g: [0, 0, 0, 0], c: [0, 0, 0, 0], k: [0, 0, 0, 0, 0, 0, 0], b: [0, 0, 0],
       sw: 0, out: -1, bagP: new THREE.Vector3(), bagQ: new THREE.Quaternion(), lastTrail: null,
@@ -16602,8 +17501,18 @@ const Remote = (() => {
       }
     }
 
-    // w, h: size of the view, for placing the name tag.
-    function update(dt, camera, showTag, w, h) {
+    // Is this standing in the middle of the picture, close to the camera?
+    function inTheWay(o, camera) {
+      _t.copy(o.position);
+      _t.y += 0.9;
+      if (_t.distanceTo(camera.position) > 14) return false;
+      _t.project(camera);
+      return _t.z < 1 && Math.abs(_t.x) < 0.5 && _t.y < 0.7;
+    }
+
+    // w, h: size of the view, for placing the name tag. clear: you're lining
+    // up a shot, so anyone in front of you steps out of the picture.
+    function update(dt, camera, showTag, w, h, clear) {
       const m = R.msg;
       if (!m) return;
       const k = 1 - Math.exp(-dt * 12);
@@ -16636,12 +17545,12 @@ const Remote = (() => {
         golfer.update(dt, { mode, speed: m.sp || 0, putt: !!m.pu, club: club.kind, swing: R.sw });
       }
 
-      // The caddy.
-      if (m.cr) {
-        const s = cart.seatPose(caddy.seatScale, true);
+      // The caddy (riding along, driving the cart over, or on foot).
+      if (m.cr || m.cd) {
+        const s = cart.seatPose(caddy.seatScale, !!m.cr);
         caddy.root.position.set(s.x, s.y, s.z);
         caddy.root.rotation.set(0, Math.PI - s.yaw, 0);
-        caddy.update(dt, { mode: 'seated', passenger: true });
+        caddy.update(dt, { mode: 'seated', passenger: !!m.cr });
       } else {
         caddy.root.position.set(R.c[0], R.c[1], R.c[2]);
         caddy.root.rotation.set(0, Math.PI - R.c[3], 0);
@@ -16677,9 +17586,9 @@ const Remote = (() => {
       // Step out of the way of the camera when it's right on top of them.
       const cp = camera.position;
       const near = (o, r) => o.position.distanceTo(cp) < r;
-      golfer.root.visible = !(m.m !== 'c' && near(golfer.root, NEAR_CAMERA));
-      caddy.root.visible = !(!m.cr && near(caddy.root, NEAR_CAMERA));
-      bag.root.visible = !(m.bg && near(bag.root, NEAR_CAMERA));
+      golfer.root.visible = !(m.m !== 'c' && (near(golfer.root, NEAR_CAMERA) || (clear && inTheWay(golfer.root, camera))));
+      caddy.root.visible = m.cv !== 0 && !(!m.cr && !m.cd && (near(caddy.root, NEAR_CAMERA) || (clear && inTheWay(caddy.root, camera))));
+      bag.root.visible = !(m.bg && (near(bag.root, NEAR_CAMERA) || (clear && inTheWay(bag.root, camera))));
       cart.root.visible = !near(cart.root, 1.9);
 
       // Name tag over their head.
@@ -16689,7 +17598,7 @@ const Remote = (() => {
       const dist = p.distanceTo(cp);
       p.project(camera);
       const x = (p.x * 0.5 + 0.5) * w, y = (-p.y * 0.5 + 0.5) * h;
-      const on = showTag && p.z < 1 && x > 10 && x < w - 10 && y > 10 && y < h - 10 && dist < 260 && dist > 1.5;
+      const on = showTag && golfer.root.visible && p.z < 1 && x > 10 && x < w - 10 && y > 10 && y < h - 10 && dist < 260 && dist > 1.5;
       UI.marker(tag.id, x, y, false, on, R.name, w, h);
     }
 
@@ -16703,7 +17612,7 @@ const Remote = (() => {
     return Object.assign(R, { apply, update, dispose, cart, golfer, caddy });
   }
 
-  return { create, COLORS };
+  return { create };
 })();
 
 // ===== main.js =====
@@ -16716,6 +17625,23 @@ const Remote = (() => {
 // Modes: title -> select -> walk <-> cart, walk <-> shot, walk <-> bag.
 // The ball simulates on its own timeline, whatever the player is doing.
 // ---------------------------------------------------------------------------
+
+// Which course to load: from the address (#course=golden or ?course=golden),
+// else the one played last. Switching reloads the page into the other course.
+const COURSE_KEY = 'pinehaven-course';
+const COURSE_ID = (() => {
+  const m = /course=(\w+)/.exec(location.hash) || /[?&]course=(\w+)/.exec(location.search);
+  let id = m && m[1];
+  if (!id) { try { id = localStorage.getItem(COURSE_KEY); } catch (e) { /* storage unavailable */ } }
+  return courseDef(id).id;
+})();
+// rejoin: { code, name, char } to join that online game again after loading.
+function switchCourse(id, rejoin) {
+  try { localStorage.setItem(COURSE_KEY, id); } catch (e) { /* storage unavailable */ }
+  try { if (rejoin) sessionStorage.setItem('pinehaven-rejoin', JSON.stringify(Object.assign({ at: Date.now() }, rejoin))); } catch (e) { /* storage unavailable */ }
+  location.hash = 'course=' + id;
+  location.reload();
+}
 
 function startGame(saved) {
   const MAX_STROKES = 10;
@@ -16740,14 +17666,15 @@ function startGame(saved) {
     return null;
   }
   const camera = World.camera;
-  const course = buildCourse(COURSE, { images: (id) => Assets.pixels(id) });
+  const DEF = courseDef(COURSE_ID);
+  const course = buildCourse(DEF, { images: (id) => Assets.pixels(id) });
   const HOLES = course.holes;
   const PAR = HOLES.reduce((a, h) => a + h.par, 0);
   UI.setOverview(World.buildCourse(course), course.bounds);
 
   const cart = Cart.create(course);
   World.add(cart.root);
-  cart.place(COURSE.cartStart.x, COURSE.cartStart.z, (COURSE.cartStart.heading || 0) * DEG);
+  cart.place(DEF.cartStart.x, DEF.cartStart.z, (DEF.cartStart.heading || 0) * DEG);
   const bag = Equipment.createBag();
   World.add(bag.root);
   const caddy = Golfer.createCaddy();
@@ -16814,25 +17741,30 @@ function startGame(saved) {
     World.setPinVisible(G.hole, v);
   }
 
-  function placePlayer(x, z, yaw) {
-    Object.assign(G.player, { x, z, y: course.H(x, z), yaw, vx: 0, vz: 0, speed: 0 });
+  // The ground to stand on at (x, z) for someone around height y: the land,
+  // or a bridge deck or tunnel floor (y omitted: the land).
+  const standY = (x, z, y) => (y == null ? course.H(x, z) : course.floor(x, z, y + 0.6));
+  function placePlayer(x, z, yaw, yHint) {
+    Object.assign(G.player, { x, z, y: standY(x, z, yHint), yaw, vx: 0, vz: 0, speed: 0 });
     G.camYaw = yaw;
   }
-  function placeCaddy(x, z, yaw) {
-    Object.assign(G.cad, { x, z, y: course.H(x, z), yaw, speed: 0, riding: false, stuck: 0 });
+  function placeCaddy(x, z, yaw, yHint) {
+    Object.assign(G.cad, { x, z, y: standY(x, z, yHint), yaw, speed: 0, riding: false, stuck: 0 });
   }
 
-  // Where you tee up. Online, each golfer has their own spot four yards along
-  // the tee from the next, so nobody stands in anyone's way.
+  // Where you tee up. Online, each golfer has their own spot on the tee: three
+  // abreast, and a second row behind (anyone in your line of sight steps out
+  // of the picture while you address the ball).
+  const TEE_SPOTS = [[0, 0], [-3.5, 0], [3.5, 0], [-3.5, -4.5], [3.5, -4.5], [0, -4.5]];
   function teeSpot(h) {
-    const off = G.mp ? [0, -4, 4][G.mp.slot] || 0 : 0;
-    if (!off) return { x: h.tee.x, z: h.tee.z };
-    const rx = -h.teeDir.z, rz = h.teeDir.x;
+    const [side, along] = G.mp ? TEE_SPOTS[G.mp.slot] || [0, 0] : [0, 0];
+    if (!side && !along) return { x: h.tee.x, z: h.tee.z };
+    const rx = -h.teeDir.z, rz = h.teeDir.x, fx = h.teeDir.x, fz = h.teeDir.z;
     for (const f of [1, 0.75, 0.5]) {
-      const x = h.tee.x + rx * off * f, z = h.tee.z + rz * off * f;
+      const x = h.tee.x + rx * side * f + fx * along, z = h.tee.z + rz * side * f + fz * along;
       if (course.surface(x, z) === S_TEE) return { x, z };
     }
-    return { x: h.tee.x + rx * off * 0.5, z: h.tee.z + rz * off * 0.5 };
+    return { x: h.tee.x + rx * side * 0.5 + fx * along * 0.5, z: h.tee.z + rz * side * 0.5 + fz * along * 0.5 };
   }
 
   // ---------- holes & round ----------
@@ -16859,6 +17791,12 @@ function startGame(saved) {
     if (golfer) { golfer.root.removeFromParent(); }
     golfer = Golfer.create(CHARACTERS[i]);
     World.add(golfer.root);
+    // Your ball, your cart and your caddy's flag are in your colours.
+    const cs = CHARACTERS[i].colors;
+    World.setBallColor(cs.ball);
+    cart.setColors(cs);
+    caddy.setFlagColors(cs);
+    UI.$('ballMarker').style.setProperty('--c', cs.ui);
   }
 
   function startRound(at, scores) {
@@ -16870,15 +17808,17 @@ function startGame(saved) {
     UI.show('hud', true);
     activateHole(at);
     G.clubIndex = 0; // the driver, for the opening tee shot
+    G.fetch = null; G.cad.driving = false;
     G.bagWhere = 'caddy';
     G.bagSpot = null;
     const h = hole();
     if (at === 0) {
       // Online, everyone starts side by side, each with their own cart.
-      const cl = course.clubhouse, k = G.mp ? [0, -1, 1][G.mp.slot] || 0 : 0;
-      const pr = rightOf(-0.6), cs = COURSE.cartStart, ch = (cs.heading || 0) * DEG, cr = rightOf(ch);
+      const cl = course.clubhouse, slot = G.mp ? G.mp.slot : 0, k = [0, -1, 1, -2, 2, -3][slot] || 0;
+      const pr = rightOf(-0.6);
       placePlayer(cl.x - 8 + pr.x * 2.2 * k, cl.z - 18 + pr.z * 2.2 * k, -0.6);
-      cart.place(cs.x + cr.x * 3 * k, cs.z + cr.z * 3 * k, ch);
+      const sp = cartSpot(slot);
+      cart.place(sp.x, sp.z, sp.yaw);
       if (G.mp) UI.toast('Out on the course together', 'Everyone plays their own ball. Wait for each other at the end of each hole.', 4200);
       else UI.toast('Welcome to Pinehaven', 'Walk to the 1st tee, or hop in the cart. Your caddy has the bag.', 3800);
     } else {
@@ -16897,10 +17837,23 @@ function startGame(saved) {
     saveProgress();
   }
 
+  // Where cart number n parks at the start: the n-th clear spot in a row
+  // (everyone works this out the same way, so no two carts share a spot).
+  function cartSpot(n) {
+    const cs = DEF.cartStart, yaw = (cs.heading || 0) * DEG, r = rightOf(yaw), f = dirFromYaw(yaw);
+    const spots = [];
+    for (const row of [0, -4.5, 4.5])
+      for (const k of [0, -1, 1, -2, 2, -3, 3]) {
+        const x = cs.x + r.x * 3 * k + f.x * row, z = cs.z + r.z * 3 * k + f.z * row;
+        if (cart.clearAt(x, z, yaw, course.H(x, z))) spots.push({ x, z, yaw });
+      }
+    return spots[n] || spots[0] || { x: cs.x, z: cs.z, yaw };
+  }
+
   function saveProgress() {
     if (G.mp) return; // online rounds can't be resumed
     const st = store.load();
-    st.round = { scores: G.scores.slice(), next: G.hole };
+    st.round = { scores: G.scores.slice(), next: G.hole, course: DEF.id };
     st.character = G.character;
     store.save(st);
   }
@@ -16908,11 +17861,18 @@ function startGame(saved) {
   function finishRound() {
     const total = G.scores.reduce((a, s) => a + s, 0);
     const st = store.load();
-    if (!st.best || total < st.best) st.best = total;
+    const best = bestOf(st);
+    if (!best || total < best) setBest(st, total);
     if (!G.mp) st.round = null;
     store.save(st);
     G.inRound = false;
   }
+
+  // Best rounds and saved rounds belong to a course (Pinehaven's from before
+  // there was a choice live in the old places).
+  function bestOf(st) { return DEF.id === 'pinehaven' ? st.best : (st.bests || {})[DEF.id]; }
+  function setBest(st, v) { if (DEF.id === 'pinehaven') st.best = v; else (st.bests = st.bests || {})[DEF.id] = v; }
+  const roundHere = (r) => r && (r.course || 'pinehaven') === DEF.id;
 
   // ---------- character select ----------
   function lineupBase() {
@@ -16937,7 +17897,7 @@ function startGame(saved) {
     const hex = (n) => '#' + n.toString(16).padStart(6, '0');
     UI.$('selCards').innerHTML = CHARACTERS.map((c, i) =>
       `<button class="sel-card" data-i="${i}"><b>${c.name}</b><span class="h">${c.heightLabel}</span>` +
-      `<span class="sw" aria-hidden="true"><i style="background:${hex(c.hair)}"></i><i style="background:${hex(c.shirt)}"></i><i style="background:${hex(c.pants)}"></i></span>` +
+      `<span class="sw" aria-hidden="true"><i style="background:${hex(c.colors.primary)}"></i><i style="background:${hex(c.colors.secondary)}"></i><i class="ball" style="background:${hex(c.colors.ball)}"></i></span>` +
       `<span class="sw-l">${c.look}</span></button>`).join('');
     UI.$('selCards').querySelectorAll('.sel-card').forEach((el) => {
       el.addEventListener('click', () => {
@@ -16981,11 +17941,21 @@ function startGame(saved) {
   function updateLineup(dt) {
     const base = lineupBase();
     const gy = course.H(base.x, base.z);
-    const D = 7.2;
     camera.updateProjectionMatrix();
-    const halfW = D * Math.tan((camera.fov * DEG) / 2) * camera.aspect;
+    // On a narrow screen, the three golfers in the selected card's row.
+    const row = camera.aspect < 0.9 && lineup.length > 3 ? Math.floor(G.select.index / 3) * 3 : -1;
+    const shown = lineup.map((_, i) => i).filter((i) => row < 0 || (i >= row && i < row + 3));
+    G.select.shown = shown;
+    const N = shown.length;
+    // Back off on narrow screens so everyone fits.
+    const spread = Math.tan((camera.fov * DEG) / 2) * camera.aspect;
+    const D = Math.max(7.2, (N * 1.15) / 2 / spread / 0.92);
+    const halfW = D * spread;
     lineup.forEach((g, i) => {
-      const ndc = (i - 1) * (2 / 3);
+      const k = shown.indexOf(i);
+      g.root.visible = k >= 0;
+      if (k < 0) return;
+      const ndc = ((k + 0.5) / N) * 2 - 1;
       // The camera looks south (+Z), so screen-right is world -X.
       const x = base.x - ndc * halfW * 0.92, z = base.z;
       g.root.position.set(x, course.H(x, z), z);
@@ -17015,7 +17985,18 @@ function startGame(saved) {
     return lie === S_TEE ? 0 : 1;
   }
 
+  // Stepping up to the ball you're never quite lined up: a nudge either way,
+  // a degree or two on the green, a few degrees for a full shot.
+  function aimNudge(putt) {
+    if (Math.random() < 0.15) return (Math.random() - 0.5) * (putt ? 0.5 : 1.2) * DEG;
+    const mag = putt ? 0.6 + Math.random() * 1.6 : 1.5 + Math.random() * 3.5;
+    return (Math.random() < 0.5 ? -1 : 1) * mag * DEG;
+  }
+
   function defaultAim() {
+    return wrapAngle(idealAim() + aimNudge(club().putter));
+  }
+  function idealAim() {
     const b = G.ball.p, pin = hole().pin, c = club();
     const yPin = yawFromDir(pin.x - b.x, pin.z - b.z);
     if (c.putter) return yPin;
@@ -17081,15 +18062,7 @@ function startGame(saved) {
       pts.push({ x: sim.p.x, y: sim.p.y, z: sim.p.z });
       G.preview = { pts, landing: { x: sim.p.x, z: sim.p.z }, end: { x: sim.p.x, z: sim.p.z } };
     }
-    // Only the start of the line is drawn: which way it sets off and how high,
-    // not where it comes down. (The full flight still frames the cameras.)
-    const reach = c.putter ? 1.2 : 14;
-    const near = [];
-    for (const p of G.preview.pts) {
-      if (Math.hypot(p.x - b.x, p.z - b.z) > reach) break;
-      near.push(p);
-    }
-    World.setGuides(near, null, c.putter);
+    // Nothing is drawn: the flight only frames the landing-area cameras.
   }
 
   // ---------- addressing the ball ----------
@@ -17271,7 +18244,7 @@ function startGame(saved) {
         bag.root.rotateX(-0.2);
       } else {
         const x = c.x + r.x * 0.55 + f.x * 0.2, z = c.z + r.z * 0.55 + f.z * 0.2;
-        bag.root.position.set(x, course.H(x, z), z);
+        bag.root.position.set(x, standY(x, z, c.y), z);
         bag.root.rotation.set(0, Math.PI - c.yaw + 0.6, 0);
         bag.root.rotateX(-0.1);
       }
@@ -17282,8 +18255,119 @@ function startGame(saved) {
   }
 
   // ---------- the caddy ----------
+  // ---------- the caddy fetches the cart ----------
+  // He sets the bag down beside you and runs off; once he's out of sight the
+  // cart is "on its way" (half a minute if it was a long way off), and he
+  // turns up driving it in from somewhere you aren't looking.
+  const FETCH_NEAR = 30;
+  function canFetch() {
+    return G.mode === 'walk' && !G.fetch && !G.cad.riding && Math.hypot(cart.st.x - G.player.x, cart.st.z - G.player.z) > FETCH_NEAR;
+  }
+  function fetchCart() {
+    if (G.mode !== 'walk' || G.cad.riding) return;
+    if (G.fetch) { UI.toast('Your caddy is already on it', 'The cart is on its way', 1800); return; }
+    const d = Math.hypot(cart.st.x - G.player.x, cart.st.z - G.player.z);
+    if (d <= FETCH_NEAR) { UI.toast('The cart’s right there', 'Walk over and press E to drive', 1800); return; }
+    // Leave the clubs with you.
+    if (G.bagWhere === 'caddy' && !G.bagSpot) {
+      const P = G.player, r = rightOf(P.yaw), x = P.x + r.x * 1.2, z = P.z + r.z * 1.2;
+      G.bagSpot = { x, y: standY(x, z, P.y), z, ry: Math.PI - P.yaw + 0.6 };
+    }
+    G.fetch = { phase: 'leaving', t: 0, wait: d > 120 ? 30 : clamp(d / 5, 5, 30), from: { x: cart.st.x, z: cart.st.z } };
+    UI.toast('“I’ll fetch the cart!”', d > 120 ? 'It’s a long way back: give him half a minute' : 'He won’t be long', 2600);
+    Sound.click();
+  }
+  // Is a point on screen right now?
+  function onScreen(x, y, z) {
+    const p = project(x, y, z);
+    return !p.behind && p.x > -40 && p.x < p.w + 40 && p.y > -40 && p.y < p.h + 40;
+  }
+  function updateFetch(dt) {
+    const f = G.fetch, c = G.cad, P = G.player;
+    f.t += dt;
+    if (f.phase === 'leaving') {
+      // Run off (towards the cart if that's possible, else away from you).
+      let dx = f.from.x - c.x, dz = f.from.z - c.z;
+      if (Math.hypot(dx, dz) < 5) { dx = c.x - P.x; dz = c.z - P.z; }
+      const l = Math.hypot(dx, dz) || 1;
+      let mx = dx / l, mz = dz / l, moved = false;
+      for (const a of [0, 0.6, -0.6, 1.2, -1.2, 1.8, -1.8]) {
+        const ca = Math.cos(a), sa = Math.sin(a), vx = mx * ca - mz * sa, vz = mx * sa + mz * ca;
+        if (!blockedAt(c.x + vx * 0.6, c.z + vz * 0.6, true)) { mx = vx; mz = vz; moved = true; break; }
+      }
+      c.speed += ((moved ? RUN : 0) - c.speed) * (1 - Math.exp(-dt * 6));
+      c.x += mx * c.speed * dt; c.z += mz * c.speed * dt;
+      c.yaw += wrapAngle(yawFromDir(mx, mz) - c.yaw) * (1 - Math.exp(-dt * 10));
+      c.y = standY(c.x, c.z, c.y);
+      caddy.root.position.set(c.x, c.y, c.z);
+      caddy.root.rotation.set(0, Math.PI - c.yaw, 0);
+      caddy.update(dt, { mode: 'walk', speed: c.speed });
+      const gone = !onScreen(c.x, c.y + 1, c.z) || Math.hypot(c.x - P.x, c.z - P.z) > 60 || f.t > 12;
+      if (gone && f.t > 1) { caddy.setVisible(false); f.phase = 'away'; f.t = 0; }
+      return;
+    }
+    if (f.phase === 'away') {
+      if (f.t < f.wait) return;
+      const spot = cartArrival();
+      if (!spot) { f.t = f.wait - 2; return; } // nowhere out of sight yet: try again shortly
+      cart.place(spot.x, spot.z, spot.yaw, spot.y);
+      c.driving = true;
+      caddy.setVisible(true);
+      Object.assign(f, { phase: 'arriving', t: 0, best: Infinity, stall: 0, park: null });
+    }
+    if (f.phase === 'arriving') {
+      // Drive in and pull up a few yards to one side of you.
+      const st = cart.st;
+      if (!f.park) {
+        const ax = P.x - st.x, az = P.z - st.z, al = Math.hypot(ax, az) || 1;
+        f.park = { x: P.x - (ax / al) * 3 - (az / al) * 4, z: P.z - (az / al) * 3 + (ax / al) * 4 };
+      }
+      const dx = f.park.x - st.x, dz = f.park.z - st.z, d = Math.hypot(dx, dz);
+      const diff = wrapAngle(yawFromDir(dx, dz) - st.yaw);
+      const arrive = d < 3.5 || Math.hypot(P.x - st.x, P.z - st.z) < 4.5;
+      cart.update(dt, { throttle: arrive ? 0 : Math.abs(diff) > 1.1 ? 0.35 : d < 14 ? 0.3 : 0.8, steer: clamp(diff * 1.8, -1, 1), brake: arrive });
+      if (d < f.best - 0.5) { f.best = d; f.stall = 0; } else f.stall += dt;
+      const s = cart.seatPose(caddy.seatScale);
+      Object.assign(c, { x: s.x, z: s.z, y: s.y, yaw: s.yaw, speed: 0 });
+      caddy.root.position.set(s.x, s.y, s.z);
+      caddy.root.rotation.set(0, Math.PI - s.yaw, 0);
+      caddy.update(dt, { mode: 'seated' });
+      // Pulled up (or stuck on something: he gets out and you walk the last bit).
+      if ((arrive && Math.abs(st.speed) < 0.3) || f.stall > 4 || f.t > 40) {
+        st.speed = 0;
+        const q = cart.exitSpot(false);
+        placeCaddy(q.x, q.z, st.yaw, st.y);
+        c.driving = false;
+        G.fetch = null;
+        UI.toast('“Your cart!”', 'Hop in with E', 2200);
+      }
+    }
+  }
+  // Somewhere 30-45 yards away, out of sight, clear for the cart and at about
+  // your level (not up on a mesa when you're down below), to drive in from.
+  function cartArrival() {
+    const P = G.player;
+    let best = null;
+    for (let k = 0; k < 48; k++) {
+      const a = (k / 48) * TAU, r = 32 + (k % 3) * 6;
+      const x = P.x + Math.cos(a) * r, z = P.z + Math.sin(a) * r;
+      if (!course.inBounds(x, z)) continue;
+      const y = course.H(x, z);
+      if (Math.abs(y - P.y) > 4 || course.waterLevel(x, z) > y - 0.1) continue;
+      const yaw = yawFromDir(P.x - x, P.z - z);
+      if (!cart.clearAt(x, z, yaw, y)) continue;
+      const surf = course.surface(x, z);
+      if (surf === S_GREEN || surf === S_SAND || surf === S_ROCK) continue;
+      const hidden = !onScreen(x, y + 1, z);
+      const score = (hidden ? 0 : 100) + Math.abs(y - P.y) * 3 + (surf === S_PATH ? -2 : 0);
+      if (!best || score < best.score) best = { x, z, y, yaw, score };
+    }
+    return best && best.score < 100 ? best : (G.fetch && G.fetch.t > G.fetch.wait + 8 ? best : null);
+  }
+
   function updateCaddy(dt) {
     const c = G.cad, P = G.player;
+    if (G.fetch) { updateFetch(dt); return; }
     if (c.riding) {
       const s = cart.seatPose(caddy.seatScale, true);
       Object.assign(c, { x: s.x, z: s.z, y: s.y, yaw: s.yaw, speed: 0 });
@@ -17309,8 +18393,10 @@ function startGame(saved) {
       near = 0.45;
       if (Math.hypot(c.x - spot.x, c.z - spot.z) < 0.75) G.bagSpot = null;
     } else if (G.mode === 'shot') {
+      // Off to the side behind you; online, well back out of everyone's way.
       const b = G.ball.p, d = dirFromYaw(G.aimYaw), r = rightOf(G.aimYaw);
-      tx = b.x - d.x * 3.4 - r.x * 3.6; tz = b.z - d.z * 3.4 - r.z * 3.6;
+      const back = G.mp ? 8 : 3.4, side = G.mp ? 1.5 : 3.6;
+      tx = b.x - d.x * back - r.x * side; tz = b.z - d.z * back - r.z * side;
       near = 0.6;
     } else {
       const dx = c.x - P.x, dz = c.z - P.z, d = Math.hypot(dx, dz) || 1;
@@ -17346,10 +18432,10 @@ function startGame(saved) {
       const f = dirFromYaw(P.yaw), r = rightOf(P.yaw);
       for (const [b, s] of [[6, -3], [6, 3], [3, -5], [3, 5], [9, 0]]) {
         const x = P.x - f.x * b + r.x * s, z = P.z - f.z * b + r.z * s;
-        if (!blockedAt(x, z, true)) { placeCaddy(x, z, P.yaw); G.bagSpot = null; break; }
+        if (!blockedAt(x, z, true, P.y)) { placeCaddy(x, z, P.yaw, P.y); G.bagSpot = null; break; }
       }
     }
-    c.y = course.H(c.x, c.z);
+    c.y = standY(c.x, c.z, c.y);
     caddy.root.position.set(c.x, c.y, c.z);
     caddy.root.rotation.set(0, Math.PI - c.yaw, 0);
     caddy.update(dt, { mode: 'walk', speed: c.speed, carry: c.speed > 0.4 && G.bagWhere === 'caddy' && !G.bagSpot });
@@ -17407,7 +18493,9 @@ function startGame(saved) {
   function startDownswing(power, e) {
     G.shotPhase = 'down';
     // A little of the golfer's own variation, more on a full swing.
-    const jitter = ((Math.random() + Math.random() + Math.random()) / 1.5 - 1) * (0.03 + 0.06 * power * power);
+    // Giving it everything sprays it: the last stretch of the backswing adds the most.
+    const flat = Math.max(0, (power - 0.85) / 0.15);
+    const jitter = ((Math.random() + Math.random() + Math.random()) / 1.5 - 1) * (0.03 + 0.06 * power * power + 0.26 * flat * flat);
     Object.assign(G.swing, { t: 0, from: -G.swing.top * power, power, e: e + jitter, fired: false,
       finish: G.swing.putt ? 0.15 + 0.35 * power : 2.3 });
     if (!G.swing.putt) Sound.swing(power);
@@ -17710,10 +18798,16 @@ function startGame(saved) {
     st.name = Net.cleanName(UI.$('lbName').value);
     store.save(st);
   }
+  // In a game each golfer can be played by one person only.
   function renderLobbyChars() {
-    UI.$('lbChars').innerHTML = CHARACTERS.map((c, i) =>
-      `<button class="lb-char${i === lobby.char ? ' on' : ''}" data-i="${i}"><b>${c.name}</b><span>${c.heightLabel}</span></button>`).join('');
-    UI.$('lbChars').querySelectorAll('.lb-char').forEach((el) => el.addEventListener('click', () => {
+    const takenBy = new Map();
+    if (Net.active) for (const p of Net.players) if (p.slot !== Net.slot) takenBy.set(p.char, p.name || defaultName(p.slot));
+    UI.$('lbChars').innerHTML = CHARACTERS.map((c, i) => {
+      const who = takenBy.get(i);
+      return `<button class="lb-char${i === lobby.char ? ' on' : ''}${who ? ' taken' : ''}" data-i="${i}"${who ? ' disabled' : ''}>` +
+        `<i style="background:${c.colors.ui}"></i><b>${c.name}</b><span>${who ? UI.esc(who) : c.heightLabel}</span></button>`;
+    }).join('');
+    UI.$('lbChars').querySelectorAll('.lb-char:not(.taken)').forEach((el) => el.addEventListener('click', () => {
       lobby.char = Number(el.dataset.i);
       renderLobbyChars();
       saveMe();
@@ -17735,11 +18829,16 @@ function startGame(saved) {
     UI.$('lbHost').disabled = UI.$('lbJoin').disabled = lobby.busy;
     if (!inRoom) return;
     UI.text('lbCodeShow', Net.code);
+    UI.text('lbCourse', '· ' + courseDef(Net.room.course || DEF.id).name);
     const pl = Net.players.slice().sort((a, b) => a.slot - b.slot);
+    // The host may have handed us another golfer if ours was taken.
+    const mine = pl.find((p) => p.slot === Net.slot);
+    if (mine && mine.char !== lobby.char) { lobby.char = mine.char; saveMe(); }
+    renderLobbyChars();
     UI.$('lbPlayers').innerHTML = pl.map((p) => {
       const c = CHARACTERS[p.char] || CHARACTERS[0];
       const who = [p.slot === Net.slot ? 'You' : '', p.slot === 0 ? 'Host' : ''].filter(Boolean).join(' · ');
-      return `<li><i style="background:${Remote.COLORS[p.slot]}"></i><b>${UI.esc(p.name || defaultName(p.slot))}</b>` +
+      return `<li><i style="background:${c.colors.ui}"></i><b>${UI.esc(p.name || defaultName(p.slot))}</b>` +
         `<span>${UI.esc(c.name)}</span>${who ? `<em>${who}</em>` : ''}</li>`;
     }).join('');
     UI.show('lbGo', Net.isHost);
@@ -17755,7 +18854,7 @@ function startGame(saved) {
     lobbyView();
     lobbyStatus('Setting up a game…');
     try {
-      await Net.host(lobbyMe());
+      await Net.host(lobbyMe(), { course: DEF.id });
       if (token !== lobby.token) return;
       lobbyStatus('Give your friends the code: they choose Play with friends, type it in and press Join.');
     } catch (e) {
@@ -17778,6 +18877,15 @@ function startGame(saved) {
     try {
       await Net.join(code, lobbyMe());
       if (token !== lobby.token) return;
+      // The game is on the other course: go there, then join again.
+      const there = Net.room.course;
+      if (there && there !== DEF.id) {
+        lobbyStatus(`That game is on ${courseDef(there).name}. Heading there…`);
+        const me = lobbyMe();
+        Net.leave();
+        setTimeout(() => switchCourse(there, { code, name: me.name, char: me.char }), 600);
+        return;
+      }
       lobbyStatus('You’re in. The host tees off when everyone’s here.');
     } catch (e) {
       if (token !== lobby.token) return;
@@ -17800,7 +18908,6 @@ function startGame(saved) {
     G.mp.name = G.mp.players.get(me).name;
     UI.show('lobby', false);
     setCharacter(G.mp.players.get(me).char);
-    World.setBallColor(Remote.COLORS[me]);
     startRound(0, []);
     UI.show('mpList', true);
     renderMpList();
@@ -17809,13 +18916,14 @@ function startGame(saved) {
   function mpPlayer(s, m) {
     let p = G.mp.players.get(s);
     if (!p) {
-      p = { slot: s, name: '', char: clamp((m && m.ch) | 0, 0, CHARACTERS.length - 1), color: Remote.COLORS[s], scores: [], left: false };
+      const char = clamp((m && m.ch) | 0, 0, CHARACTERS.length - 1);
+      p = { slot: s, name: '', char, color: CHARACTERS[char].colors.ui, scores: [], left: false };
       p.name = (m && Net.cleanName(m.nm)) || defaultName(s);
       G.mp.players.set(s, p);
     }
     return p;
   }
-  const validSlot = (s) => s === 0 || s === 1 || s === 2;
+  const validSlot = (s) => Number.isInteger(s) && s >= 0 && s < Net.MAX;
 
   function onRemoteState(m) {
     if (!G.mp || !validSlot(m.s) || m.s === G.mp.slot || !Array.isArray(m.g) || !Array.isArray(m.c) || !Array.isArray(m.k) || !Array.isArray(m.b)) return;
@@ -17899,7 +19007,6 @@ function startGame(saved) {
     Net.leave();
     UI.html('mpList', '');
     UI.show('mpList', false);
-    World.setBallColor('#ffffff');
   }
   // Leave the course for the title screen.
   function backToTitle() {
@@ -17915,11 +19022,11 @@ function startGame(saved) {
     UI.show('hud', false);
     if (golfer) { golfer.root.removeFromParent(); golfer = null; }
     caddy.setVisible(false);
-    G.cad.riding = false;
+    G.cad.riding = false; G.cad.driving = false; G.fetch = null;
     activateHole(0);
     const cl = course.clubhouse;
     placePlayer(cl.x - 8, cl.z - 18, -0.6);
-    cart.place(COURSE.cartStart.x, COURSE.cartStart.z, (COURSE.cartStart.heading || 0) * DEG);
+    cart.place(DEF.cartStart.x, DEF.cartStart.z, (DEF.cartStart.heading || 0) * DEG);
     UI.show('title', true);
   }
 
@@ -17936,7 +19043,7 @@ function startGame(saved) {
       g: [r2(gr.position.x), r2(gr.position.y), r2(gr.position.z), r3(Math.PI - gr.rotation.y)],
       ps: POSE_CODE[pose.mode] || 0, sp: r2(pose.speed || 0), sw: r3(pose.swing || 0), pu: pose.putt ? 1 : 0,
       cl: G.clubIndex, fa: r3(G.mode === 'shot' ? G.setup.face : 0),
-      c: [r2(c.x), r2(c.y), r2(c.z), r3(c.yaw), r2(c.speed)], cr: c.riding ? 1 : 0,
+      c: [r2(c.x), r2(c.y), r2(c.z), r3(c.yaw), r2(c.speed)], cr: c.riding ? 1 : 0, cd: c.driving ? 1 : 0, cv: caddy.root.visible ? 1 : 0,
       cc: !c.riding && c.speed > 0.4 && G.bagWhere === 'caddy' && !G.bagSpot ? 1 : 0,
       k: [r2(k.x), r2(k.y), r2(k.z), r3(k.yaw), r3(k.steer), r3(k.pitch), r3(k.roll)], ks: r2(k.speed),
       bg: onCart ? 0 : [r2(bp.x), r2(bp.y), r2(bp.z), r3(bq.x), r3(bq.y), r3(bq.z), r3(bq.w)], bo: G.clubIndex,
@@ -17957,7 +19064,8 @@ function startGame(saved) {
     }
     const show = (G.mode === 'walk' || G.mode === 'cart' || G.mode === 'shot') && !overlayOpen() && !G.setupView;
     const w = canvas.clientWidth, h = canvas.clientHeight;
-    for (const r of mp.remotes.values()) r.update(dt, camera, show, w, h);
+    const clear = G.mode === 'shot' && !G.ballCam;
+    for (const r of mp.remotes.values()) r.update(dt, camera, show, w, h, clear);
     mp.listT -= dt;
     if (mp.listT <= 0) { mp.listT = 0.5; renderMpList(); }
   }
@@ -17980,6 +19088,8 @@ function startGame(saved) {
 
   // ---------- the cart ----------
   function enterCart() {
+    // Climbing in while the caddy drives it over: he shifts across.
+    if (G.fetch) { G.fetch = null; G.cad.driving = false; caddy.setVisible(true); }
     G.mode = 'cart';
     G.holdFinish = false;
     G.cartLook = 0;
@@ -17991,10 +19101,10 @@ function startGame(saved) {
   function exitCart() {
     const p = cart.exitSpot();
     cart.st.speed = 0;
-    placePlayer(p.x, p.z, cart.st.yaw);
+    placePlayer(p.x, p.z, cart.st.yaw, cart.st.y);
     G.camYaw = cart.st.yaw + G.cartLook;
     const q = cart.exitSpot(true);
-    placeCaddy(q.x, q.z, cart.st.yaw);
+    placeCaddy(q.x, q.z, cart.st.yaw, cart.st.y);
     G.mode = 'walk';
     UI.setMode('walk');
     Sound.engine(0);
@@ -18019,9 +19129,14 @@ function startGame(saved) {
   }
 
   // Can a person stand here? (`isCaddy`: the caddy ignores the player and the bag.)
-  function blockedAt(x, z, isCaddy) {
+  // y: the height of whoever is moving (for bridges and tunnels).
+  function blockedAt(x, z, isCaddy, y) {
     if (!course.inBounds(x, z)) return true;
-    if (course.waterLevel(x, z) > course.H(x, z) + 0.25) return true;
+    const yRef = y == null ? (isCaddy ? G.cad.y : G.player.y) : y;
+    const gy = standY(x, z, yRef);
+    if (course.waterLevel(x, z) > gy + 0.25) return true;
+    // A sudden drop or wall: the edge of a bridge, the side of a tunnel.
+    if (Math.abs(gy - yRef) > 0.9) return true;
     const trees = course.nearTrees(x, z);
     if (trees) for (const t of trees) if (Math.hypot(x - t.x, z - t.z) < t.trunkR + 0.28) return true;
     for (const o of course.obstacles) if (Math.abs(x - o.x) < o.hx + 0.3 && Math.abs(z - o.z) < o.hz + 0.3) return true;
@@ -18056,6 +19171,9 @@ function startGame(saved) {
     const surf = course.surface(P.x, P.z);
     if (surf === S_SAND) target *= 0.6;
     else if (surf === S_DEEP) target *= 0.85;
+    // Steep ground is a scramble (a ramp or a bridge is quicker).
+    const n = course.floorInfo(P.x, P.z, P.y + 0.6).kind ? null : course.normal(P.x, P.z);
+    if (n && n.y < 0.85) target *= clamp(1 - (0.85 - n.y) * 2.4, 0.22, 1);
     const yaw = G.camYaw;
     const fw = dirFromYaw(yaw), rt = rightOf(yaw);
     let mx = fw.x * inp.f + rt.x * inp.r, mz = fw.z * inp.f + rt.z * inp.r;
@@ -18076,7 +19194,7 @@ function startGame(saved) {
       const want = yawFromDir(P.vx, P.vz);
       P.yaw += wrapAngle(want - P.yaw) * (1 - Math.exp(-dt * 12));
     }
-    P.y = course.H(P.x, P.z);
+    P.y = standY(P.x, P.z, P.y);
     if (P.speed > 1) {
       G.stepT -= dt * P.speed;
       if (G.stepT <= 0) { G.stepT = 1.25; Sound.step(surf); }
@@ -18109,22 +19227,26 @@ function startGame(saved) {
   const cam = { pos: new V3(0, 30, 60), look: new V3(0, 0, 0), tPos: new V3(), tLook: new V3() };
   const focus = new V3();
 
+  const _eye = new THREE.Vector3();
   function shotPose(outPos, outLook) {
     const b = G.ball.p, d = dirFromYaw(G.aimYaw), r = rightOf(G.aimYaw);
     const putt = isPutt();
     const s = gScale();
     if (G.setupView) {
-      // Looking down on the ball from just behind it, the target at the top
-      // of the screen: the face against the alignment stick, and where on
-      // the face the ball sits.
-      outPos.set(b.x - d.x * 0.42, b.y + 0.9, b.z - d.z * 0.42);
-      outLook.set(b.x - d.x * 0.03, b.y, b.z - d.z * 0.03);
+      // Through the golfer's own eyes, looking down at the club behind the
+      // ball, the target off to the left: the face against the alignment
+      // stick, and where on the face the ball sits.
+      // (Leaning in along that line, so the ball and club head fill the view.)
+      golfer.joints.head.getWorldPosition(_eye);
+      _eye.x += r.x * 0.1; _eye.y += 0.04; _eye.z += r.z * 0.1;
+      outPos.set(b.x + (_eye.x - b.x) * 0.55, b.y + (_eye.y - b.y) * 0.55, b.z + (_eye.z - b.z) * 0.55);
+      outLook.set(b.x - r.x * 0.05, b.y, b.z - r.z * 0.05);
       World.setAlignmentStick({ x: b.x + r.x * 0.28, z: b.z + r.z * 0.28, yaw: G.aimYaw, face: golfer.faceInfo() });
       return;
     }
     if (G.fp) {
       const st = stanceFor(G.aimYaw);
-      const gy = course.H(st.x, st.z);
+      const gy = standY(st.x, st.z, G.ball.p.y);
       outPos.set(st.x - d.x * 0.15, gy + (putt ? 1.45 : 1.58) * s, st.z - d.z * 0.15);
       const ahead = putt ? clamp(distToPin(), 3, 14) : 45;
       outLook.set(b.x + d.x * ahead, b.y + (putt ? -0.4 : 2), b.z + d.z * ahead);
@@ -18198,7 +19320,10 @@ function startGame(saved) {
         else {
           const dist = Math.hypot(b.x - sh.start.x, b.z - sh.start.z);
           const back = 9 + Math.min(dist * 0.03, 8);
+          // Low behind it inside a tunnel, otherwise up and back.
+          const inside = course.floorInfo(b.x, b.z, b.y).kind === 2;
           cam.tPos.set(b.x - d.x * back, Math.max(b.y, course.H(b.x, b.z)) + 3.5 + Math.min(dist * 0.02, 6), b.z - d.z * back);
+          if (inside) cam.tPos.y = b.y + 1.2;
         }
         rate = sh.putter ? 1.6 : 1.3;
       } else {
@@ -18244,7 +19369,7 @@ function startGame(saved) {
     const kp = 1 - Math.exp(-dt * rate), kl = 1 - Math.exp(-dt * lookRate);
     cam.pos.lerp(cam.tPos, kp);
     cam.look.lerp(cam.tLook, kl);
-    const gh = course.H(cam.pos.x, cam.pos.z);
+    const gh = course.floor(cam.pos.x, cam.pos.z, cam.pos.y);
     if (cam.pos.y < gh + 0.35) cam.pos.y = gh + 0.35;
     camera.position.copy(cam.pos);
     camera.lookAt(cam.look);
@@ -18265,7 +19390,7 @@ function startGame(saved) {
       pose = { mode: 'seated' };
     } else if (G.mode === 'shot') {
       const st = stanceFor(G.aimYaw);
-      Object.assign(P, { x: st.x, z: st.z, y: course.H(st.x, st.z), yaw: st.face, vx: 0, vz: 0, speed: 0 });
+      Object.assign(P, { x: st.x, z: st.z, y: standY(st.x, st.z, G.ball.p.y), yaw: st.face, vx: 0, vz: 0, speed: 0 });
       golfer.root.position.set(st.x, P.y, st.z);
       golfer.root.rotation.set(0, Math.PI - st.face, 0);
       pose = G.shotPhase === 'aim' ? { mode: 'address', putt: isPutt(), club: club().kind } : { mode: 'swing', putt: G.swing.putt, club: club().kind, swing: G.swing.a };
@@ -18277,6 +19402,7 @@ function startGame(saved) {
     }
     golfer.setFace(G.mode === 'shot' ? G.setup.face : 0);
     golfer.update(dt, pose);
+    golfer.setBodyVisible(!(G.setupView && G.mode === 'shot'));
     G.lastPose = pose;
     // Hidden in first person, and when the bag close-up camera is right where he stands.
     const camInside = G.mode === 'bag' && Math.hypot(camera.position.x - P.x, camera.position.z - P.z) < 0.75 * golfer.scale;
@@ -18296,7 +19422,7 @@ function startGame(saved) {
     const opts = [];
     if (ballPlayable() && !G.cardTimer) opts.push(['ball', distTo(G.ball.p.x, G.ball.p.z), REACH]);
     if (bagAccessible()) opts.push(['bag', distTo(bagBase.x, bagBase.z), BAG_REACH]);
-    opts.push(['cart', distTo(cart.st.x, cart.st.z), REACH]);
+    if (!G.fetch || G.fetch.phase === 'arriving') opts.push(['cart', distTo(cart.st.x, cart.st.z), REACH]);
     let best = null, bd = Infinity;
     for (const [k, d, r] of opts) if (d <= r && d < bd) { best = k; bd = d; }
     return best;
@@ -18316,6 +19442,8 @@ function startGame(saved) {
     UI.prompt(act && !touch ? `<kbd>E</kbd>${label}` : null);
     UI.setActionLabel(act);
     UI.$('hud').classList.toggle('fp', G.fp);
+    const fb = canFetch() && Math.hypot(cart.st.x - P.x, cart.st.z - P.z) > 60;
+    if (UI.$('fetchBtn').hidden === fb) UI.$('fetchBtn').hidden = !fb;
     UI.text('inHandClub', club().name);
 
     if (G.ballState === 'tee') UI.objective(`Hole ${G.hole + 1} tee · <b>${Math.round(distTo(h.tee.x, h.tee.z))} yds</b>`);
@@ -18475,6 +19603,7 @@ function startGame(saved) {
     else if (k === 'KeyC') showCard(!!G.cardAfterHole);
     else if (k === 'KeyM') openOverlay('map');
     else if (k === 'KeyN') toggleMute();
+    else if (k === 'KeyG') fetchCart();
     else if (k === 'KeyH' || k === 'Slash') openOverlay('help');
   });
   window.addEventListener('keyup', (e) => {
@@ -18511,7 +19640,8 @@ function startGame(saved) {
     if (G.mode === 'title' || G.mode === 'workshop') return;
     if (G.mode === 'select') {
       // Click a golfer to pick them.
-      const w = canvas.clientWidth, i = clamp(Math.floor((e.clientX / w) * 3), 0, 2);
+      const shown = G.select.shown || CHARACTERS.map((_, k) => k);
+      const w = canvas.clientWidth, i = shown[clamp(Math.floor((e.clientX / w) * shown.length), 0, shown.length - 1)];
       if (i === G.select.index) confirmSelect(); else chooseSelect(i);
       return;
     }
@@ -18602,6 +19732,7 @@ function startGame(saved) {
   UI.$('fpBtn').addEventListener('click', toggleFP);
   UI.$('cardBtn').addEventListener('click', () => showCard(!!G.cardAfterHole));
   UI.$('mapBtn').addEventListener('click', () => openOverlay('map'));
+  UI.$('fetchBtn').addEventListener('click', fetchCart);
   UI.$('mapClose').addEventListener('click', () => closeOverlay('map'));
   UI.$('helpBtn').addEventListener('click', () => openOverlay('help'));
   UI.$('helpClose').addEventListener('click', () => closeOverlay('help'));
@@ -18637,7 +19768,7 @@ function startGame(saved) {
   UI.$('bagMove').addEventListener('click', moveBag);
   UI.$('resumeBtn').addEventListener('click', () => {
     const r = store.load().round;
-    if (r && r.next < HOLES.length) openSelect(r);
+    if (roundHere(r) && r.next < HOLES.length) openSelect(r);
     else onStart();
   });
 
@@ -18750,11 +19881,20 @@ function startGame(saved) {
   UI.text('tPar', PAR);
   UI.text('tYards', UI.fmtYds(HOLES.reduce((a, h) => a + h.yards, 0)));
   const st = store.load();
-  if (st.best) {
+  const best = bestOf(st);
+  if (best) {
     UI.$('bestLine').hidden = false;
-    UI.$('bestLine').textContent = `Your best round: ${st.best} (${UI.fmtToPar(st.best - PAR)})`;
+    UI.$('bestLine').textContent = `Your best round here: ${best} (${UI.fmtToPar(best - PAR)})`;
   }
-  const resumable = (saved && saved.round) || st.round;
+  UI.$('wordmark').innerHTML = `${DEF.title[0]}<span>${DEF.title[1]}</span>`;
+  UI.text('tagline', DEF.tagline);
+  UI.$('coursePick').innerHTML = COURSES.map((c) => `<button data-id="${c.id}" class="${c.id === DEF.id ? 'on' : ''}">${c.name}</button>`).join('');
+  UI.$('coursePick').querySelectorAll('button').forEach((el) => el.addEventListener('click', () => {
+    if (el.dataset.id === DEF.id) return;
+    UI.setLoading(true, `Heading to ${courseDef(el.dataset.id).name}…`);
+    setTimeout(() => switchCourse(el.dataset.id), 30);
+  }));
+  const resumable = [(saved && saved.round), st.round].find(roundHere);
   if (resumable && resumable.next > 0 && resumable.next < HOLES.length) {
     if (saved && saved.round) { const s2 = store.load(); s2.round = saved.round; store.save(s2); }
     UI.$('resumeBtn').hidden = false;
@@ -18766,16 +19906,30 @@ function startGame(saved) {
   titlePose(0, cam.pos, cam.look);
   requestAnimationFrame(frame);
 
+  // Arrived here to join a friend's game on this course: join it again.
+  try {
+    const r = JSON.parse(sessionStorage.getItem('pinehaven-rejoin') || 'null');
+    sessionStorage.removeItem('pinehaven-rejoin');
+    if (r && Date.now() - r.at < 180000 && /^[A-Z]{4}$/.test(r.code)) {
+      openLobby();
+      UI.$('lbName').value = r.name || '';
+      lobby.char = clamp(r.char | 0, 0, CHARACTERS.length - 1);
+      renderLobbyChars();
+      UI.$('lbCode').value = r.code;
+      setTimeout(joinGame, 300);
+    }
+  } catch (e) { /* storage unavailable: join by hand */ }
+
   if (window.claude && window.claude.hot && window.claude.hot.snapshot) {
     try {
-      window.claude.hot.snapshot(() => ({ round: G.inRound && !G.mp ? { scores: G.scores.slice(), next: G.hole } : null }));
+      window.claude.hot.snapshot(() => ({ round: G.inRound && !G.mp ? { scores: G.scores.slice(), next: G.hole, course: DEF.id } : null }));
     } catch (e) { /* optional */ }
   }
 
   // Small API for automated tests and console tinkering.
   return {
-    G, course, cart, bag, swingPress, swingRelease, enterSetup, leaveSetup, takeShot, enterShot, leaveShot, interact, enterCart, exitCart, activateHole,
-    startRound, placePlayer, nextFromCard, showCard, backToTitle, openLobby, recommendedClub, openSelect, chooseSelect, confirmSelect, enterBag, exitBag, selectClub, openWorkshop,
+    G, course, cart, bag, swingPress, swingRelease, enterSetup, leaveSetup, fetchCart, cartArrival, takeShot, enterShot, leaveShot, interact, enterCart, exitCart, activateHole,
+    startRound, placePlayer, setCharacter, nextFromCard, showCard, backToTitle, openLobby, recommendedClub, openSelect, chooseSelect, confirmSelect, enterBag, exitBag, selectClub, openWorkshop,
     get golfer() { return golfer; }, caddy, bagBase,
     swingNow(power, e) {
       if (G.mode !== 'shot' || G.shotPhase !== 'aim') return false;
@@ -18784,7 +19938,7 @@ function startGame(saved) {
       startDownswing(power, e);
       return true;
     },
-    teleportToBall() { const b = G.ball.p; placePlayer(b.x - 1.5, b.z + 1.5, 0); },
+    teleportToBall() { const b = G.ball.p; placePlayer(b.x - 1.5, b.z + 1.5, 0, b.y); },
     dropBall(x, z) { placeBall(x, z, false); },
     // Screen position of a club in the bag (for tests that click it).
     clubScreen(i) {

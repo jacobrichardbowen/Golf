@@ -452,8 +452,19 @@ const World = (() => {
     [70, 86, 58],    // under water
     [64, 112, 40],   // oob
     [196, 186, 162], // cart path
+    [176, 124, 84],  // rock
   ];
+  // Sandstone layers on a mesa's cliffs.
+  const STRATA = [[204, 146, 94], [182, 116, 74], [218, 178, 126], [164, 102, 66], [196, 136, 86], [226, 192, 140]];
   let nMottle = null;
+  let surfRGB = SURF_RGB, mottleRGB = [132, 134, 64];
+  function usePalette(pal) {
+    surfRGB = SURF_RGB.slice();
+    mottleRGB = [132, 134, 64];
+    if (!pal) return;
+    for (const [k, v] of Object.entries(pal.surfaces || {})) surfRGB[Number(k)] = v;
+    if (pal.mottle) mottleRGB = pal.mottle;
+  }
 
   // Paints rows [r0, r1) of a w x h image covering [x0, x0+size] x [z0, z0+size].
   function paintRows(data, w, ppy, x0, z0, r0, r1) {
@@ -462,7 +473,7 @@ const World = (() => {
       for (let px = 0; px < w; px++) {
         const x = x0 + (px + 0.5) / ppy;
         const s = course.surface(x, z);
-        const c = SURF_RGB[s];
+        const c = surfRGB[s];
         const gx = Math.floor(x * 3), gz = Math.floor(z * 3);
         let k = 1 + (hash2(gx, gz) - 0.5) * 0.07;
         let r = c[0], gg = c[1], bb = c[2];
@@ -473,10 +484,16 @@ const World = (() => {
           k *= (Math.floor((x * 0.8 + z * 0.6) / 2.2) & 1) ? 1.04 : 0.965;
         } else if (s === S_SAND || s === S_PATH) {
           k = 1 + (hash2(gx, gz) - 0.5) * 0.12;
+        } else if (s === S_ROCK) {
+          // Bands by height, wavering a little, with grit.
+          const y = course.H(x, z) * 0.62 + nMottle(x / 9, z / 9) * 0.8;
+          const band = STRATA[((Math.floor(y) % STRATA.length) + STRATA.length) % STRATA.length];
+          r = band[0]; gg = band[1]; bb = band[2];
+          k = 1 + (hash2(gx, gz) - 0.5) * 0.16;
         } else if (s === S_DEEP || s === S_OOB || s === S_ROUGH) {
           const m = nMottle(x / 26, z / 26);
           const t = smoothstep(0.1, 0.7, m) * (s === S_ROUGH ? 0.3 : 0.55);
-          r = lerp(r, 132, t); gg = lerp(gg, 134, t); bb = lerp(bb, 64, t);
+          r = lerp(r, mottleRGB[0], t); gg = lerp(gg, mottleRGB[1], t); bb = lerp(bb, mottleRGB[2], t);
           k *= 1 + 0.10 * nMottle(x / 6 + 50, z / 6) + 0.05 * (hash2(gx >> 1, gz >> 1) - 0.5);
         }
         if (s !== S_SAND && s !== S_WATER && s !== S_PATH) k *= 1 + 0.05 * nMottle(x / 15 - 20, z / 15 + 20);
@@ -502,15 +519,47 @@ const World = (() => {
     return tex;
   }
 
+  // Tunnels: the ground drawn inside each arch is left out, so you can see
+  // (and walk, and hit a ball) through. Shared by every terrain tile.
+  const MAX_TUNNELS = 4;
+  const tunnelU = {
+    tunN: { value: 0 },
+    tun0: { value: Array.from({ length: MAX_TUNNELS }, () => new THREE.Vector4()) },
+    tun1: { value: Array.from({ length: MAX_TUNNELS }, () => new THREE.Vector4()) },
+    tun2: { value: Array.from({ length: MAX_TUNNELS }, () => new THREE.Vector4()) },
+  };
+  function setTunnels(list) {
+    tunnelU.tunN.value = Math.min(list.length, MAX_TUNNELS);
+    list.slice(0, MAX_TUNNELS).forEach((t, i) => {
+      tunnelU.tun0.value[i].set(t.ax, t.az, t.ux, t.uz);
+      tunnelU.tun1.value[i].set(t.s0 - 3, t.s1 + 3, t.w / 2, t.h);
+      tunnelU.tun2.value[i].set(t.ya, t.yb, t.len, 0);
+    });
+  }
   function terrainMaterial(map) {
     const mat = new THREE.MeshLambertMaterial({ map });
     mat.onBeforeCompile = (shader) => {
       shader.uniforms.detailMap = { value: detailTex };
+      Object.assign(shader.uniforms, tunnelU);
       shader.vertexShader = shader.vertexShader
-        .replace('#include <common>', '#include <common>\nvarying vec2 vWXZ;')
-        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWXZ = (modelMatrix * vec4(transformed, 1.0)).xz;');
+        .replace('#include <common>', '#include <common>\nvarying vec2 vWXZ;\nvarying vec3 vWP;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWP = (modelMatrix * vec4(transformed, 1.0)).xyz; vWXZ = vWP.xz;');
       shader.fragmentShader = shader.fragmentShader
-        .replace('#include <common>', '#include <common>\nvarying vec2 vWXZ;\nuniform sampler2D detailMap;')
+        .replace('#include <common>', `#include <common>
+          varying vec2 vWXZ; varying vec3 vWP; uniform sampler2D detailMap;
+          uniform int tunN; uniform vec4 tun0[${MAX_TUNNELS}]; uniform vec4 tun1[${MAX_TUNNELS}]; uniform vec4 tun2[${MAX_TUNNELS}];`)
+        .replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
+          for (int i = 0; i < ${MAX_TUNNELS}; i++) {
+            if (i >= tunN) break;
+            vec2 d = vWP.xz - tun0[i].xy;
+            float s = dot(d, tun0[i].zw), l = -d.x * tun0[i].w + d.y * tun0[i].z;
+            if (s > tun1[i].x && s < tun1[i].y && abs(l) < tun1[i].z) {
+              float f = mix(tun2[i].x, tun2[i].y, clamp(s / tun2[i].z, 0.0, 1.0));
+              float u = min(1.0, abs(l) / tun1[i].z);
+              float top = tun1[i].w * (0.58 + 0.42 * sqrt(max(0.0, 1.0 - u * u)));
+              if (vWP.y > f + 0.15 && vWP.y < f + top) discard;
+            }
+          }`)
         .replace('#include <map_fragment>', `#include <map_fragment>
           float dn = texture2D(detailMap, vWXZ * 0.9).r * 0.55 + texture2D(detailMap, vWXZ * 0.11).r * 0.45;
           diffuseColor.rgb *= 0.82 + 0.36 * dn;`);
@@ -1031,6 +1080,144 @@ const World = (() => {
     }
   }
 
+  // ---------- tunnels and suspension bridges --------------------------------
+  // The inside of a tunnel: rough rock walls and roof over a sandy floor, with
+  // a ring of stone round each mouth to tidy the edge of the cut.
+  function archProfile(t, n) {
+    const pts = [];
+    const hw = t.w / 2;
+    for (let i = 0; i <= n; i++) {
+      const a = Math.PI * (i / n);              // 0 = right wall foot, PI = left
+      const l = Math.cos(a) * hw;
+      pts.push([l, course.archTop(t, l) * Math.min(1, Math.sin(a) * 4 + 0.02)]);
+    }
+    return pts;
+  }
+  function buildTunnel(t, group) {
+    if (t.s1 <= t.s0) return;
+    const rock = new THREE.MeshLambertMaterial({ color: 0x8a6448, side: THREE.DoubleSide });
+    const floorMat = new THREE.MeshLambertMaterial({ color: 0xc8a676 });
+    const prof = archProfile(t, 18);
+    const sA = t.s0 - 2.5, sB = t.s1 + 2.5, n = Math.max(2, Math.ceil((sB - sA) / 2));
+    const nx = -t.uz, nz = t.ux;
+    const pos = [], idx = [];
+    const rnd = mulberry32(Math.round(t.ax * 13 + t.az * 7));
+    for (let k = 0; k <= n; k++) {
+      const sk = sA + ((sB - sA) * k) / n, f = course.tunnelFloor(t, sk);
+      for (let i = 0; i < prof.length; i++) {
+        const j = 0.25 * (rnd() - 0.5) * Math.min(1, prof[i][1] / 2); // lumpy rock
+        const l = prof[i][0] * (1 + j * 0.1), y = prof[i][1] + j;
+        pos.push(t.ax + t.ux * sk + nx * l, f + y, t.az + t.uz * sk + nz * l);
+      }
+    }
+    const m = prof.length;
+    for (let k = 0; k < n; k++)
+      for (let i = 0; i < m - 1; i++) {
+        const a = k * m + i, b2 = a + 1, c2 = a + m, d = c2 + 1;
+        idx.push(a, c2, b2, b2, c2, d);
+      }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    geo.setIndex(idx);
+    geo.computeVertexNormals();
+    const tube = new THREE.Mesh(geo, rock);
+    tube.receiveShadow = tube.castShadow = true; // the roof shades the way through
+    group.add(tube);
+    // The floor.
+    const fg = new THREE.PlaneGeometry(t.w - 0.2, sB - sA, 1, n).rotateX(-Math.PI / 2);
+    const fp = fg.attributes.position;
+    for (let i = 0; i < fp.count; i++) {
+      const lx = fp.getX(i), sz = -fp.getZ(i) + (sA + sB) / 2;
+      fp.setXYZ(i, t.ax + t.ux * sz + nx * lx, course.tunnelFloor(t, sz) + 0.04, t.az + t.uz * sz + nz * lx);
+    }
+    fg.computeVertexNormals();
+    const fl = new THREE.Mesh(fg, floorMat);
+    fl.receiveShadow = true;
+    group.add(fl);
+    // A rough stone ring round each mouth.
+    for (const sm of [t.s0, t.s1]) {
+      const f = course.tunnelFloor(t, sm), ring = new THREE.Group();
+      const hw = t.w / 2;
+      for (let i = 0; i <= 12; i++) {
+        const a = Math.PI * (i / 12), l = Math.cos(a) * (hw + 0.5);
+        const y = course.archTop(t, Math.cos(a) * hw) * Math.min(1, Math.sin(a) * 4 + 0.02) + 0.4;
+        const st = new THREE.Mesh(new THREE.DodecahedronGeometry(1.1 + rnd() * 0.6, 0), rock);
+        st.position.set(nx * l, y, nz * l);
+        st.scale.set(1, 0.8, 1.3);
+        st.rotation.set(rnd() * 3, rnd() * 3, rnd() * 3);
+        st.castShadow = true;
+        ring.add(st);
+      }
+      ring.position.set(t.ax + t.ux * sm, f, t.az + t.uz * sm);
+      group.add(ring);
+    }
+  }
+
+  // A rope suspension bridge: plank deck, rope rails on hangers, posts at
+  // each end. Wide enough for the cart.
+  function buildBridge(br, group) {
+    const g = new THREE.Group();
+    const wood = new THREE.MeshLambertMaterial({ color: 0x8a6a46 });
+    const dark = new THREE.MeshLambertMaterial({ color: 0x5c4430 });
+    const rope = new THREE.MeshLambertMaterial({ color: 0xc9b48a });
+    const nx = -br.uz, nz = br.ux, yaw = Math.atan2(br.ux, br.uz);
+    const at = (s, l, dy) => new THREE.Vector3(br.ax + br.ux * s + nx * l, course.bridgeDeck(br, s) + dy, br.az + br.uz * s + nz * l);
+    const rnd = mulberry32(Math.round(br.ax * 3 + br.az * 11));
+    const plank = new THREE.BoxGeometry(br.w + 0.3, 0.09, 0.42);
+    const n = Math.floor(br.len / 0.5);
+    const planks = new THREE.InstancedMesh(plank, wood, n + 1);
+    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(1, 1, 1);
+    for (let i = 0; i <= n; i++) {
+      const sk = Math.min(br.len, i * 0.5), p0 = at(sk, 0, -0.05);
+      const slope = (course.bridgeDeck(br, Math.min(br.len, sk + 0.3)) - course.bridgeDeck(br, Math.max(0, sk - 0.3))) / 0.6;
+      q.setFromEuler(new THREE.Euler(-Math.atan(slope), yaw, (rnd() - 0.5) * 0.03, 'YXZ'));
+      planks.setMatrixAt(i, m4.compose(p0, q, sc));
+    }
+    planks.castShadow = planks.receiveShadow = true;
+    g.add(planks);
+    // Stringers under the planks.
+    for (const l of [-br.w / 2 + 0.2, br.w / 2 - 0.2]) {
+      const pts = [];
+      for (let i = 0; i <= 16; i++) pts.push(at((br.len * i) / 16, l, -0.15));
+      g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 32, 0.07, 5), dark));
+    }
+    // Rope rails hang between the posts, a little above the deck.
+    for (const l of [-br.w / 2 - 0.1, br.w / 2 + 0.1]) {
+      const pts = [];
+      for (let i = 0; i <= 20; i++) {
+        const sk = (br.len * i) / 20, t = i / 20;
+        pts.push(at(sk, l, 1.05 + 0.5 * Math.pow(2 * t - 1, 2)));
+      }
+      const rail = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 40, 0.05, 5), rope);
+      rail.castShadow = true;
+      g.add(rail);
+      for (let sk = 2; sk < br.len - 1; sk += 2) {
+        const t = sk / br.len, top = at(sk, l, 1.05 + 0.5 * Math.pow(2 * t - 1, 2)), bot = at(sk, l, 0);
+        const hang = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, top.y - bot.y, 4), rope);
+        hang.position.set(bot.x, (top.y + bot.y) / 2, bot.z);
+        g.add(hang);
+      }
+      for (const sk of [0, br.len]) {
+        const p0 = at(sk, l, 0);
+        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.16, 2.2, 7), dark);
+        post.position.set(p0.x, p0.y + 0.7, p0.z);
+        post.castShadow = true;
+        g.add(post);
+      }
+    }
+    group.add(g);
+  }
+  // A bridge on the overview map.
+  function drawSpan(og, o, b, color, w) {
+    og.save();
+    og.strokeStyle = color; og.lineWidth = Math.max(1.5, w * LO_PPY);
+    og.beginPath();
+    og.moveTo((o.a[0] - b.minX) * LO_PPY, (o.a[1] - b.minZ) * LO_PPY);
+    og.lineTo((o.b[0] - b.minX) * LO_PPY, (o.b[1] - b.minZ) * LO_PPY);
+    og.stroke();
+    og.restore();
+  }
+
   function buildClubhouse(group) {
     const c = course.clubhouse;
     const g = Assets.object('clubhouse');
@@ -1052,6 +1239,8 @@ const World = (() => {
   function buildCourse(c) {
     course = c;
     nMottle = makePerlin(555);
+    usePalette(c.palette);
+    setTunnels(c.tunnels || []);
     const group = new THREE.Group();
     const b = c.bounds;
     const W = b.maxX - b.minX, D = b.maxZ - b.minZ;
@@ -1067,6 +1256,10 @@ const World = (() => {
         if (bb.maxX > x0 - 10 && bb.minX < x0 + CHUNK + 10 && bb.maxZ > z0 - 10 && bb.minZ < z0 + CHUNK + 10) return true;
       }
       for (const p of c.paths) for (const [x, z] of p.pts) if (x > x0 - 5 && x < x0 + CHUNK + 5 && z > z0 - 5 && z < z0 + CHUNK + 5) return true;
+      for (const m of c.mesas || []) {
+        const r = m._bound + m.cliff * 3;
+        if (m.x + r > x0 && m.x - r < x0 + CHUNK && m.z + r > z0 && m.z - r < z0 + CHUNK) return true;
+      }
       const cl = c.clubhouse;
       return cl.x > x0 - 50 && cl.x < x0 + CHUNK + 50 && cl.z > z0 - 50 && cl.z < z0 + CHUNK + 50;
     };
@@ -1110,7 +1303,7 @@ const World = (() => {
     ring.holes.push(holePath);
     const outerGeo = new THREE.ShapeGeometry(ring);
     outerGeo.rotateX(-Math.PI / 2);
-    const outer = new THREE.Mesh(outerGeo, new THREE.MeshLambertMaterial({ color: 0x41702c }));
+    const outer = new THREE.Mesh(outerGeo, new THREE.MeshLambertMaterial({ color: (c.palette && c.palette.outer) || 0x41702c }));
     outer.receiveShadow = true;
     group.add(outer);
 
@@ -1145,6 +1338,8 @@ const World = (() => {
     og.fillRect((cl.x - 15 - b.minX) * LO_PPY, (cl.z - 9 - b.minZ) * LO_PPY, 30 * LO_PPY, 18 * LO_PPY);
 
     for (const mh of c.maps) buildPainted(mh, group);
+    for (const t of c.tunnels || []) buildTunnel(t, group);
+    for (const br of c.bridges || []) { buildBridge(br, group); drawSpan(og, br, b, '#8a6a46', br.w); }
     buildTrees(group);
     for (const h of c.holes) { buildPin(h, group); buildTeeMarkers(h, group); buildCourseFlags(h, group); }
     buildClubhouse(group);
@@ -1206,9 +1401,10 @@ const World = (() => {
     b.peg.visible = !!onTee && b.mesh.visible;
     if (onTee) b.peg.position.set(p.x, p.y - BALL_R + 0.03, p.z);
     if (!course) return;
-    const gh = course.H(p.x, p.z);
+    const fl = course.floorInfo ? course.floorInfo(p.x, p.z, p.y - BALL_R, 0.3) : { h: course.H(p.x, p.z), kind: 0 };
+    const gh = fl.h;
     const agl = Math.max(0, p.y - BALL_R - gh);
-    const n = course.normal(p.x, p.z);
+    const n = fl.kind ? { x: 0, y: 1, z: 0 } : course.normal(p.x, p.z);
     b.shadow.visible = b.mesh.visible && mode !== 'holed';
     b.shadow.position.set(p.x + n.x * 0.02, gh + 0.02, p.z + n.z * 0.02);
     b.shadow.quaternion.setFromUnitVectors(_zAxis, _n.set(n.x, n.y, n.z));

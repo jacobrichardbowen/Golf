@@ -24,7 +24,7 @@ const PUTTER_INDEX = CLUBS.length - 1;
 
 // Surface ids.
 const S_TEE = 0, S_FAIRWAY = 1, S_FRINGE = 2, S_GREEN = 3, S_ROUGH = 4,
-  S_DEEP = 5, S_SAND = 6, S_WATER = 7, S_OOB = 8, S_PATH = 9;
+  S_DEEP = 5, S_SAND = 6, S_WATER = 7, S_OOB = 8, S_PATH = 9, S_ROCK = 10;
 
 // bounce: restitution on landing     mu: turf friction during a bounce
 // grip:   how strongly backspin bites roll / rollV: rolling resistance (constant / speed-scaled)
@@ -40,6 +40,7 @@ const SURFACES = [
   { id: S_WATER,   name: 'Water',      label: 'In the water',      bounce: 0.0,  mu: 1.0,  grip: 0.0,  roll: 9.0,  rollV: 9.0, lie: 0.0,  spinLie: 0.0 },
   { id: S_OOB,     name: 'Out of bounds', label: 'Out of bounds',  bounce: 0.2,  mu: 0.7,  grip: 0.2,  roll: 0.6,  rollV: 2.0, lie: 0.7,  spinLie: 0.5 },
   { id: S_PATH,    name: 'Cart path',  label: 'On the cart path',  bounce: 0.55, mu: 0.25, grip: 0.25, roll: 0.05, rollV: 0.12, lie: 0.95, spinLie: 0.8 },
+  { id: S_ROCK,    name: 'Rock',       label: 'On the rocks',      bounce: 0.58, mu: 0.35, grip: 0.15, roll: 0.07, rollV: 0.2, lie: 0.8, spinLie: 0.5 },
 ];
 
 // Distance multiplier for a club from a given lie.
@@ -70,16 +71,31 @@ function spinLieFactor(club, surf) {
 }
 
 // The cast. Heights in yards (6 ft = 2 yd); `body` is the model each one wears.
+// `colors`: the golfer's two colours (their cart, their caddy's flag) and
+// their ball. `ui` is the colour that stands for them on screen.
 const CHARACTERS = [
-  { id: 'surlaw', name: 'G. Surlaw', body: 'golfer-surlaw', height: 2.0, heightLabel: '6′0″', look: 'White hair, gray shirt, cyan-blue pants',
-    hair: 0xebe9e2, shirt: 0x8d9296, pants: 0x27b5d8, skin: 0xe2b18f, shoe: 0xf4f4f0 },
-  { id: 'froth', name: 'F. Froth', body: 'golfer-froth', height: 1.667, heightLabel: '5′0″', look: 'Brown hair, forest green shirt, gold pants',
-    hair: 0x6b4426, shirt: 0x2c5a33, pants: 0xd4a52f, skin: 0xd9a27c, shoe: 0xf4f4f0 },
-  { id: 'mcbeaty', name: 'W. McBeaty', body: 'golfer', height: 1.333, heightLabel: '4′0″', look: 'Orange hair, red shirt, white pants',
-    hair: 0xe2702a, shirt: 0xc8302c, pants: 0xf5f5f0, skin: 0xf0c3a2, shoe: 0x3a3a3a },
+  { id: 'surlaw', name: 'G. Surlaw', body: 'golfer-surlaw', height: 2.0, heightLabel: '6′0″', look: 'Human. Cyan-blue and gray',
+    hair: 0xebe9e2, shirt: 0x8d9296, pants: 0x27b5d8, skin: 0xe2b18f, shoe: 0xf4f4f0,
+    colors: { primary: 0x27b5d8, secondary: 0x8d9296, ball: 0x2cc3ec, ui: '#2cc3ec' } },
+  { id: 'froth', name: 'F. Froth', body: 'golfer-froth', height: 1.667, heightLabel: '5′0″', look: 'Dwarf. Green and gold',
+    hair: 0x6b4426, shirt: 0x2c5a33, pants: 0xd4a52f, skin: 0xd9a27c, shoe: 0xf4f4f0,
+    colors: { primary: 0x2c5a33, secondary: 0xd4a52f, ball: 0xf6c21a, ui: '#f6c21a' } },
+  { id: 'mcbeaty', name: 'W. McBeaty', body: 'golfer', height: 1.333, heightLabel: '4′0″', look: 'Human. White and red',
+    hair: 0xe2702a, shirt: 0xc8302c, pants: 0xf5f5f0, skin: 0xf0c3a2, shoe: 0x3a3a3a,
+    colors: { primary: 0xf5f5f0, secondary: 0xc8302c, ball: 0xe0261c, ui: '#ff4d3d' } },
+  { id: 'salt', name: 'A. Salt', body: 'golfer-salt', height: 1.944, heightLabel: '5′10″', look: 'Human. Black and red',
+    hair: 0xa8432a, shirt: 0x1d1d21, pants: 0xb3202a, skin: 0xe6b48e, shoe: 0x1d1d21,
+    colors: { primary: 0x1d1d21, secondary: 0xb3202a, ball: 0x161618, ui: '#c9c9cf' } },
+  { id: 'beetor', name: 'B. B. Beetor', body: 'golfer-beetor', height: 2.139, heightLabel: '6′5″', look: 'Human. Brown and dark gray',
+    hair: 0x17140f, shirt: 0x7a4a26, pants: 0x3e4045, skin: 0xebcfb6, shoe: 0x221a14,
+    colors: { primary: 0x7a4a26, secondary: 0x3e4045, ball: 0xa8501a, ui: '#c8763a' } },
+  { id: 'cord', name: 'R. Cord', body: 'golfer-cord', height: 1.889, heightLabel: '5′8″', look: 'Elf. Orange and blue',
+    hair: 0xe9d79a, shirt: 0xf07a1e, pants: 0x2b5fb8, skin: 0xf2d2b4, shoe: 0x6b4a2e,
+    colors: { primary: 0xf07a1e, secondary: 0x2b5fb8, ball: 0xff8c1a, ui: '#ff9a35' } },
 ];
 // The caddy uses McBeaty's build, dressed all in white.
 const CADDY = Object.assign({}, CHARACTERS[2], { id: 'caddy', name: 'Caddy', shirt: 0xf5f5f0, pants: 0xf5f5f0 });
+const hexColor = (n) => '#' + n.toString(16).padStart(6, '0');
 
 function scoreName(strokes, par) {
   if (strokes === 1) return 'Hole in one!';
