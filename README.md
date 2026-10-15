@@ -338,6 +338,10 @@ the line of play, a `water` plane, trees named `pine…`/`oak…`, and other
 objects as scenery. The "READ ME" text inside the file has the details.
 `tools/blender/make_starter.py` regenerates it (needs `pip install bpy`).
 
+For a rigged, skinned golfer (one mesh bent by an armature, instead of
+separate parts), `tools/blender/ANIMATIONS.md` lists the animation clips the
+game needs, how it plays them, and how to export.
+
 ### Checks
 
 ```
