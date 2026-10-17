@@ -17,6 +17,9 @@ over (a finished change, not an intermediate debug build):
 3. If the Artifact was published in this conversation, republish
    `dist/golf-artifact.html` to the same URL
    (https://claude.ai/artifact/NuGkUAPyjw2cTL9V8aZHLD).
+4. Remind the user, in a line or two, of any items still open in
+   `BACKLOG.md` (their list of things to add later), and tick off any the
+   build just finished.
 
 ## Other writers on the default branch
 
