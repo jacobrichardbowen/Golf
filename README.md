@@ -240,7 +240,7 @@ vendor/three.min.js   three.js r158 (MIT, see vendor/THREE-LICENSE)
 vendor/three-addons/  three.js glTF loader/exporter modules, converted to plain scripts by build.py
 vendor/peerjs.min.js  PeerJS 1.5.5, browser-to-browser connections (MIT, see vendor/PEERJS-LICENSE)
 assets/               models/textures that replace the built-in ones (written by the Workshop)
-tools/                paint_to_map.py (illustration -> painted hole images), blender/ (course starter)
+tools/                paint_to_map.py (illustration -> painted hole images), blender/ (course starter, .blend path report)
 .github/workflows/    rebuilds Golf.html when sources or assets change, publishes the download
 tests/                headless checks (see below)
 ```
@@ -341,6 +341,11 @@ objects as scenery. The "READ ME" text inside the file has the details.
 For a rigged, skinned golfer (one mesh bent by an armature, instead of
 separate parts), `tools/blender/ANIMATIONS.md` lists the animation clips the
 game needs, how it plays them, and how to export.
+
+`tools/blender/list_blend_paths.py` lists every file path a .blend uses
+(textures, linked libraries and what they pull in, caches, render output...)
+and whether each file exists. Paste it into Blender's Text Editor and press
+Run Script; the report opens as the "Blend Paths Report" text block.
 
 ### Checks
 
