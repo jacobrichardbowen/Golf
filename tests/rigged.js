@@ -60,8 +60,31 @@ const check = (ok, what) => { console.log((ok ? 'ok   ' : 'FAIL ') + what); if (
   await shot('r-01-idle.png');
   await ev(() => { window.__golf.camHold = null; });
 
-  // Walk down the first fairway, and watch the planted foot: it should stay
-  // put on the ground.
+  // The planted foot should stay put while he walks and runs: step his
+  // animation finely (60 a second) at the game's walking and running speeds,
+  // moving him along, and see how fast the foot moves while it's down.
+  const slide = await ev(() => {
+    const g = window.__golfApi.golfer, foot = g.skin.bones.footl, root = g.root, dt = 1 / 60;
+    return [4.2, 8.5].map((speed) => {
+      const s = [];
+      for (let i = 0; i < 90; i++) g.update(dt, { mode: 'walk', speed });
+      for (let i = 0; i < 120; i++) {
+        root.translateZ(speed * dt);
+        g.update(dt, { mode: 'walk', speed });
+        root.updateMatrixWorld(true);
+        const p = foot.getWorldPosition(new THREE.Vector3());
+        s.push({ x: p.x, z: p.z, h: p.y - root.position.y });
+      }
+      const lo = Math.min(...s.map((q) => q.h)), hi = Math.max(...s.map((q) => q.h)), down = (q) => q.h < lo + (hi - lo) * 0.2;
+      const v = [];
+      for (let i = 1; i < s.length; i++) if (down(s[i]) && down(s[i - 1])) v.push(Math.hypot(s[i].x - s[i - 1].x, s[i].z - s[i - 1].z) / dt);
+      v.sort((a, b) => a - b);
+      return { speed, planted: v.length ? v[v.length >> 1] : Infinity };
+    });
+  });
+  for (const r of slide) check(r.planted < r.speed * 0.2, `at ${r.speed} yd/s the planted foot hardly slides (${r.planted.toFixed(2)} yd/s)`);
+
+  // Walk down the first fairway.
   await ev(() => {
     const api = window.__golfApi, g = window.__golf, h = api.course.holes[0];
     const dx = h.pin.x - h.tee.x, dz = h.pin.z - h.tee.z, l = Math.hypot(dx, dz), yaw = Math.atan2(dx, -dz);
@@ -71,31 +94,9 @@ const check = (ok, what) => { console.log((ok ? 'ok   ' : 'FAIL ') + what); if (
   await waitGame(0.5);
   await page.keyboard.down('KeyW');
   await waitGame(1.5);
-  const slide = await ev(() => new Promise((res) => {
-    const g = window.__golfApi.golfer, G = window.__golf, foot = g.skin.bones.footl;
-    const s = [];
-    const step = () => {
-      const p = foot.getWorldPosition(new THREE.Vector3());
-      s.push({ t: G.time, x: p.x, y: p.y, z: p.z, v: G.player.speed });
-      if (s.length < 40) requestAnimationFrame(step);
-      else {
-        const lo = Math.min(...s.map((q) => q.y)), hi = Math.max(...s.map((q) => q.y));
-        const v = [];
-        for (let i = 1; i < s.length; i++) {
-          const a = s[i - 1], b = s[i];
-          if (b.t > a.t && a.y < lo + (hi - lo) * 0.25 && b.y < lo + (hi - lo) * 0.25) v.push(Math.hypot(b.x - a.x, b.z - a.z) / (b.t - a.t));
-        }
-        v.sort((x, y) => x - y);
-        res({ planted: v.length ? v[v.length >> 1] : null, speed: s[s.length - 1].v, n: v.length });
-      }
-    };
-    requestAnimationFrame(step);
-  }));
   const ww = await weights();
-  console.log('walking:', JSON.stringify(slide), JSON.stringify(ww));
   // (A short-legged body has to break into its run to keep up.)
   check(ww.walk + ww.run > 0.9, `walking plays the walk and run clips (${JSON.stringify(ww)})`);
-  check(slide.planted !== null && slide.planted < slide.speed * 0.35, `the planted foot hardly slides (${slide.planted && slide.planted.toFixed(2)} yd/s while walking at ${slide.speed.toFixed(2)})`);
   await hold([4, 1.0, 0], [0, 0.9, 0]);
   await waitGame(0.12);
   await shot('r-02-walk.png');
