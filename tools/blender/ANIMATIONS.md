@@ -5,6 +5,16 @@ the game can play him. Each clip is one Blender **Action**, named exactly as
 below. The game picks the clip for what he's doing, blends between them, and
 for the golf swing decides the timing itself.
 
+## What the game does today
+
+Skinned golfers already work: for now G. Surlaw is KayKit's Barbarian, a
+free (CC0) low-poly character (see "Rigged characters" in the README). The
+game plays the file's `idle`, `walk`, `run` and `wave` clips. Everything
+else (address, the swing, putting, the cart) it poses itself, as it does the
+other golfers, and turns his bones to match. As the clips below arrive, each
+one takes over from the game's own pose. Clip names are matched without
+regard to case.
+
 ## Rules for every clip
 
 - **One Action per clip**, with **Fake User** on (the shield icon next to the

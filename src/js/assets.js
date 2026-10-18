@@ -78,6 +78,7 @@ const Assets = (() => {
         const wrap = new THREE.Group();
         gltf.scene.scale.multiplyScalar(YD_PER_M);
         wrap.add(gltf.scene);
+        wrap.animations = gltf.animations; // clips, for rigged characters
         wrap.updateMatrixWorld(true);
         res(wrap);
       }, (err) => rej(err instanceof Error ? err : new Error(String(err && err.message || err))));
@@ -289,6 +290,19 @@ const Assets = (() => {
     return out;
   }
 
+  // A rigged, skinned model (a mesh bound to an armature), or null if the
+  // asset isn't one: a fresh copy with its own bones, and its animation clips.
+  function skinned(id) {
+    const c = custom.get(id);
+    if (!c || !c.scene || !window.GLTFKit) return null;
+    let has = false;
+    c.scene.traverse((o) => { if (o.isSkinnedMesh) has = true; });
+    if (!has) return null;
+    const scene = GLTFKit.cloneSkinned(c.scene);
+    scene.name = id;
+    return { scene, clips: c.scene.animations || [] };
+  }
+
   // Custom texture (or null to use the built-in one).
   function texture(id) {
     const c = custom.get(id);
@@ -485,7 +499,7 @@ const Assets = (() => {
   }
 
   return {
-    define, list, get, isCustom, info, state, pending, markCommitted, init, parts, object, rigParts, texture, image, pixels, builtinMap,
+    define, list, get, isCustom, info, state, pending, markCommitted, init, parts, object, rigParts, skinned, texture, image, pixels, builtinMap,
     download, replace, reset, useProject, exportPack, importPack, saveFile, downloadsCap,
     get changed() { return changed; }, YD_PER_M, M_PER_YD,
   };

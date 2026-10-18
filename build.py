@@ -21,9 +21,10 @@ JS_ORDER = [
     "assets.js", "publish.js", "atmosphere.js", "wind.js", "world.js", "scenery.js", "equipment.js", "character.js", "cart.js", "ui.js",
     "workshop.js", "net.js", "remote.js", "main.js",
 ]
-# three.js example modules (r158) used by the workshop to read and write .glb.
-# They are ES modules; esm_to_script() turns them into plain scripts.
-ADDONS = ["BufferGeometryUtils.js", "TextureUtils.js", "GLTFLoader.js", "GLTFExporter.js"]
+# three.js example modules (r158) used to read and write .glb (and to copy
+# rigged, skinned models). They are ES modules; esm_to_script() turns them
+# into plain scripts.
+ADDONS = ["BufferGeometryUtils.js", "TextureUtils.js", "GLTFLoader.js", "GLTFExporter.js", "SkeletonUtils.js"]
 # Custom assets built into the game: assets/<asset-id>.glb|.png|.jpg
 ASSET_TYPES = {".glb": "model/gltf-binary", ".gltf": "model/gltf+json", ".png": "image/png",
                ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp"}
@@ -83,7 +84,8 @@ def addons_js() -> str:
     for name in ADDONS:
         parts.append(f"// ===== three/examples/jsm {name} =====\n" +
                      esm_to_script((ROOT / "vendor" / "three-addons" / name).read_text()))
-    parts.append("window.GLTFKit = { GLTFLoader: __addons.GLTFLoader, GLTFExporter: __addons.GLTFExporter };")
+    parts.append("window.GLTFKit = { GLTFLoader: __addons.GLTFLoader, GLTFExporter: __addons.GLTFExporter, "
+                 "cloneSkinned: __addons.clone };")
     return "\n".join(parts)
 
 

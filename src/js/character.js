@@ -376,7 +376,7 @@ const Golfer = (() => {
     const who = id === 'golfer' ? 'W. McBeaty and the caddy are' : `${styleFor(id).name} is`;
     Assets.define(id, {
       kind: 'rig', group: 'Characters', name: B.name, joints: RIG_JOINTS,
-      note: `Real size for a ${B.size} figure; ${who} scaled from it. Keep the joint empties and their names, and edit the meshes under them. Materials named skin, shirt, pants, hair, shoe and eye take each character’s colors.`,
+      note: `Real size for a ${B.size} figure; ${who} scaled from it. Keep the joint empties and their names, and edit the meshes under them. Materials named skin, shirt, pants, hair, shoe and eye take each character’s colors. Or load a rigged, skinned character (see tools/blender/ANIMATIONS.md).`,
       build: () => {
         const J = skeleton(B.dims);
         B.parts(J, materialsFor(styleFor(id)));
@@ -387,12 +387,340 @@ const Golfer = (() => {
     });
   }
 
+  // ---- Rigged, skinned bodies ----
+  // A body can also be a mesh skinned to an armature (tools/blender/ANIMATIONS.md).
+  // Its bones are matched to the joints by name and the joint skeleton is
+  // sized from them, so it still works out every pose; the bones copy those
+  // poses, except where the file has a clip for what he's doing (idle, walk,
+  // run...), which plays instead.
+
+  // Bone roles and the names they go by: letters only, lower case, with the
+  // side as left/right or l/r at either end ("upper_arm.L", "LeftUpLeg",
+  // "DEF-thigh.L").
+  const BONE_NAMES = {
+    hips: ['hips', 'hip', 'pelvis'], spine: ['spine', 'abdomen', 'waist'], head: ['head'],
+    upperarm: ['upperarm', 'arm'], forearm: ['forearm', 'lowerarm'], hand: ['hand'],
+    thigh: ['thigh', 'upperleg', 'upleg'], shin: ['shin', 'lowerleg', 'calf', 'leg'], foot: ['foot'],
+  };
+  const SIDED = ['upperarm', 'forearm', 'hand', 'thigh', 'shin', 'foot'];
+  const NEEDED = ['hips', 'spine', 'head', 'upperarml', 'forearml', 'handl', 'thighl', 'shinl', 'footl',
+    'upperarmr', 'forearmr', 'handr', 'thighr', 'shinr', 'footr'];
+  // Which joint each bone copies.
+  const BONE_JOINT = {
+    hips: 'hips', spine: 'spine', head: 'head',
+    upperarml: 'arm.L', forearml: 'elbow.L', thighl: 'thigh.L', shinl: 'knee.L', footl: 'ankle.L',
+    upperarmr: 'arm.R', forearmr: 'elbow.R', thighr: 'thigh.R', shinr: 'knee.R', footr: 'ankle.R',
+  };
+  // Limbs are lined up along the next bone down the chain.
+  const BONE_NEXT = { upperarm: 'forearm', forearm: 'hand', thigh: 'shin', shin: 'foot' };
+  // Clips that play for a whole mode (walking blends walk and run by speed).
+  const MODE_CLIP = { idle: 'idle', wave: 'wave' };
+  const CLIP_NAMES = ['idle', 'walk', 'run', 'wave'];
+
+  function boneRole(name) {
+    let n = (name || '').toLowerCase().replace(/[^a-z]/g, '').replace(/^(mixamorig|def)/, '');
+    let side = '', m;
+    if ((m = n.match(/^(left|right)(.+)$/))) { side = m[1][0]; n = m[2]; } else if ((m = n.match(/^(.+?)(left|right)$/))) { side = m[2][0]; n = m[1]; }
+    for (const role in BONE_NAMES) {
+      const sided = SIDED.includes(role);
+      if (BONE_NAMES[role].includes(n)) return sided === !!side ? role + side : null;
+      if (sided && !side && /[lr]$/.test(n) && BONE_NAMES[role].includes(n.slice(0, -1))) return role + n.slice(-1);
+    }
+    return null;
+  }
+
+  // The skinned model for a body, with its bones found and its proportions
+  // measured; null if the body isn't one (or its bones can't be told apart).
+  function skinnedBody(id) {
+    const sk = Assets.skinned(id);
+    if (!sk) return null;
+    const model = sk.scene;
+    const bones = {}, order = [];
+    model.traverse((o) => {
+      if (!o.isBone) return;
+      order.push(o);
+      const r = boneRole(o.name);
+      if (r && !bones[r]) bones[r] = o;
+    });
+    const missing = NEEDED.filter((r) => !bones[r]);
+    if (missing.length) { console.warn(`${id}: no bone for ${missing.join(', ')}; using the built-in body`); return null; }
+    model.updateMatrixWorld(true);
+    const at = (b) => b.getWorldPosition(new THREE.Vector3());
+    // His left is +X: if the names say otherwise, believe the positions.
+    if (at(bones.upperarml).x < at(bones.upperarmr).x) {
+      for (const r of SIDED) [bones[r + 'l'], bones[r + 'r']] = [bones[r + 'r'], bones[r + 'l']];
+    }
+    const thigh = at(bones.thighl), spine = at(bones.spine), sh = at(bones.upperarml), el = at(bones.forearml);
+    // Where each hand holds the club: part way along the hand, towards the
+    // next bone (fingers, or a slot for things held), or on along the forearm.
+    const grip = {};
+    for (const s of ['l', 'r']) {
+      const hp = at(bones['hand' + s]), next = bones['hand' + s].children.find((c) => c.isBone);
+      const dir = next ? at(next).sub(hp) : hp.clone().sub(at(bones['forearm' + s])).setLength(0.12);
+      grip[s] = hp.addScaledVector(dir, 0.6);
+    }
+    const fore = el.distanceTo(grip.l);
+    const D = {
+      hip: thigh.y + 0.05, hipX: Math.abs(thigh.x), thigh: thigh.distanceTo(at(bones.shinl)),
+      shin: at(bones.shinl).distanceTo(at(bones.footl)), spine: spine.y - thigh.y - 0.05,
+      neck: at(bones.head).y - spine.y, head: 0, shoulders: sh.y - spine.y, armX: Math.abs(sh.x), upper: sh.distanceTo(el),
+    };
+    const reach = D.upper + fore;
+    D.hands = Math.sqrt(Math.max(0.01, reach * reach - D.armX * D.armX));
+    D.armIn = armIn(D);
+    const height = new THREE.Box3().setFromObject(model).max.y;
+    return { model, clips: sk.clips, bones, order, grip, dims: D, height };
+  }
+
+  // Drives a skinned model from the joint skeleton J (both at rest now).
+  function skinDriver(S, J, mats) {
+    const { model, bones, order } = S;
+    model.traverse((o) => {
+      if (!o.isMesh) return;
+      o.castShadow = true;
+      o.frustumCulled = false; // the swing takes the arms outside the rest pose's bounds
+      // Matte like the other golfers; materials named for a role take his colors.
+      const conv = (m) => {
+        const l = new THREE.MeshLambertMaterial({ map: m.map || null, color: m.color ? m.color.clone() : 0xffffff, transparent: m.transparent, alphaTest: m.alphaTest, side: m.side });
+        l.name = m.name;
+        const role = ROLE_NAMES.find((r) => (m.name || '').toLowerCase().startsWith(r));
+        if (role) l.color.copy(mats[role].color);
+        return l;
+      };
+      o.material = Array.isArray(o.material) ? o.material.map(conv) : conv(o.material);
+    });
+    J.root.add(model);
+    J.root.updateMatrixWorld(true);
+
+    // How each bone sits against its joint: its rest orientation, turned so
+    // the limb lies along the joint's limb (the rest poses needn't match: a
+    // T-pose maps onto the joints' arms-down rest).
+    const roleOf = new Map(Object.entries(bones).map(([r, b]) => [b, r]));
+    const info = new Map();
+    const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _d = new THREE.Vector3();
+    for (const b of order) {
+      const rec = { restQ: b.quaternion.clone(), restP: b.position.clone() };
+      const role = roleOf.get(b);
+      const joint = role && J[BONE_JOINT[role]];
+      if (joint) {
+        rec.joint = joint;
+        const qJ = joint.getWorldQuaternion(new THREE.Quaternion());
+        const qB = b.getWorldQuaternion(new THREE.Quaternion());
+        const base = role.replace(/[lr]$/, ''), next = BONE_NEXT[base] && bones[BONE_NEXT[base] + role.slice(-1)];
+        if (base in BONE_NEXT) {
+          b.getWorldPosition(_a);
+          if (next) next.getWorldPosition(_b); else b.localToWorld(_b.set(0, 1, 0));
+          const dirB = _b.sub(_a).normalize();
+          joint.getWorldPosition(_c);
+          const jNext = joint.children.find((c) => /^(knee|ankle|elbow)\./.test(c.name));
+          if (jNext) jNext.getWorldPosition(_d); else joint.localToWorld(_d.set(0, -1, 0));
+          const dirJ = _d.sub(_c).normalize();
+          qB.premultiply(new THREE.Quaternion().setFromUnitVectors(dirB, dirJ));
+        }
+        rec.offset = qJ.invert().multiply(qB);
+        if (role === 'hips') rec.offsetM = new THREE.Matrix4().copy(joint.matrixWorld).invert().multiply(b.matrixWorld);
+      }
+      info.set(b, rec);
+    }
+
+    // The arms, for reaching the club: bone lengths, and each grip point in
+    // its forearm's frame.
+    const arms = ['l', 'r'].map((sd) => {
+      const up = bones['upperarm' + sd], fo = bones['forearm' + sd];
+      const g = fo.worldToLocal(S.grip[sd].clone());
+      return {
+        up, fo, sd, upLen: up.getWorldPosition(_a).distanceTo(fo.getWorldPosition(_b)), foreLen: g.length(),
+        upDir: fo.position.clone().normalize(), gripDir: g.normalize(),
+      };
+    });
+
+    // Clips, and how fast the walk and run cover the ground.
+    const mixer = new THREE.AnimationMixer(model);
+    const act = {};
+    for (const c of S.clips) {
+      const name = c.name.toLowerCase();
+      if (!CLIP_NAMES.includes(name) || act[name]) continue;
+      const a = mixer.clipAction(c);
+      a.play();
+      a.setEffectiveWeight(0);
+      act[name] = { a, dur: Math.max(0.05, c.duration), w: 0, speed: 1, phase0: 0 };
+    }
+    const _p = new THREE.Vector3();
+    for (const name of ['walk', 'run']) {
+      const A = act[name];
+      if (!A) continue;
+      A.a.setEffectiveWeight(1);
+      const N = 64, pts = [];
+      for (let i = 0; i < N; i++) {
+        A.a.time = (i / N) * A.dur;
+        mixer.update(0);
+        model.updateMatrixWorld(true);
+        bones.footl.getWorldPosition(_p);
+        pts.push({ y: _p.y, z: _p.z });
+      }
+      A.a.setEffectiveWeight(0);
+      // The planted foot slides back at the speed he walks: how far it goes
+      // while it's down (the longest stretch of it on the ground), how fast.
+      const ys = pts.map((p) => p.y), lo = Math.min(...ys), hi = Math.max(...ys);
+      const down = (i) => pts[i % N].y < lo + (hi - lo) * 0.3;
+      let n = 0, dz = 0;
+      for (let i = 0; i < N; i++) {
+        if (!down(i) || down(i + N - 1)) continue;
+        let k = 0;
+        while (k < N - 1 && down(i + k + 1)) k++;
+        if (k > n) { n = k; dz = pts[i].z - pts[(i + k) % N].z; }
+      }
+      A.speed = n && dz > 0 ? dz / ((n * A.dur) / N) : (name === 'run' ? 3 : 1.4);
+      // Line the clips up on the left foot's furthest reach forward.
+      let best = 0;
+      for (let i = 1; i < N; i++) if (pts[i].z > pts[best].z) best = i;
+      A.phase0 = best / N;
+    }
+    if (act.idle) act.idle.w = 1;
+    mixer.update(0);
+
+    let wProc = act.idle ? 0 : 1, gait = 0, scale = 1;
+    const _q = new THREE.Quaternion(), _pq = new THREE.Quaternion(), _m = new THREE.Matrix4(), _mi = new THREE.Matrix4(), _s = new THREE.Vector3();
+
+    // Turn a bone (in the world) so that `dir` (in its own frame) points from
+    // `from` towards `to`; by w.
+    const _cur = new THREE.Vector3(), _to = new THREE.Vector3(), _qa = new THREE.Quaternion(), _qw = new THREE.Quaternion();
+    function aim(bone, dir, from, to, w) {
+      bone.getWorldQuaternion(_qw);
+      _cur.copy(dir).applyQuaternion(_qw);
+      _to.subVectors(to, from).normalize();
+      _qw.premultiply(_qa.setFromUnitVectors(_cur, _to));
+      bone.parent.getWorldQuaternion(_pq);
+      bone.quaternion.slerp(_qw.premultiply(_pq.invert()), w);
+      bone.updateMatrixWorld(true);
+    }
+    // Two-bone reach: the arm bends at the elbow (down and back) to put the
+    // grip point on `T`, or stretches towards it.
+    const _S = new THREE.Vector3(), _E = new THREE.Vector3(), _t = new THREE.Vector3(), _w = new THREE.Vector3();
+    function reach(arm, T, w) {
+      arm.up.getWorldPosition(_S);
+      const a = arm.upLen * scale, b = arm.foreLen * scale;
+      const d = clamp(T.distanceTo(_S), Math.abs(a - b) + 1e-4, a + b - 1e-4);
+      _t.subVectors(T, _S).normalize();
+      // Elbows point at the ground, a little behind him.
+      _w.set(0, 0, -1).transformDirection(J.root.matrixWorld).multiplyScalar(0.4).add(_c.set(0, -1, 0));
+      _w.addScaledVector(_t, -_w.dot(_t));
+      if (_w.lengthSq() < 1e-6) _w.set(1, 0, 0).addScaledVector(_t, -_t.x);
+      _w.normalize();
+      const cosA = clamp((a * a + d * d - b * b) / (2 * a * d), -1, 1);
+      _E.copy(_S).addScaledVector(_t, a * cosA).addScaledVector(_w, a * Math.sqrt(1 - cosA * cosA));
+      aim(arm.up, arm.upDir, _S, _E, w);
+      arm.fo.getWorldPosition(_E);
+      aim(arm.fo, arm.gripDir, _E, T, w);
+    }
+    // Hands on the club. The joints' arms swing as a rigid triangle whose
+    // shoulders turn with it; his shoulders stay on his chest, so where the
+    // grip is out of reach (deep in the backswing and the finish) the club
+    // comes in towards him along the line it's on.
+    const _G = new THREE.Vector3(), _M = new THREE.Vector3(), _u = new THREE.Vector3(), _SL = new THREE.Vector3(), _SR = new THREE.Vector3(), _hT = new THREE.Vector3();
+    function holdClub(w) {
+      const club = J.club;
+      club.getWorldPosition(_G);
+      arms[0].up.getWorldPosition(_SL);
+      arms[1].up.getWorldPosition(_SR);
+      _M.addVectors(_SL, _SR).multiplyScalar(0.5);
+      _u.subVectors(_G, _M);
+      const len = _u.length();
+      _u.divideScalar(len || 1);
+      let t = len;
+      for (const [arm, sp] of [[arms[0], _SL], [arms[1], _SR]]) {
+        const L = (arm.upLen + arm.foreLen) * scale * 0.97;
+        _c.subVectors(sp, _M);
+        const bb = _u.dot(_c), disc = bb * bb - _c.lengthSq() + L * L;
+        if (disc > 0) t = Math.min(t, bb + Math.sqrt(disc));
+      }
+      if (t < len) {
+        _G.copy(_M).addScaledVector(_u, t);
+        club.position.lerp(club.parent.worldToLocal(_c.copy(_G)), w);
+        club.updateMatrixWorld(true);
+        club.getWorldPosition(_G);
+      }
+      // Left hand above the right on the grip.
+      _u.setFromMatrixColumn(club.matrixWorld, 1).normalize();
+      const gap = 0.032 * scale;
+      reach(arms[0], _hT.copy(_G).addScaledVector(_u, gap), w);
+      reach(arms[1], _hT.copy(_G).addScaledVector(_u, -gap), w);
+    }
+
+    // Copy the joints' pose onto the bones, by w (0 = leave the clip's pose).
+    function copyPose(w) {
+      J.root.updateWorldMatrix(true, true);
+      for (const b of order) {
+        const rec = info.get(b);
+        if (rec.offsetM) {
+          _mi.copy(b.parent.matrixWorld).invert();
+          _m.multiplyMatrices(rec.joint.matrixWorld, rec.offsetM).premultiply(_mi);
+          _m.decompose(_p, _q, _s);
+          b.position.lerp(_p, w);
+        } else if (rec.joint) {
+          rec.joint.getWorldQuaternion(_q).multiply(rec.offset);
+          b.parent.matrixWorld.decompose(_p, _pq, _s);
+          _q.premultiply(_pq.invert());
+          b.position.lerp(rec.restP, w);
+        } else {
+          _q.copy(rec.restQ);
+          b.position.lerp(rec.restP, w);
+        }
+        b.quaternion.slerp(_q, w);
+        b.updateMatrix();
+        b.matrixWorld.multiplyMatrices(b.parent.matrixWorld, b.matrix);
+      }
+    }
+
+    function drive(dt, s, clubOn) {
+      const k = s.snap ? 1 : 1 - Math.exp(-dt * 9);
+      // The clips for what he's doing, if the model has them.
+      let want = null;
+      if (s.mode === 'walk' && act.walk) {
+        const u = s.speed || 0, W = act.walk, R = act.run;
+        const move = act.idle ? smoothstep(0.05, 0.6, u) : 1;
+        const run = R ? smoothstep(W.speed * scale * 1.1, R.speed * scale * 0.95, u) : 0;
+        want = { idle: 1 - move, walk: move * (1 - run), run: move * run };
+        const cycle = (W.speed * W.dur * (1 - run) + (R ? R.speed * R.dur * run : 0)) * scale; // yards per stride
+        gait = (gait + (dt * u) / Math.max(0.05, cycle)) % 1;
+        W.a.time = ((gait + W.phase0) % 1) * W.dur;
+        if (R) R.a.time = ((gait + R.phase0) % 1) * R.dur;
+      } else if (MODE_CLIP[s.mode] && act[MODE_CLIP[s.mode]]) want = { [MODE_CLIP[s.mode]]: 1 };
+      // Clips blend among themselves; with none, the joints' pose takes over
+      // (the clips underneath carry on as they were).
+      if (want) {
+        for (const n in act) act[n].w += ((want[n] || 0) - act[n].w) * k;
+        wProc += (0 - wProc) * k;
+      } else wProc += (1 - wProc) * k;
+      for (const n in act) {
+        const A = act[n];
+        if (n !== 'walk' && n !== 'run') A.a.time = (A.a.time + dt) % A.dur;
+        A.a.setEffectiveWeight(A.w);
+      }
+      mixer.update(0);
+      if (wProc > 0.002) {
+        copyPose(Math.min(1, wProc));
+        if (clubOn) holdClub(Math.min(1, wProc));
+      }
+    }
+    return {
+      drive, setScale: (m) => { scale = m; model.scale.setScalar(m); }, model, bones,
+      clips: Object.keys(act),
+      // How much each clip shows now, and the joints' pose (for tests).
+      weights: () => Object.assign({ pose: wProc }, ...Object.entries(act).map(([n, A]) => ({ [n]: A.w * (1 - wProc) }))),
+      speed: (n) => (act[n] ? act[n].speed * scale : 0),
+    };
+  }
+
   function create(style) {
-    const B = BODIES[bodyOf(style)];
+    const S = skinnedBody(bodyOf(style));
+    const B = S ? Object.assign({}, BODIES[bodyOf(style)], { dims: S.dims, height: S.height }) : BODIES[bodyOf(style)];
     const D = B.dims;
     const J = skeleton(D);
     const mats = materialsFor(style);
-    const rig = Assets.rigParts(bodyOf(style));
+    const rig = S ? null : Assets.rigParts(bodyOf(style));
+    // A skinned body: the joints carry no meshes, they pose the model.
+    const skin = S ? skinDriver(S, J, mats) : null;
     if (rig) {
       for (const [name, meshes] of rig) {
         if (!J[name]) continue;
@@ -409,12 +737,14 @@ const Golfer = (() => {
           J[name].add(m);
         }
       }
-    } else B.parts(J, mats);
+    } else if (!skin) B.parts(J, mats);
     const root = J.root, body = J.body, hips = J.hips, spine = J.spine, head = J.head;
     const armsPivot = J.shoulders, swing = J.swing, club = J.club;
+    const clubRest = club.position.clone(); // a skinned body may draw the club in
     const scale = style.height / BASE_HEIGHT;   // overall size, for cameras and the like
     const mscale = style.height / B.height;     // the model's own scale
     body.scale.setScalar(mscale);
+    if (skin) skin.setScale(mscale);
     // Poses are written for the default legs; these adapt them to this body.
     const legK = (D.thigh + D.shin) / (DEFAULT_DIMS.thigh + DEFAULT_DIMS.shin);
     const hy = (v) => D.hip - (DEFAULT_DIMS.hip - v) * legK;
@@ -566,6 +896,7 @@ const Golfer = (() => {
       armsPivot.rotation.x = P.plane;
       swing.rotation.z = P.swingZ;
       club.rotation.z = P.cock;
+      club.position.copy(clubRest);
       club.visible = P.clubOn > 0.5;
       arms[0].arm.rotation.x = P.armX0; arms[1].arm.rotation.x = P.armX1;
       arms[0].arm.rotation.z = P.armZ0; arms[1].arm.rotation.z = P.armZ1;
@@ -654,6 +985,7 @@ const Golfer = (() => {
       }
       P.clubOn = T.clubOn;
       apply();
+      if (skin) skin.drive(dt, s, P.clubOn > 0.5);
     }
 
     function setVisible(v) { root.visible = v; }
@@ -674,7 +1006,7 @@ const Golfer = (() => {
     // Sizes for sitting in the cart: hips above the seat, eyes above the hips.
     const seatScale = mscale * (D.hip - 0.09) / (DEFAULT_DIMS.hip - 0.09);
     const eyeScale = mscale * (D.spine + D.neck + D.head + 0.2) / (DEFAULT_DIMS.spine + DEFAULT_DIMS.neck + DEFAULT_DIMS.head + 0.2);
-    return { root, update, setClub, setFace, faceInfo, addressOffset, setVisible, setBodyVisible, scale, seatScale, eyeScale, style, joints: J };
+    return { root, update, setClub, setFace, faceInfo, addressOffset, setVisible, setBodyVisible, scale, seatScale, eyeScale, style, joints: J, skin };
   }
 
   // Map a club from the bag to its model.

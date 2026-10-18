@@ -1748,6 +1748,10 @@ function startGame(saved) {
         rate = 18; lookRate = 40;
       }
     }
+    if (G.camHold) { // for tests: { pos, look } in world space
+      cam.tPos.copy(G.camHold.pos); cam.tLook.copy(G.camHold.look);
+      rate = lookRate = 60;
+    }
     const kp = 1 - Math.exp(-dt * rate), kl = 1 - Math.exp(-dt * lookRate);
     cam.pos.lerp(cam.tPos, kp);
     cam.look.lerp(cam.tLook, kl);

@@ -192,6 +192,9 @@ exporter does this by default). Notes for particular assets:
   The course has thousands of trees, so only those within about 120 yards
   use your model; farther ones are flat cards with pictures of it, taken when
   the game loads.
+- G. Surlaw is a rigged, skinned character for now: KayKit's Barbarian (see
+  below), in `assets/golfer-surlaw.glb`. **Reset to built-in** in the
+  Workshop brings back his old body.
 - Each body type is its own rig: G. Surlaw's (human, `golfer-surlaw`),
   F. Froth's (dwarf, `golfer-froth`), and one W. McBeaty and the caddy share
   (`golfer`). Each has its own proportions; keep the named joint empties
@@ -228,7 +231,7 @@ src/js/wind.js        wind you can see: waving flags and streaks in the air
 src/js/world.js       three.js rendering: chunked terrain, trees, water, flags, clubhouse
 src/js/scenery.js     castle, tower, houses, bridge, fences and boulders for painted holes
 src/js/equipment.js   club and bag models, the bag close-up
-src/js/character.js   the golfer bodies (rigs) and their procedural animation
+src/js/character.js   the golfer bodies (rigs), their procedural animation, and skinned bodies
 src/js/cart.js        the golf cart model and driving physics
 src/js/workshop.js    the Workshop screen
 src/js/net.js         online play: hosting, joining and passing messages (PeerJS)
@@ -237,10 +240,11 @@ src/js/ui.js          HUD, shot hints, markers, radar, course map, scorecard
 src/js/audio.js       synthesised sound effects (WebAudio)
 src/js/main.js        game flow, player and camera control, input
 vendor/three.min.js   three.js r158 (MIT, see vendor/THREE-LICENSE)
-vendor/three-addons/  three.js glTF loader/exporter modules, converted to plain scripts by build.py
+vendor/three-addons/  three.js glTF loader/exporter and SkeletonUtils modules, converted to plain scripts by build.py
 vendor/peerjs.min.js  PeerJS 1.5.5, browser-to-browser connections (MIT, see vendor/PEERJS-LICENSE)
 assets/               models/textures that replace the built-in ones (written by the Workshop)
-tools/                paint_to_map.py (illustration -> painted hole images), blender/ (course starter)
+tools/                paint_to_map.py (illustration -> painted hole images), blender/ (course starter,
+                      rigged-golfer clip list), rigged/ (prepares a KayKit character as a golfer)
 .github/workflows/    rebuilds Golf.html when sources or assets change, publishes the download
 tests/                headless checks (see below)
 ```
@@ -342,6 +346,31 @@ For a rigged, skinned golfer (one mesh bent by an armature, instead of
 separate parts), `tools/blender/ANIMATIONS.md` lists the animation clips the
 game needs, how it plays them, and how to export.
 
+### Rigged characters
+
+Any golfer's body can be a skinned model: load a `.glb` with a mesh bound to
+an armature in the Workshop (or drop it in `assets/` named after the body,
+e.g. `golfer-surlaw.glb`). The game finds the bones by name (`hips`, `spine`,
+`head`, and per side the upper arm, forearm, hand, thigh, shin and foot, in
+most naming styles: `upper_arm.L`, `upperarm.l`, `LeftArm`, …), sizes the
+golfer's skeleton from them, and then:
+
+- plays the file's `idle`, `walk` and `run` clips (and `wave` on the select
+  screen) when he stands about or moves, matching the walk to his speed by
+  measuring how fast the planted foot travels;
+- for everything else (address, the swing, putting, the cart) works the pose
+  out itself, as for the other golfers, and turns each bone to match. That
+  keeps his hands on the grip and the club on the ball whatever his
+  proportions. Clips for these come later (`tools/blender/ANIMATIONS.md`).
+
+G. Surlaw is the first one: the Barbarian from Kay Lousberg's
+[KayKit Adventurers Character Pack](https://github.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0)
+(CC0, www.kaylousberg.com), without his weapons and cape.
+`tools/rigged/prepare-kaykit.mjs` made `assets/golfer-surlaw.glb` from the
+pack's `Barbarian.glb`: it drops the props, keeps the Idle, Walking_A and
+Running_A clips as `idle`, `walk` and `run`, and trims animation tracks that
+move nothing (289 KB in all).
+
 ### Checks
 
 ```
@@ -349,6 +378,7 @@ node tests/course-check.js [outDir]   # validates the layout; optional top-down 
 node tests/calibrate.js               # carry, apex and rollout for every club
 node tests/smoke.js [outDir]          # plays hole 1 in headless Chromium: select, walk, swing, bag, cart, hole out
 node tests/plains.js [outDir]         # Golden Plains: across a bridge, through the tunnel, the caddy fetching the cart
+node tests/rigged.js [outDir]         # the skinned Surlaw: clips, no foot sliding, hands on the grip, the cart
 node tests/workshop.js [outDir]       # Workshop: download, replace, reload, export/import, reset
 node tests/publish.js [outDir]        # Workshop "Commit to project" against a mock of GitHub's API
 node tests/mobile.js [outDir]         # touch layout screenshots, portrait and landscape

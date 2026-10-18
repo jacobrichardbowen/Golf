@@ -11,7 +11,8 @@ run `python3 build.py`. Name each file after the asset it replaces:
 | `club-driver.glb`, `club-4-iron.glb`, `club-8-iron.glb`, `club-wedge.glb`, `club-putter.glb` | the clubs |
 | `golf-bag.glb` | the bag |
 | `golf-cart.glb` | the cart |
-| `golfer.glb` | the body shared by every golfer and the caddy |
+| `golfer.glb` | W. McBeaty's body, which the caddy shares |
+| `golfer-surlaw.glb`, `golfer-froth.glb`, `golfer-salt.glb`, `golfer-beetor.glb`, `golfer-cord.glb` | each golfer's own body (a rig of parts, or a rigged, skinned character) |
 | `tex-grass.png`, `tex-water.png`, `tex-flag.png`, `tex-cloud.png` | textures |
 
 The easiest way is the in-game **Workshop**: download the asset you want to
@@ -23,3 +24,7 @@ everyone. You can also drop files in here by hand and run `python3 build.py`.
 Models are glTF binary in meters, +Y up, front facing +Z. See the Workshop
 section of the main README for the notes on trees, the golfer rig and the
 cart.
+
+`golfer-surlaw.glb` is the Barbarian from Kay Lousberg's KayKit Adventurers
+Character Pack (CC0, www.kaylousberg.com), prepared with
+`tools/rigged/prepare-kaykit.mjs`.

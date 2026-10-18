@@ -11,5 +11,6 @@ done. Claude mentions whatever is still open here when handing over a build.
 
 ## Waiting on files
 
-- [ ] Rigged, skinned G. Surlaw: waiting on the .blend
-      (see `tools/blender/ANIMATIONS.md`).
+- [ ] Your own rigged, skinned G. Surlaw: waiting on the .blend
+      (see `tools/blender/ANIMATIONS.md`). KayKit's Barbarian stands in
+      for him until then.
