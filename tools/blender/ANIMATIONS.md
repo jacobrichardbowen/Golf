@@ -7,13 +7,32 @@ for the golf swing decides the timing itself.
 
 ## What the game does today
 
-Skinned golfers already work: for now G. Surlaw is KayKit's Barbarian, a
-free (CC0) low-poly character (see "Rigged characters" in the README). The
-game plays the file's `idle`, `walk`, `run` and `wave` clips. Everything
-else (address, the swing, putting, the cart) it poses itself, as it does the
-other golfers, and turns his bones to match. As the clips below arrive, each
-one takes over from the game's own pose. Clip names are matched without
-regard to case.
+Skinned golfers already work. G. Surlaw is KayKit's Barbarian for now, a
+free (CC0) low-poly character, and A. Salt is the base mesh
+(`characters/TestGolferBaseMesh_v002.blend`); see "Rigged characters" in the
+README. The game plays the file's `idle`, `walk`, `run` and `wave` clips.
+Everything else (address, the swing, putting, the cart), and any of those
+clips a file doesn't have, it poses itself, as it does the other golfers,
+and turns the bones to match. As the clips below arrive, each one takes
+over from the game's own pose. Clip names are matched without regard to
+case.
+
+## With Auto-Rig Pro
+
+The base mesh is rigged with Auto-Rig Pro, and fitted for the game
+(`tools/rigged/fit_golfer.py`): a plain skeleton, `golfer_rig`, follows the
+Auto-Rig Pro bones, and that's what the game gets. So:
+
+- Animate with the Auto-Rig Pro controls as usual, one Action per clip,
+  named as below, with Fake User on. Keys on the controls are fine: they're
+  baked onto golfer_rig when you export.
+- The club is `cc_club`, in the right hand (it follows the hand; key it to
+  turn the club in the fingers, or leave it).
+- Export: Text Editor → `export_golfer.py` → Run Script. It writes
+  `<file name>.glb` next to the `.blend`, with every Action as a clip. You
+  don't need the export settings under "Exporting" below.
+- Facing: the base mesh faces −Y with its left on +X, as the rules below
+  ask.
 
 ## Rules for every clip
 

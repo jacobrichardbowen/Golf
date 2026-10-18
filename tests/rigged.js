@@ -1,7 +1,10 @@
-// The rigged, skinned golfer (G. Surlaw) in headless Chromium: his clips
-// play when he stands and walks (with his planted foot not sliding), the
-// joints' poses take over at address, in the swing and in the cart, and his
-// hands stay on the club's grip throughout. Saves screenshots, reports errors.
+// The rigged, skinned golfers in headless Chromium. G. Surlaw (KayKit's
+// Barbarian): his clips play when he stands and walks (with his planted foot
+// not sliding), the joints' poses take over at address, in the swing and in
+// the cart, and his hands stay on the club's grip throughout. A. Salt (the
+// Auto-Rig Pro base mesh, no clips): the joints' poses drive him everywhere,
+// hands on the grip with the fingers closed round it. Saves screenshots,
+// reports errors.
 // Usage: node tests/rigged.js [outDir]
 const path = require('path');
 const fs = require('fs');
@@ -19,8 +22,6 @@ const check = (ok, what) => { console.log((ok ? 'ok   ' : 'FAIL ') + what); if (
   const page = await browser.newPage({ viewport: { width: 800, height: 600 } });
   page.on('console', (m) => { if (m.type() === 'error') errors.push(`[console] ${m.text()}`); });
   page.on('pageerror', (e) => errors.push('[pageerror] ' + e.message));
-  await page.goto('file://' + path.join(__dirname, '..', 'Golf.html') + '?hq&dtcap=0.12', { timeout: 600000 });
-  await page.waitForFunction(() => window.__golfApi && window.__golf.mode === 'title', null, { timeout: 600000 });
   const ev = (fn, a) => page.evaluate(fn, a);
   const waitGame = async (sec) => {
     const t = await ev(() => window.__golf.time);
@@ -34,16 +35,22 @@ const check = (ok, what) => { console.log((ok ? 'ok   ' : 'FAIL ') + what); if (
     window.__golf.camHold = { pos: g.root.localToWorld(new THREE.Vector3(...p)), look: g.root.localToWorld(new THREE.Vector3(...l)) };
   }, [p, l]);
   const weights = () => ev(() => window.__golfApi.golfer.skin.weights());
-  // How far each hand is from the top of the club's grip (yards).
+  // How far each hand (its grip bone, if it has one) is from the top of the
+  // club's grip (yards).
   const grip = () => ev(() => {
     const g = window.__golfApi.golfer, b = g.skin.bones;
     g.root.updateMatrixWorld(true);
     const c = g.joints.club.getWorldPosition(new THREE.Vector3());
-    return ['handl', 'handr'].map((h) => b[h].getWorldPosition(new THREE.Vector3()).distanceTo(c));
+    return ['handl', 'handr'].map((h) => (b[h].children.find((k) => /grip/i.test(k.name)) || b[h]).getWorldPosition(new THREE.Vector3()).distanceTo(c));
   });
+  const play = async (i) => {
+    await page.goto('file://' + path.join(__dirname, '..', 'Golf.html') + '?hq&dtcap=0.12', { timeout: 600000 });
+    await page.waitForFunction(() => window.__golfApi && window.__golf.mode === 'title', null, { timeout: 600000 });
+    await ev((i) => { const api = window.__golfApi; api.openSelect(null); api.chooseSelect(i); api.confirmSelect(); }, i);
+    await page.waitForFunction(() => window.__golf.mode === 'walk', null, { timeout: 120000 });
+  };
 
-  await ev(() => { const api = window.__golfApi; api.openSelect(null); api.chooseSelect(0); api.confirmSelect(); });
-  await page.waitForFunction(() => window.__golf.mode === 'walk', null, { timeout: 120000 });
+  await play(0);
   const info = await ev(() => {
     const g = window.__golfApi.golfer;
     return g.skin && { name: g.style.name, clips: g.skin.clips, walk: g.skin.speed('walk'), run: g.skin.speed('run') };
@@ -153,6 +160,41 @@ const check = (ok, what) => { console.log((ok ? 'ok   ' : 'FAIL ') + what); if (
   await hold([2.2, 1.4, 2.5], [0, 0.6, 0]);
   await waitGame(0.6);
   await shot('r-07-cart.png');
+
+  // A. Salt: no clips, so the joints' poses drive him throughout.
+  await play(3);
+  const salt = await ev(() => {
+    const g = window.__golfApi.golfer;
+    return g.skin && { name: g.style.name, clips: g.skin.clips, bones: Object.keys(g.skin.bones).length };
+  });
+  console.log('skinned:', JSON.stringify(salt));
+  check(salt && salt.name === 'A. Salt' && salt.clips.length === 0 && salt.bones >= 15, 'Salt is a skinned model with every bone the game needs, and no clips yet');
+  await waitGame(1);
+  check((await weights()).pose > 0.95, 'standing, the bones take the pose the game works out');
+  await hold([0, 0.9, 2.6], [0, 0.75, 0]);
+  await waitGame(0.6);
+  await shot('r-08-salt-idle.png');
+  await ev(() => { window.__golf.camHold = null; });
+  await ev(() => { const api = window.__golfApi; api.teleportToBall(); api.enterShot(); });
+  await waitGame(1.5);
+  const sa = await grip();
+  check(Math.max(...sa) < 0.08, `at address both hands hold the grip (${sa.map((d) => d.toFixed(3)).join(', ')})`);
+  const curl = await ev(() => {
+    const b = window.__golfApi.golfer.skin.model.getObjectByName('index_02L');
+    return b ? 2 * Math.acos(Math.min(1, Math.abs(b.quaternion.w))) : null;
+  });
+  check(curl === null || curl > 0.6, `with the fingers closed round it (${curl === null ? 'no finger bones' : curl.toFixed(2) + ' rad'})`);
+  await hold([0.35, 0.95, 1.5], [0, 0.6, 0.3]);
+  await waitGame(1);
+  await shot('r-09-salt-grip.png');
+  await page.keyboard.down('Space');
+  await page.waitForFunction(() => window.__golf.swing.p > 0.97, null, { timeout: 120000 });
+  const st = await grip();
+  check(Math.max(...st) < 0.08, `and at the top of the backswing (${st.map((d) => d.toFixed(3)).join(', ')})`);
+  await hold([0, 1.0, 4.2], [0, 0.75, 0]);
+  await waitGame(0.3);
+  await shot('r-10-salt-top.png');
+  await page.keyboard.up('Space');
 
   await browser.close();
   console.log('errors:', errors.length ? '\n' + errors.join('\n') : 'none');

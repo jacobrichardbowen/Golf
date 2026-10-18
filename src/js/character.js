@@ -451,13 +451,16 @@ const Golfer = (() => {
       for (const r of SIDED) [bones[r + 'l'], bones[r + 'r']] = [bones[r + 'r'], bones[r + 'l']];
     }
     const thigh = at(bones.thighl), spine = at(bones.spine), sh = at(bones.upperarml), el = at(bones.forearml);
-    // Where each hand holds the club: part way along the hand, towards the
-    // next bone (fingers, or a slot for things held), or on along the forearm.
+    // Where each hand holds the club: a bone named grip in the hand if there
+    // is one, else part way along the hand, towards the next bone (fingers,
+    // or a slot for things held), or on along the forearm.
     const grip = {};
     for (const s of ['l', 'r']) {
-      const hp = at(bones['hand' + s]), next = bones['hand' + s].children.find((c) => c.isBone);
+      const hand = bones['hand' + s], hp = at(hand);
+      const marker = hand.children.find((c) => c.isBone && /grip/i.test(c.name));
+      const next = hand.children.find((c) => c.isBone);
       const dir = next ? at(next).sub(hp) : hp.clone().sub(at(bones['forearm' + s])).setLength(0.12);
-      grip[s] = hp.addScaledVector(dir, 0.6);
+      grip[s] = marker ? at(marker) : hp.addScaledVector(dir, 0.6);
     }
     const fore = el.distanceTo(grip.l);
     const D = {
@@ -471,6 +474,8 @@ const Golfer = (() => {
     const height = new THREE.Box3().setFromObject(model).max.y;
     return { model, clips: sk.clips, bones, order, grip, dims: D, height };
   }
+
+  const isUnder = (o, anc) => { for (let p = o.parent; p; p = p.parent) if (p === anc) return true; return false; };
 
   // Drives a skinned model from the joint skeleton J (both at rest now).
   function skinDriver(S, J, mats) {
@@ -533,6 +538,21 @@ const Golfer = (() => {
         upDir: fo.position.clone().normalize(), gripDir: g.normalize(),
       };
     });
+
+    // Fingers, to close round the grip: each joint bends towards the grip
+    // point (the knuckles at the base of the hand stay put).
+    const fingers = [];
+    for (const b of order) {
+      if (!/(index|middle|ring|pinky|finger|thumb)/i.test(b.name) || /(^|[^0-9])0?0([^0-9]|$)|base|meta/i.test(b.name)) continue;
+      // Along the finger: to the next joint, or (the tip) along the bone.
+      const child = b.children.find((c) => c.isBone), from = b.getWorldPosition(new THREE.Vector3());
+      const along = (child ? child.getWorldPosition(new THREE.Vector3()) : b.localToWorld(new THREE.Vector3(0, 1, 0))).sub(from).normalize();
+      const toGrip = S.grip[isUnder(b, bones.handl) ? 'l' : 'r'].clone().sub(from);
+      const axis = new THREE.Vector3().crossVectors(along, toGrip).normalize();
+      if (axis.lengthSq() < 0.5) continue;
+      axis.applyQuaternion(b.getWorldQuaternion(new THREE.Quaternion()).invert());
+      fingers.push({ b, axis, angle: /thumb/i.test(b.name) ? 0.45 : 1.05 });
+    }
 
     // Clips, and how fast the walk and run cover the ground.
     const mixer = new THREE.AnimationMixer(model);
@@ -645,6 +665,11 @@ const Golfer = (() => {
       const gap = 0.032 * scale;
       reach(arms[0], _hT.copy(_G).addScaledVector(_u, gap), w);
       reach(arms[1], _hT.copy(_G).addScaledVector(_u, -gap), w);
+      // Fingers closed round it.
+      for (const f of fingers) {
+        f.b.quaternion.multiply(_qa.setFromAxisAngle(f.axis, f.angle * w));
+        f.b.updateMatrixWorld(true);
+      }
     }
 
     // Copy the joints' pose onto the bones, by w (0 = leave the clip's pose).

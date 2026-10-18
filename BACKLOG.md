@@ -11,6 +11,7 @@ done. Claude mentions whatever is still open here when handing over a build.
 
 ## Waiting on files
 
-- [ ] Your own rigged, skinned G. Surlaw: waiting on the .blend
-      (see `tools/blender/ANIMATIONS.md`). KayKit's Barbarian stands in
-      for him until then.
+- [ ] Your own rigged characters: A. Salt wears the base mesh now (no clips
+      yet: the game poses him). Next: the elf (R. Cord) and G. Surlaw;
+      KayKit's Barbarian stands in for Surlaw until then. Clips per
+      `tools/blender/ANIMATIONS.md`.

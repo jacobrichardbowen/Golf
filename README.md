@@ -192,9 +192,10 @@ exporter does this by default). Notes for particular assets:
   The course has thousands of trees, so only those within about 120 yards
   use your model; farther ones are flat cards with pictures of it, taken when
   the game loads.
-- G. Surlaw is a rigged, skinned character for now: KayKit's Barbarian (see
-  below), in `assets/golfer-surlaw.glb`. **Reset to built-in** in the
-  Workshop brings back his old body.
+- G. Surlaw and A. Salt are rigged, skinned characters (see below):
+  KayKit's Barbarian for Surlaw for now, and the game's own base mesh for
+  Salt, in `assets/golfer-surlaw.glb` and `assets/golfer-salt.glb`.
+  **Reset to built-in** in the Workshop brings back the old bodies.
 - Each body type is its own rig: G. Surlaw's (human, `golfer-surlaw`),
   F. Froth's (dwarf, `golfer-froth`), and one W. McBeaty and the caddy share
   (`golfer`). Each has its own proportions; keep the named joint empties
@@ -244,7 +245,8 @@ vendor/three-addons/  three.js glTF loader/exporter and SkeletonUtils modules, c
 vendor/peerjs.min.js  PeerJS 1.5.5, browser-to-browser connections (MIT, see vendor/PEERJS-LICENSE)
 assets/               models/textures that replace the built-in ones (written by the Workshop)
 tools/                paint_to_map.py (illustration -> painted hole images), blender/ (course starter,
-                      rigged-golfer clip list), rigged/ (prepares a KayKit character as a golfer)
+                      rigged-golfer clip list, characters/), rigged/ (fits an Auto-Rig Pro character or a
+                      KayKit one for the game)
 .github/workflows/    rebuilds Golf.html when sources or assets change, publishes the download
 tests/                headless checks (see below)
 ```
@@ -362,6 +364,9 @@ golfer's skeleton from them, and then:
   out itself, as for the other golfers, and turns each bone to match. That
   keeps his hands on the grip and the club on the ball whatever his
   proportions. Clips for these come later (`tools/blender/ANIMATIONS.md`).
+  A bone named `grip…` in each hand marks where it holds the club, and
+  finger bones (`index`, `thumb`, … but not the knuckles, `_00`) close round
+  the grip.
 
 G. Surlaw is the first one: the Barbarian from Kay Lousberg's
 [KayKit Adventurers Character Pack](https://github.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0)
@@ -371,6 +376,30 @@ pack's `Barbarian.glb`: it drops the props, keeps the Idle, Walking_A and
 Running_A clips as `idle`, `walk` and `run`, and trims animation tracks that
 move nothing (289 KB in all).
 
+A. Salt is the base mesh made for the game's humans and elves
+(`tools/blender/characters/TestGolferBaseMesh_v002.blend`, rigged with
+Auto-Rig Pro). `tools/rigged/fit_golfer.py` fitted it for the game and
+exported `assets/golfer-salt.glb` (88 KB):
+
+- **golfer_rig**: a clean skeleton of the bones the game knows (`hips`,
+  `spine`, `chest`, `upper_chest`, `neck`, `head`, and per side `shoulder`,
+  `upper_arm`, `forearm`, `hand`, `index_00`–`03`, `thumb_01`–`03`, `thigh`,
+  `shin`, `foot`, `toe`), plus `club` and `grip.L`/`grip.R`. Each bone follows
+  its Auto-Rig Pro deform bone through a constraint, so you keep animating
+  with the Auto-Rig Pro controls. `cc_club` in the Auto-Rig Pro rig moves the
+  club.
+- **Colour regions**: the single material is split into `skin`, `shirt`,
+  `pants`, `hair`, `shoe` and `shoe.socks`, which the game colours per
+  golfer. Reassign faces between them in Blender to repaint.
+- **Exporting**: the script is saved in the file as `export_golfer.py`.
+  Open it in Blender's Text Editor and press Run Script: it writes
+  `<file name>.glb` next to the `.blend`, with each Action baked onto
+  golfer_rig as a clip of the same name. Load that in the Workshop
+  (**A. Salt body → Replace…**). Or, here:
+  `python tools/rigged/fit_golfer.py -- file.blend --save fitted.blend --glb out.glb`
+  (needs `pip install bpy`; a file that hasn't been fitted yet is fitted
+  first).
+
 ### Checks
 
 ```
@@ -378,7 +407,7 @@ node tests/course-check.js [outDir]   # validates the layout; optional top-down 
 node tests/calibrate.js               # carry, apex and rollout for every club
 node tests/smoke.js [outDir]          # plays hole 1 in headless Chromium: select, walk, swing, bag, cart, hole out
 node tests/plains.js [outDir]         # Golden Plains: across a bridge, through the tunnel, the caddy fetching the cart
-node tests/rigged.js [outDir]         # the skinned Surlaw: clips, no foot sliding, hands on the grip, the cart
+node tests/rigged.js [outDir]         # the skinned Surlaw and Salt: clips, no foot sliding, hands on the grip, the cart
 node tests/workshop.js [outDir]       # Workshop: download, replace, reload, export/import, reset
 node tests/publish.js [outDir]        # Workshop "Commit to project" against a mock of GitHub's API
 node tests/mobile.js [outDir]         # touch layout screenshots, portrait and landscape

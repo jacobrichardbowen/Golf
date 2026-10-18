@@ -28,3 +28,7 @@ cart.
 `golfer-surlaw.glb` is the Barbarian from Kay Lousberg's KayKit Adventurers
 Character Pack (CC0, www.kaylousberg.com), prepared with
 `tools/rigged/prepare-kaykit.mjs`.
+
+`golfer-salt.glb` is the game's own base mesh
+(`tools/blender/characters/TestGolferBaseMesh_v002.blend`), exported with
+`tools/rigged/fit_golfer.py`.
