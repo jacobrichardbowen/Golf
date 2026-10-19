@@ -76,6 +76,18 @@ const Sound = (() => {
       tone({ f: 190, f2: 70, dur: 0.12, vol: (0.35 + 0.2 * power) * g, attack: 0.001 });
       tone({ f: 1800, f2: 1400, dur: 0.05, type: 'triangle', vol: 0.07 * g });
     },
+    // A sweet-spot strike: a crisp, clean click on top of the hit.
+    sweet() {
+      tone({ f: 2950, f2: 2700, dur: 0.07, type: 'triangle', vol: 0.11, attack: 0.001 });
+      tone({ t: 0.004, f: 1480, f2: 1420, dur: 0.12, vol: 0.06 });
+    },
+    // A perfect strike: the click, and a pure ring that hangs a moment.
+    perfect() {
+      tone({ f: 3150, f2: 2900, dur: 0.06, type: 'triangle', vol: 0.12, attack: 0.001 });
+      tone({ t: 0.01, f: 1760, dur: 0.55, vol: 0.075, attack: 0.004 });
+      tone({ t: 0.01, f: 2637, dur: 0.45, vol: 0.045, attack: 0.004 });
+      tone({ t: 0.03, f: 3520, dur: 0.3, vol: 0.02, attack: 0.004 });
+    },
     bounce(speed, surf) {
       const v = clamp(speed / 25, 0.05, 1);
       if (surf === S_SAND) noiseBurst({ dur: 0.2, f: 1800, q: 0.5, vol: 0.2 * v + 0.05 });

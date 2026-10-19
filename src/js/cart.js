@@ -68,9 +68,9 @@ Assets.define('golf-cart', { kind: 'model', group: 'Vehicles', name: 'Golf cart'
 
 const Cart = (() => {
   const WHEELBASE = 1.64;
-  const MAX_FWD = 13;     // yd/s (about 27 mph: faster than a real cart, for fun)
+  // Top speed and acceleration come from the gameplay settings (13 yd/s,
+  // about 27 mph, and 6.5 yd/s² by default: faster than a real cart, for fun).
   const MAX_REV = 4.5;
-  const ACCEL = 6.5;
   const BRAKE = 15;
 
   function create(course) {
@@ -151,12 +151,17 @@ const Cart = (() => {
       const ev = [];
       const surf = course.surface(st.x, st.z);
       st.surf = surf;
+      const MAX_FWD = TUNE.cartSpeed, ACCEL = TUNE.cartAccel;
+      // Rough, deep rough and sand hold its top speed down and drag on it
+      // (sand down to 3 yd/s of 13), as much as the terrain setting says.
       let maxF = MAX_FWD;
       let drag = 0.7;
-      if (surf === S_SAND) { maxF = 3; drag = 5; }
-      else if (surf === S_DEEP) { maxF = 9; drag = 1.6; }
-      else if (surf === S_ROUGH) { maxF = 11.5; drag = 1.0; }
-      else if (surf === S_PATH) { drag = 0.4; }
+      const tc = TUNE.terrainCart;
+      const off = (frac, d) => { maxF = MAX_FWD * (1 - (1 - frac) * Math.min(1, tc)); drag = 0.7 + (d - 0.7) * tc; };
+      if (surf === S_SAND) off(3 / 13, 5);
+      else if (surf === S_DEEP) off(9 / 13, 1.6);
+      else if (surf === S_ROUGH) off(11.5 / 13, 1.0);
+      else if (surf === S_PATH) drag = 0.4;
       const th = input.throttle;
       if (input.brake) st.speed -= Math.sign(st.speed) * Math.min(Math.abs(st.speed), BRAKE * dt);
       else if (th > 0) st.speed += (st.speed < 0 ? BRAKE : ACCEL) * th * dt;

@@ -1,6 +1,6 @@
 // Prints carry/apex/roll for every club so ball flight can be tuned.
 // Usage: node tests/calibrate.js
-const G = require('./load')(['util.js', 'data.js', 'physics.js']);
+const G = require('./load')(['util.js', 'data.js', 'tuning.js', 'physics.js']);
 
 console.log('club   speed(mph)  carry  apex  flight  total(fw)  total(green)');
 for (const c of G.CLUBS) {

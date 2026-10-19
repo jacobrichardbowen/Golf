@@ -34,8 +34,8 @@ commit a rebuild after every push.
 
 ## Checks before handing over a build
 
-- `node tests/course-check.js` and `node tests/calibrate.js` (fast, no browser)
+- `node tests/course-check.js`, `node tests/calibrate.js` and `node tests/tuning.js` (fast, no browser)
 - `node tests/smoke.js`, `node tests/workshop.js`, `node tests/publish.js`,
-  `node tests/mobile.js`
+  `node tests/mobile.js`, `node tests/gameplay.js`, `node tests/rigged.js`
   (headless Chromium with software GL: slow, so run them one at a time; when
   several run at once they starve each other and time out)

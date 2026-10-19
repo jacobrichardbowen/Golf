@@ -61,6 +61,7 @@
           <button class="ctl" id="aimRight" aria-label="Aim right">▶</button>
           <button class="ctl" id="setUp" aria-label="Push the club out">▲</button>
           <button class="ctl" id="setDown" aria-label="Pull the club in">▼</button>
+          <button class="ctl ctl-text" id="lookBtn" aria-label="Look up at the hole (hold)">Look</button>
           <button class="ctl ctl-text" id="setupBtn" aria-label="Look at the club behind the ball">Setup</button>
           <button class="ctl ctl-text" id="viewBtn" aria-label="Change shot camera">View</button>
           <button class="ctl ctl-text" id="backBtn" aria-label="Step away from the ball">Back</button>
@@ -190,6 +191,16 @@
       <p class="ws-status" id="wsStatus" role="status"></p>
       <p class="ws-hint">Drag to turn · scroll to zoom</p>
     </section>
+    <section class="ws-game" id="wsGame" hidden aria-label="Gameplay settings">
+      <div class="ws-d-head"><h3>Gameplay</h3><span id="wsGameBadge"></span></div>
+      <p class="ws-note">The numbers that decide how the game plays. Changes take effect straight away and stay in this browser; <b>Commit to project</b> makes them everyone’s.</p>
+      <div class="ws-game-list" id="wsGameList"></div>
+      <div class="ws-actions">
+        <button class="btn ghost" id="wsGameProject" hidden>Use project values</button>
+        <button class="btn ghost" id="wsGameReset">Reset all to defaults</button>
+      </div>
+      <p class="ws-status" id="wsGameStatus" role="status"></p>
+    </section>
     <div class="ws-commit" id="wsCommit" hidden>
       <div class="ws-c-sheet" role="dialog" aria-modal="true" aria-labelledby="wsCommitTitle">
         <h3 id="wsCommitTitle">Commit to the project</h3>
@@ -220,7 +231,7 @@
         <li><b>Walk</b> with <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> and look around with the mouse (click the course to capture it). Hold <kbd>Shift</kbd> to run. On touch screens, use the stick on the left and drag on the right.</li>
         <li><b>Change clubs</b> at your bag: your caddy carries it and sets it down whenever he stops (it rides on the cart while you drive). Walk up to it, press <kbd>E</kbd> and click a club. Near the cart you can leave the bag strapped on the back instead.</li>
         <li><b>Play a shot:</b> walk up to your ball and press <kbd>E</kbd>. You're only roughly lined up, so check the line and aim with <kbd>A</kbd> <kbd>D</kbd> or the mouse. <b>Hold</b> <kbd>Space</kbd> and your golfer winds up; let go and he swings. How far back he gets is how hard he hits. Hang at the top too long and he tenses up.</li>
-        <li><b>Shape it:</b> press <kbd>Q</kbd> to look down at the club behind the ball through your golfer's eyes. <kbd>A</kbd> <kbd>D</kbd> turn the face: open starts the ball right and curves it right, closed the other way. <kbd>W</kbd> <kbd>S</kbd> push the club out or pull it in: off the heel it fades, off the toe it draws, and either costs a little distance.</li>
+        <li><b>Shape it:</b> press <kbd>Q</kbd> to look down at the club behind the ball through your golfer's eyes. <kbd>A</kbd> <kbd>D</kbd> turn the face: open starts the ball right and curves it right, closed the other way. <kbd>W</kbd> <kbd>S</kbd> push the club out or pull it in: off the heel it fades, off the toe it draws, and either costs a little distance. Hold <kbd>R</kbd> to look up at the hole and back.</li>
         <li><b>Read the wind</b> from the world: streaks in the air, the flags on every tee, around the course and on your caddy's back. It moves the ball a long way.</li>
         <li><b>Drive the cart:</b> press <kbd>E</kbd> next to it to hop in, <kbd>W</kbd> <kbd>S</kbd> to drive, <kbd>A</kbd> <kbd>D</kbd> to steer, <kbd>Space</kbd> to brake, <kbd>E</kbd> to get out. Left it a long way back? Press <kbd>G</kbd> (or <b>Fetch cart</b>) and your caddy runs off to bring it round.</li>
         <li><b>Hole out</b>, then follow the marker to the next tee.</li>

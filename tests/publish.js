@@ -185,6 +185,19 @@ const headTree = () => gh.trees[gh.commits[gh.refs.main].tree];
   await frames(2);
   await page.screenshot({ path: path.join(out, 'pub-2-committed.png') });
 
+  // Gameplay settings go to the project as assets/gameplay.json.
+  await click('.ws-item[data-id="gameplay"]');
+  await G(() => { const r = document.querySelector('.ws-tune[data-key="wind"] input[type=range]'); r.value = 1.5; r.dispatchEvent(new Event('input')); });
+  check((await statusOf('wsCommitOpen')) === 'Commit to project (1)', 'a changed gameplay setting is pending');
+  await click('#wsCommitOpen');
+  await click('#wsCommitGo');
+  await page.waitForFunction(() => /Committed/.test(document.getElementById('wsCommitStatus').textContent), null, { timeout: 60000 });
+  t = headTree();
+  const gp = t['assets/gameplay.json'] && JSON.parse(gh.blobs[t['assets/gameplay.json']].toString());
+  check(gp && gp.wind === 1.5 && Object.keys(gp).length === 1, 'assets/gameplay.json holds the changed setting: ' + JSON.stringify(gp));
+  check((await statusOf('wsCommitOpen')) === 'Commit to project', 'nothing pending after committing the settings');
+  await click('#wsCommitClose');
+
   // The token only ever travels in the Authorization header.
   check(gh.requests.every((r) => !r.body.includes(TOKEN)), 'token never appears in a request body');
   check(gh.requests.filter((r) => r.auth === 'Bearer ' + TOKEN).length > 0, 'requests carry the token as a Bearer header');

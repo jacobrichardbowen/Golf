@@ -1,8 +1,9 @@
 // ---------------------------------------------------------------------------
 // The Workshop: browse every model and texture the game uses, download any of
 // them (as .glb / .png), and swap in your own. The selected asset spins on a
-// turntable drawn with the game's renderer behind the panels. Changes can be
-// committed to the project's GitHub repository (publish.js).
+// turntable drawn with the game's renderer behind the panels. Gameplay holds
+// the game's settings (tuning.js). Changes can be committed to the project's
+// GitHub repository (publish.js).
 // ---------------------------------------------------------------------------
 
 const Workshop = (() => {
@@ -114,6 +115,9 @@ const Workshop = (() => {
 
   function show(id) {
     if (current) { pivot.remove(current); }
+    if (id === 'gameplay') return showGame();
+    $('wsGame').hidden = true;
+    $('wsDetail').hidden = false;
     currentId = id;
     current = previewObject(id);
     pivot.add(current);
@@ -132,7 +136,7 @@ const Workshop = (() => {
   function renderList() {
     const list = $('wsList');
     const defs = Assets.list();
-    list.innerHTML = GROUPS.map((g) => {
+    list.innerHTML = `<h3>Gameplay</h3><ul><li><button class="ws-item" data-id="gameplay"><span class="ws-icon" aria-hidden="true">⚙</span><span><b>Gameplay settings</b>${gameBadge()}</span></button></li></ul>` + GROUPS.map((g) => {
       const items = defs.filter((d) => d.group === g);
       if (!items.length) return '';
       return `<h3>${g}</h3><ul>` + items.map((d) => `<li><button class="ws-item" data-id="${d.id}"><img alt="" src="${thumbs.get(d.id) || ''}"><span><b>${d.name}</b>${badge(d.id)}</span></button></li>`).join('') + '</ul>';
@@ -274,17 +278,77 @@ const Workshop = (() => {
     refreshCommitButton();
   }
 
+  // ---------- gameplay settings ----------
+  const decimals = (step) => Math.max(0, Math.min(3, Math.ceil(-Math.log10(step) - 1e-9)));
+  const fmtNum = (v, step) => Number(v).toFixed(decimals(step));
+  function gameBadge() {
+    if (Tune.changedFromProject()) return '<span class="ws-badge mine">Yours · not committed</span>';
+    return Object.keys(Tune.project).length ? '<span class="ws-badge proj">Project</span>' : '<span class="ws-badge">Defaults</span>';
+  }
+  function showGame() {
+    current = null;
+    currentId = 'gameplay';
+    scene.userData.disc.visible = false;
+    $('wsDetail').hidden = true;
+    $('wsGame').hidden = false;
+    renderGame();
+    document.querySelectorAll('.ws-item').forEach((el) => el.classList.toggle('on', el.dataset.id === 'gameplay'));
+  }
+  function renderGame() {
+    $('wsGameList').innerHTML = TUNING.map((g) => `<h4>${esc(g.group)}</h4>` + g.items.map((it) => `
+      <div class="ws-tune" data-key="${it.key}">
+        <div class="ws-tune-head"><label for="tune-${it.key}">${esc(it.name)}</label><span class="ws-tune-src"></span>
+          <button class="ws-tune-reset" title="Back to the default: ${fmtNum(it.def, it.step)} ${esc(it.unit)}" aria-label="Reset ${esc(it.name)}">↺</button></div>
+        <div class="ws-tune-ctl">
+          <input type="range" min="${it.min}" max="${it.max}" step="${it.step}" aria-label="${esc(it.name)}">
+          <input type="number" id="tune-${it.key}" min="${it.min}" max="${it.max}" step="${it.step}">
+          <span class="ws-tune-unit">${esc(it.unit)}</span>
+        </div>
+        ${it.note ? `<p class="ws-tune-note">${esc(it.note)}</p>` : ''}
+      </div>`).join('')).join('');
+    for (const row of $('wsGameList').querySelectorAll('.ws-tune')) {
+      const key = row.dataset.key, range = row.querySelector('input[type=range]'), num = row.querySelector('input[type=number]');
+      range.addEventListener('input', () => { Tune.set(key, range.value); refreshGame(row); });
+      num.addEventListener('change', () => { Tune.set(key, num.value); refreshGame(row); });
+      row.querySelector('.ws-tune-reset').addEventListener('click', () => { Tune.reset(key); refreshGame(row); });
+      refreshGame(row, true);
+    }
+    refreshGameHead();
+  }
+  // One row's controls and marks; then the panel's.
+  function refreshGame(row, quiet) {
+    const key = row.dataset.key, it = Tune.defs.get(key), src = Tune.source(key);
+    const range = row.querySelector('input[type=range]'), num = row.querySelector('input[type=number]');
+    range.value = TUNE[key];
+    if (document.activeElement !== num || quiet) num.value = fmtNum(TUNE[key], it.step);
+    row.classList.toggle('local', src === 'local');
+    row.classList.toggle('project', src === 'project');
+    row.querySelector('.ws-tune-src').textContent = src === 'local' ? 'changed' : src === 'project' ? 'project' : '';
+    row.querySelector('.ws-tune-reset').disabled = Math.abs(TUNE[key] - it.def) < 1e-9;
+    if (!quiet) { refreshGameHead(); $('wsGameStatus').textContent = ''; }
+  }
+  function refreshGameHead() {
+    $('wsGameBadge').innerHTML = gameBadge();
+    $('wsGameProject').hidden = !Tune.changedFromProject() || !Object.keys(Tune.project).length;
+    const item = document.querySelector('.ws-item[data-id="gameplay"] .ws-badge');
+    if (item) item.outerHTML = gameBadge();
+    refreshCommitButton();
+  }
+
   // ---------- commit to the project ----------
+  // Asset changes, and the gameplay settings (assets/gameplay.json).
+  const allPending = () => Assets.pending().concat(Tune.pending());
+  const pendingName = (c) => (c.id === 'gameplay' ? 'Gameplay settings' : Assets.get(c.id).name);
   function refreshCommitButton() {
-    const n = Assets.pending().length;
+    const n = allPending().length;
     const b = $('wsCommitOpen');
     b.textContent = n ? `Commit to project (${n})` : 'Commit to project';
     b.classList.toggle('has', n > 0);
   }
   function renderCommitList() {
-    const items = Assets.pending();
+    const items = allPending();
     $('wsCommitList').innerHTML = items.length
-      ? items.map((c) => `<li><b>${esc(Assets.get(c.id).name)}</b><span>${c.kind === 'write' ? 'use ' + esc(c.name) : 'back to built-in'}</span></li>`).join('')
+      ? items.map((c) => `<li><b>${esc(pendingName(c))}</b><span>${c.kind === 'write' ? 'use ' + esc(c.name) : c.id === 'gameplay' ? 'back to the defaults' : 'back to built-in'}</span></li>`).join('')
       : '<li class="none">Nothing to commit: everything here is already in the project.</li>';
     $('wsCommitGo').disabled = !items.length;
     $('wsCommitMsg').placeholder = items.length ? Publish.defaultMessage(items) : '';
@@ -314,14 +378,15 @@ const Workshop = (() => {
   async function doCommit() {
     if (committing) return;
     saveGh();
-    const changes = Assets.pending();
+    const changes = allPending();
     if (!changes.length) return;
     committing = true;
     $('wsCommitGo').disabled = true;
     commitStatus('Connecting to GitHub…');
     try {
       const r = await Publish.commit(changes, { message: $('wsCommitMsg').value.trim() }, (m) => commitStatus(esc(m)));
-      await Assets.markCommitted(changes.map((c) => c.id), r.sha || 'up-to-date');
+      await Assets.markCommitted(changes.filter((c) => c.id !== 'gameplay').map((c) => c.id), r.sha || 'up-to-date');
+      if (changes.some((c) => c.id === 'gameplay')) Tune.markCommitted();
       const repo = Publish.settings().repo;
       if (r.upToDate) commitStatus(`The project already has these. Nothing new to commit.`);
       else {
@@ -329,7 +394,8 @@ const Workshop = (() => {
           (r.isDefault ? `; then it's at <a href="${esc(Publish.downloadUrl(repo))}" target="_blank" rel="noopener">the download link</a>.` : `: <a href="${esc(Publish.actionsUrl(repo))}" target="_blank" rel="noopener">follow it here</a>.`));
       }
       renderList();
-      if (currentId) renderDetail();
+      if (currentId === 'gameplay') renderGame();
+      else if (currentId) renderDetail();
       renderCommitList();
       refreshCommitButton();
     } catch (e) {
@@ -386,6 +452,8 @@ const Workshop = (() => {
       $('wsExport').addEventListener('click', doExport);
       $('wsImport').addEventListener('change', (e) => { doImport(e.target.files[0]); e.target.value = ''; });
       $('wsDone').addEventListener('click', close);
+      $('wsGameReset').addEventListener('click', () => { Tune.resetAll(); renderGame(); $('wsGameStatus').textContent = 'Everything is back to the game’s defaults.'; });
+      $('wsGameProject').addEventListener('click', () => { Tune.useProject(); renderGame(); $('wsGameStatus').textContent = 'Using the project’s settings.'; });
       Assets.downloadsCap();
     }
     scene.environment = World.scene.environment;

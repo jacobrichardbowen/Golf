@@ -84,7 +84,7 @@ function stepFlight(ball, field, wind, dt, events, opts) {
   const p = ball.p, v = ball.v, w = ball.w;
   const gh = field.H(p.x, p.z);
   // Wind is weaker close to the ground.
-  const wf = wind ? (0.45 + 0.55 * clamp((p.y - gh) / 20, 0, 1)) * WIND_PUSH : 0;
+  const wf = wind ? (0.45 + 0.55 * clamp((p.y - gh) / 20, 0, 1)) * WIND_PUSH * TUNE.wind : 0;
   const rx = v.x - (wind ? wind.x * wf : 0), ry = v.y, rz = v.z - (wind ? wind.z * wf : 0);
   const sp = Math.sqrt(rx * rx + ry * ry + rz * rz) || 1e-6;
   const wm = Math.sqrt(w.x * w.x + w.y * w.y + w.z * w.z);
@@ -386,8 +386,14 @@ function speedForCarry(club, target, spinMul) {
   return (lo + hi) / 2;
 }
 
-// Initial roll speed for a putt that stops `dist` yards away on a flat green.
+// Initial roll speed for a putt that stops `dist` yards away on a flat green
+// (at the default green speed: on a faster green the same stroke runs on).
 function puttSpeedFor(dist) {
+  const green = SURFACES[S_GREEN], saved = { roll: green.roll, rollV: green.rollV };
+  green.roll = SURFACES_BASE[S_GREEN].roll; green.rollV = SURFACES_BASE[S_GREEN].rollV;
+  try { return puttSpeedOn(dist); } finally { Object.assign(green, saved); }
+}
+function puttSpeedOn(dist) {
   let lo = 0, hi = 30;
   for (let i = 0; i < 30; i++) {
     const mid = (lo + hi) / 2;

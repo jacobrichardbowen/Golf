@@ -14,6 +14,7 @@ run `python3 build.py`. Name each file after the asset it replaces:
 | `golfer.glb` | W. McBeaty's body, which the caddy shares |
 | `golfer-surlaw.glb`, `golfer-froth.glb`, `golfer-salt.glb`, `golfer-beetor.glb`, `golfer-cord.glb` | each golfer's own body (a rig of parts, or a rigged, skinned character) |
 | `tex-grass.png`, `tex-water.png`, `tex-flag.png`, `tex-cloud.png` | textures |
+| `gameplay.json` | the gameplay settings (Workshop › Gameplay settings): only the ones changed from the game's defaults |
 
 The easiest way is the in-game **Workshop**: download the asset you want to
 change (the file name is already right), edit it in Blender, load it back

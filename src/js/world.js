@@ -1576,7 +1576,7 @@ const World = (() => {
 
   return {
     init, buildCourse, paintTick, resize, render, update, add, adapt, setBall, trailReset, trailPush, trailFade, setPost, createBall, setBallColor,
-    setGuides, hideGuides, setAlignmentStick, setPinVisible, splash,
+    setGuides, hideGuides, setAlignmentStick, stickShown: () => !!(stick && stick.visible), setPinVisible, splash,
     get camera() { return camera; }, get renderer() { return renderer; }, get scene() { return scene; }, get post() { return postOn; }, get postParams() { return post.params; },
     get paintedChunks() { return chunks.filter((c) => c.hi).length; }, get chunkCount() { return chunks.length; },
   };

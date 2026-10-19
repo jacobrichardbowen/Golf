@@ -29,7 +29,6 @@ function startGame(saved) {
   const MAX_STROKES = 10;
   const PUTT_RANGES = [3, 5, 8, 12, 16, 22, 30, 40, 55];
   const STORE_KEY = 'pinehaven-golf-v2';
-  const WALK = 4.2, RUN = 8.5;           // yd/s
   const REACH = 2.6;                     // how close to stand to the ball or cart
   const BAG_REACH = 2.1;
 
@@ -76,7 +75,7 @@ function startGame(saved) {
     ballCam: false, ballCamTimer: 0, ff: false,
     aimYaw: 0, aimTouched: false, clubIndex: 0, lie: S_TEE, puttRange: 10, view: 0,
     swing: { a: 0, top: 0, t: 0, fired: false, finish: 0, putt: false, p: 0 },
-    setup: { face: 0, head: 0 }, setupView: false,
+    setup: { face: 0, head: 0 }, setupView: false, glance: 0,
     holdFinish: false, preview: { pts: [], landing: null, end: null }, previewDirty: true,
     wind: { x: 0, z: 0, mph: 0, yaw: 0 }, introShown: false, cardTimer: 0, pending: null, trace: [],
     time: 0, inRound: false, locked: false, toastGate: 0, stepT: 0, acc: 0, bounceSounds: 0,
@@ -362,17 +361,22 @@ function startGame(saved) {
     for (let i = CLUBS.length - 2; i >= 0; i--) {
       const c = CLUBS[i];
       if (c.id === 'DR' && lie !== S_TEE) continue;
-      if (c.carry * lieFactor(c, lie) >= d - 8) return i;
+      if (carryOf(c, lie) >= d - 8) return i;
     }
     return lie === S_TEE ? 0 : 1;
   }
 
+  // A club's full-power carry from a lie (the shot distance setting included).
+  const carryOf = (c, lie) => c.carry * lieFactor(c, lie) * TUNE.distance;
+
   // Stepping up to the ball you're never quite lined up: a nudge either way,
-  // a degree or two on the green, a few degrees for a full shot.
+  // a degree or two on the green, a few degrees for a full shot (scaled by
+  // the auto-aim error setting).
   function aimNudge(putt) {
-    if (Math.random() < 0.15) return (Math.random() - 0.5) * (putt ? 0.5 : 1.2) * DEG;
+    const k = TUNE.autoAim;
+    if (Math.random() < 0.15) return (Math.random() - 0.5) * (putt ? 0.5 : 1.2) * DEG * k;
     const mag = putt ? 0.6 + Math.random() * 1.6 : 1.5 + Math.random() * 3.5;
-    return (Math.random() < 0.5 ? -1 : 1) * mag * DEG;
+    return (Math.random() < 0.5 ? -1 : 1) * mag * DEG * k;
   }
 
   function defaultAim() {
@@ -382,7 +386,7 @@ function startGame(saved) {
     const b = G.ball.p, pin = hole().pin, c = club();
     const yPin = yawFromDir(pin.x - b.x, pin.z - b.z);
     if (c.putter) return yPin;
-    const r = c.carry * lieFactor(c, G.lie) + 12;
+    const r = carryOf(c, G.lie) + 12;
     if (distToPin() <= r) return yPin;
     const line = hole().line;
     const s0 = line.query(b.x, b.z).s;
@@ -404,7 +408,7 @@ function startGame(saved) {
       UI.setClub('Putter', `${G.puttRange * 3} ft max`);
     } else {
       const lf = lieFactor(c, G.lie);
-      UI.setClub(c.name, `${Math.round(c.carry * lf)} yds${lf < 0.99 ? ' · lie −' + Math.round((1 - lf) * 100) + '%' : ''}`);
+      UI.setClub(c.name, `${Math.round(carryOf(c, G.lie))} yds${lf < 0.99 ? ' · lie −' + Math.round((1 - lf) * 100) + '%' : ''}`);
     }
     const onGreen = G.lie === S_GREEN || G.lie === S_FRINGE;
     UI.setFacts(fmtDist(distToPin(), onGreen), SURFACES[G.lie].name);
@@ -413,9 +417,10 @@ function startGame(saved) {
   }
 
   const _speedCache = new Map();
+  Tune.onChange(() => _speedCache.clear());
   function fullShotSpeed(c, lie) {
     const k = c.id + ':' + lie;
-    if (!_speedCache.has(k)) _speedCache.set(k, speedForCarry(c, c.carry * lieFactor(c, lie), spinLieFactor(c, lie)));
+    if (!_speedCache.has(k)) _speedCache.set(k, speedForCarry(c, carryOf(c, lie), spinLieFactor(c, lie)));
     return _speedCache.get(k);
   }
 
@@ -552,7 +557,7 @@ function startGame(saved) {
     bag.pull(i);
     G.bagExit = 0.45;
     Sound.clubs();
-    UI.toast(`${CLUBS[i].name} in hand`, CLUBS[i].putter ? 'Rolls it along the ground' : `${CLUBS[i].carry} yds at full power`, 1800);
+    UI.toast(`${CLUBS[i].name} in hand`, CLUBS[i].putter ? 'Rolls it along the ground' : `${Math.round(CLUBS[i].carry * TUNE.distance)} yds at full power`, 1800);
     UI.show('bagTip', false);
   }
   function moveBag() {
@@ -587,7 +592,7 @@ function startGame(saved) {
     if (i < 0) { tip.hidden = true; return; }
     const c = CLUBS[i];
     UI.text('bagTipName', `${i + 1} · ${c.name}`);
-    UI.text('bagTipDist', c.putter ? 'Putter · rolls only' : `${c.carry} yds carry`);
+    UI.text('bagTipDist', c.putter ? 'Putter · rolls only' : `${Math.round(c.carry * TUNE.distance)} yds carry`);
     UI.text('bagTipDesc', c.desc);
     tip.hidden = false;
     if (cx !== undefined) {
@@ -677,7 +682,7 @@ function startGame(saved) {
         const ca = Math.cos(a), sa = Math.sin(a), vx = mx * ca - mz * sa, vz = mx * sa + mz * ca;
         if (!blockedAt(c.x + vx * 0.6, c.z + vz * 0.6, true)) { mx = vx; mz = vz; moved = true; break; }
       }
-      c.speed += ((moved ? RUN : 0) - c.speed) * (1 - Math.exp(-dt * 6));
+      c.speed += ((moved ? TUNE.runSpeed : 0) - c.speed) * (1 - Math.exp(-dt * 6));
       c.x += mx * c.speed * dt; c.z += mz * c.speed * dt;
       c.yaw += wrapAngle(yawFromDir(mx, mz) - c.yaw) * (1 - Math.exp(-dt * 10));
       c.y = standY(c.x, c.z, c.y);
@@ -787,7 +792,7 @@ function startGame(saved) {
       if (G.mode === 'bag') near = Infinity;
     }
     const dx = tx - c.x, dz = tz - c.z, dist = Math.hypot(dx, dz);
-    let want = dist > near ? clamp(dist * 1.8, 0, RUN + 0.5) : 0;
+    let want = dist > near ? clamp(dist * 1.8, 0, TUNE.runSpeed + 0.5) : 0;
     let mx = 0, mz = 0;
     if (want > 0.05) {
       mx = dx / dist; mz = dz / dist;
@@ -826,7 +831,7 @@ function startGame(saved) {
   // ---------- the swing: hold to wind up, let go to hit ----------
   // How long the backswing takes to reach the top (faster clubs leave less
   // time to judge it). How far back he gets is the power.
-  const backswingTime = () => (isPutt() ? 1.6 : 1.3) / (club().meter || 1);
+  const backswingTime = () => (isPutt() ? 1.6 : TUNE.backswing) / (club().meter || 1);
   const isTouch = () => matchMedia('(pointer: coarse)').matches;
 
   function swingPress() {
@@ -834,16 +839,19 @@ function startGame(saved) {
     if (G.setupView) leaveSetup();
     if (G.previewDirty) computePreview();
     G.shotPhase = 'swing';
-    G.swing = { a: 0, top: isPutt() ? 0.5 : 2.5, t: 0, fired: false, finish: 0, putt: isPutt(), p: 0, held: 0, wobble: 0, wv: 0 };
+    G.swing = { a: 0, top: isPutt() ? 0.5 : 2.5, t: 0, fired: false, finish: 0, putt: isPutt(), p: 0, T: 0, frameAt: performance.now(), held: 0, wobble: 0, wv: 0 };
     UI.setHint(isTouch() ? 'Let go of <b>Swing</b> to hit' : 'Let go of <kbd>Space</kbd> to hit');
     return true;
   }
 
-  function swingRelease() {
+  // at: when he lets go, in seconds since the backswing began (tests pass it;
+  // otherwise it's now, to within a fraction of a frame).
+  function swingRelease(at) {
     if (G.mode !== 'shot' || G.shotPhase !== 'swing') return false;
     const s = G.swing;
-    if (s.p < 0.03) return cancelSwing(); // just a tap: no swing
-    startDownswing(s.p, s.wobble);
+    if (at === undefined && s.p < 0.03) return cancelSwing(); // just a tap: no swing
+    const T = at !== undefined ? at : s.T + clamp((performance.now() - s.frameAt) / 1000, 0, 0.05);
+    startDownswing(swingOutcome(T, backswingTime(), s.putt, s.wobble));
     return true;
   }
 
@@ -858,29 +866,65 @@ function startGame(saved) {
   // While the button is held he winds up to the top and waits there. Wait
   // too long and he tenses up: the club trembles and the strike wanders.
   function updateBackswing(dt) {
-    const s = G.swing;
-    if (s.p < 1) s.p = Math.min(1, s.p + dt / backswingTime());
-    else {
-      s.held += dt;
-      if (s.held > 0.7) {
-        const k = Math.min(1, (s.held - 0.7) / 2);
-        s.wv = (s.wv + (Math.random() - 0.5) * 9 * dt * k) * Math.exp(-dt * 1.5);
-        s.wobble = clamp(s.wobble + s.wv * dt, -1, 1);
-      }
+    const s = G.swing, Tf = backswingTime(), limit = TUNE.holdLimit;
+    s.T += dt;
+    s.frameAt = performance.now();
+    s.p = Math.min(1, s.T / Tf);
+    s.held = Math.max(0, s.T - Tf);
+    if (s.held > limit) {
+      const k = Math.min(1, (s.held - limit) / 2);
+      s.wv = (s.wv + (Math.random() - 0.5) * 9 * dt * k) * Math.exp(-dt * 1.5);
+      s.wobble = clamp(s.wobble + s.wv * dt, -1, 1);
     }
-    const tremble = s.held > 0.7 ? Math.sin(G.time * 23) * 0.02 * Math.min(1, s.held - 0.7) : 0;
+    const tremble = s.held > limit ? Math.sin(G.time * 23) * 0.02 * Math.min(1, s.held - limit) : 0;
     s.a = -s.top * s.p + tremble;
   }
 
-  function startDownswing(power, e) {
+  // How a swing let go T seconds into the backswing comes off (Tf: the time
+  // it takes to reach the top). The power is how far back he got; waiting at
+  // the top builds a touch more, but wait too long and it drains away. The
+  // strike sprays more the harder he goes and the longer he waits, except in
+  // the sweet spot: a small window just before the top that nothing on screen
+  // shows, with a perfect strike in its middle that flies true. Both add a
+  // little power, and each has its own sound. (Putts have no sweet spot.)
+  function swingOutcome(T, Tf, putt, wobble = 0) {
+    const t = TUNE, windup = clamp(T / Tf, 0, 1), over = Math.max(0, T - Tf);
+    let power = windup, spray = 1;
+    if (!putt && over > 0) {
+      const k = Math.min(1, over / t.holdLimit);
+      power += (t.overBoost / 100) * k;
+      spray += t.overSpray * k;
+      if (over > t.holdLimit) {
+        const x = over - t.holdLimit;
+        power -= (t.holdDecay / 100) * x;
+        spray += 2.5 * x;
+      }
+    }
+    let sweet = false, perfect = false;
+    if (!putt) {
+      const off = Math.abs(T - (Tf * t.sweetAt) / 100) * 1000; // ms from the middle of the sweet spot
+      perfect = off <= t.perfectWidth / 2;
+      sweet = !perfect && off <= t.sweetWidth / 2;
+      if (perfect) { power *= 1 + t.perfectBoost / 100; spray = 0; }
+      else if (sweet) { power *= 1 + t.sweetBoost / 100; spray *= t.sweetSpray; }
+    }
+    // The golfer's own variation: more on a full swing, and giving it
+    // everything sprays it (the last stretch of the backswing adds the most).
+    const flat = Math.max(0, (windup - 0.85) / 0.15);
+    const base = (0.03 + 0.06 * windup * windup + 0.26 * flat * flat) * spray * t.spray;
+    const tri = () => (Math.random() + Math.random() + Math.random()) / 1.5 - 1;
+    const e = perfect ? 0 : wobble + tri() * base;
+    // Off the sweet spot the strike's distance varies a little too.
+    const dist = perfect || putt ? 1 : 1 + tri() * 0.045 * Math.min(1.5, base * 3);
+    return { T, windup, power: Math.max(0.03, power), e, dist, sweet, perfect };
+  }
+
+  function startDownswing(o) {
     G.shotPhase = 'down';
-    // A little of the golfer's own variation, more on a full swing.
-    // Giving it everything sprays it: the last stretch of the backswing adds the most.
-    const flat = Math.max(0, (power - 0.85) / 0.15);
-    const jitter = ((Math.random() + Math.random() + Math.random()) / 1.5 - 1) * (0.03 + 0.06 * power * power + 0.26 * flat * flat);
-    Object.assign(G.swing, { t: 0, from: -G.swing.top * power, power, e: e + jitter, fired: false,
-      finish: G.swing.putt ? 0.15 + 0.35 * power : 2.3 });
-    if (!G.swing.putt) Sound.swing(power);
+    G.lastSwing = o; // for tests: nothing on screen shows how it came off
+    Object.assign(G.swing, { t: 0, from: -G.swing.top * Math.min(1, o.windup), power: o.power, o, fired: false,
+      finish: G.swing.putt ? 0.15 + 0.35 * Math.min(1, o.power) : 2.3 });
+    if (!G.swing.putt) Sound.swing(Math.min(1, o.power));
   }
 
   function updateDownswing(dt) {
@@ -891,7 +935,7 @@ function startGame(saved) {
       const u = s.t / D;
       s.a = s.from * (1 - u * u);
     } else {
-      if (!s.fired) { s.fired = true; takeShot(s.power, s.e); }
+      if (!s.fired) { s.fired = true; takeShot(s.o); }
       const u = clamp((s.t - D) / F, 0, 1);
       s.a = s.finish * (1 - (1 - u) * (1 - u));
       if (s.t > D + F + 0.15) {
@@ -916,16 +960,40 @@ function startGame(saved) {
     return `<span class="grade">${a < 0.45 ? 'Fade' : a < 0.8 ? 'Slice' : 'Big slice'}</span>`;
   }
 
+  // A perfect strike's quiet help: if the ball is going to finish near the
+  // hole, take some of the miss out of its line and length (never more than
+  // 2 degrees or 4% of the distance). Nothing on screen shows it.
+  function assistAim(yaw, speed, launch, spin, tilt) {
+    const k = TUNE.assist / 100;
+    if (k <= 0) return { yaw, speed };
+    const b = G.ball.p, pin = hole().pin;
+    const sim = createBall(b.x, b.y, b.z);
+    launchBall(sim, yaw, speed, launch, spin, tilt);
+    for (let i = 0; i < 240 * 40 && (sim.mode === 'flight' || sim.mode === 'roll'); i++) stepBall(sim, G.field, G.wind, DT, null, { noTrees: true });
+    if (sim.mode === 'holed') return { yaw, speed };
+    const dx = sim.p.x - b.x, dz = sim.p.z - b.z, d = Math.hypot(dx, dz);
+    const px = pin.x - b.x, pz = pin.z - b.z, dp = Math.hypot(px, pz);
+    const miss = Math.hypot(sim.p.x - pin.x, sim.p.z - pin.z);
+    if (d < 5 || miss > Math.max(12, dp * 0.15)) return { yaw, speed };
+    const turn = wrapAngle(yawFromDir(px, pz) - yawFromDir(dx, dz));
+    return {
+      yaw: yaw + clamp(turn * k, -2 * DEG, 2 * DEG),
+      speed: speed * (1 + clamp((dp / d - 1) * k * 0.6, -0.04, 0.04)),
+    };
+  }
+
   // The setup decides the shape of the shot: an open face starts the ball
   // right and curves it right (closed: left), and a strike off the heel
   // (club pushed out) fades it while one off the toe draws it, through gear
-  // effect; off-centre strikes also lose distance. e is the swing's own wobble.
-  function takeShot(power, e) {
+  // effect; off-centre strikes also lose distance. o: how the swing came off
+  // (swingOutcome), with e its own wobble.
+  function takeShot(o) {
+    const { power, e } = o;
     const c = club();
     const b = G.ball;
     const curve = c.curve || 1;
-    const faceDeg = G.setup.face / DEG, off = G.setup.head / HEAD_MAX;
-    const loss = 1 - 0.13 * Math.pow(Math.abs(off), 1.5);
+    const faceDeg = (G.setup.face / DEG) * TUNE.faceEffect, off = (G.setup.head / HEAD_MAX) * TUNE.strikeEffect;
+    const loss = Math.max(0.5, 1 - 0.13 * Math.pow(Math.abs(off), 1.5));
     const curl = faceDeg / 7 + off * 0.6 + e;
     const startDeg = faceDeg * 0.75 + e * 1.6 * curve;
     G.shot = { start: { x: b.p.x, y: b.p.y, z: b.p.z }, club: c, power, e, putter: !!c.putter, stroke: G.strokes + 1, lie: G.lie };
@@ -938,11 +1006,16 @@ function startGame(saved) {
       UI.setHint(`${gradeLabel(0, putStart, true)} · ${Math.round(power * 100)}% of ${G.puttRange * 3} ft`);
     } else {
       const spinMul = spinLieFactor(c, G.lie);
-      const speed = speedForCarry(c, power * c.carry * lieFactor(c, G.lie), spinMul) * loss;
+      let speed = speedForCarry(c, power * carryOf(c, G.lie), spinMul) * loss * o.dist;
       if (G.ballState === 'tee') b.p.y += 0.045;
-      launchBall(b, G.aimYaw + startDeg * DEG, speed, c.launch + (G.lie === S_SAND ? 3 : 0), spinFor(c, speed, spinMul), -curl * 22 * curve);
-      Sound.hit(power, false);
-      UI.setHint(`${gradeLabel(curl, startDeg, false)} · ${Math.round(power * 100)}% power`);
+      let yaw = G.aimYaw + startDeg * DEG;
+      const launch = c.launch + (G.lie === S_SAND ? 3 : 0), spin = spinFor(c, speed, spinMul), tilt = -curl * 22 * curve;
+      if (o.perfect) ({ yaw, speed } = assistAim(yaw, speed, launch, spin, tilt));
+      launchBall(b, yaw, speed, launch, spin, tilt);
+      Sound.hit(Math.min(1, power), false);
+      if (o.perfect) Sound.perfect();
+      else if (o.sweet) Sound.sweet();
+      UI.setHint(`${gradeLabel(curl, startDeg, false)} · ${Math.round(o.windup * 100)}% power`);
     }
     G.shotYaw = G.aimYaw;
     G.ballState = 'moving';
@@ -956,10 +1029,11 @@ function startGame(saved) {
   }
 
   // ---------- club setup: a close look at the club head behind the ball ----------
-  const FACE_MAX = 12 * DEG, HEAD_MAX = 0.045; // yards (about 4 cm either way)
+  const HEAD_MAX = 0.045; // yards (about 4 cm either way); the face turns up to TUNE.faceMax
   function enterSetup() {
     if (G.mode !== 'shot' || G.shotPhase !== 'aim' || G.setupView) return false;
     G.setupView = true;
+    G.glance = 0;
     World.hideGuides();
     UI.$('hud').classList.add('setup');
     UI.$('setupBtn').textContent = 'Done';
@@ -970,6 +1044,7 @@ function startGame(saved) {
   function leaveSetup() {
     if (!G.setupView) return false;
     G.setupView = false;
+    G.glance = 0;
     UI.$('hud').classList.remove('setup');
     UI.$('setupBtn').textContent = 'Setup';
     World.setAlignmentStick(null);
@@ -987,19 +1062,22 @@ function startGame(saved) {
   }
   function setupHint() {
     UI.setHint(setupWords() + (isTouch()
-      ? '<br>◀ ▶ turn the face · ▲ ▼ club out or in'
-      : '<br><kbd>A</kbd> <kbd>D</kbd> turn the face · <kbd>W</kbd> <kbd>S</kbd> club out or in · <kbd>Q</kbd> done'));
+      ? '<br>◀ ▶ turn the face · ▲ ▼ club out or in · hold <b>Look</b> to eye the hole'
+      : '<br><kbd>A</kbd> <kbd>D</kbd> turn the face · <kbd>W</kbd> <kbd>S</kbd> club out or in · hold <kbd>R</kbd> to eye the hole · <kbd>Q</kbd> done'));
   }
   function updateSetup(dt) {
+    // Looking up at the hole (and back down at the ball) while R is held.
+    const look = held('KeyR') || hold.look ? 1 : 0;
+    G.glance += (look - G.glance) * (1 - Math.exp(-dt * 6));
     let turn = 0, push = 0;
     if (held('ArrowLeft', 'KeyA') || hold.left) turn -= 1;
     if (held('ArrowRight', 'KeyD') || hold.right) turn += 1;
     if (held('ArrowUp', 'KeyW') || hold.up) push += 1;
     if (held('ArrowDown', 'KeyS') || hold.down) push -= 1;
     if (!turn && !push) return;
-    const fine = held('ShiftLeft', 'ShiftRight') ? 0.3 : 1;
-    G.setup.face = clamp(G.setup.face + turn * 7 * DEG * fine * dt, -FACE_MAX, FACE_MAX);
-    G.setup.head = clamp(G.setup.head + push * 0.035 * fine * dt, -HEAD_MAX, HEAD_MAX);
+    const fine = held('ShiftLeft', 'ShiftRight') ? 0.3 : 1, faceMax = TUNE.faceMax * DEG;
+    G.setup.face = clamp(G.setup.face + turn * TUNE.faceSpeed * DEG * fine * dt, -faceMax, faceMax);
+    G.setup.head = clamp(G.setup.head + push * (TUNE.headSpeed / 91.44) * fine * dt, -HEAD_MAX, HEAD_MAX);
     setupHint();
   }
 
@@ -1494,7 +1572,7 @@ function startGame(saved) {
 
   // ---------- walking ----------
   const keys = new Set();
-  const hold = { left: false, right: false, up: false, down: false };
+  const hold = { left: false, right: false, up: false, down: false, look: false };
   const joy = { x: 0, y: 0, active: false };
   const held = (...codes) => codes.some((c) => keys.has(c));
 
@@ -1549,13 +1627,16 @@ function startGame(saved) {
     const inp = moveInput();
     if (inp.m > 0.05) { G.holdFinish = false; G.ballCam = false; }
     const run = held('ShiftLeft', 'ShiftRight') || (joy.active && inp.m > 0.92);
-    let target = inp.m * (run ? RUN : WALK);
+    let target = inp.m * (run ? TUNE.runSpeed : TUNE.walkSpeed);
     const surf = course.surface(P.x, P.z);
-    if (surf === S_SAND) target *= 0.6;
-    else if (surf === S_DEEP) target *= 0.85;
-    // Steep ground is a scramble (a ramp or a bridge is quicker).
+    // Sand and deep rough hold him up, and steep ground is a scramble (a ramp
+    // or a bridge is quicker), as much as the terrain setting says.
+    const tw = TUNE.terrainWalk;
+    if (surf === S_SAND) target *= 1 - 0.4 * tw;
+    else if (surf === S_DEEP) target *= 1 - 0.15 * tw;
     const n = course.floorInfo(P.x, P.z, P.y + 0.6).kind ? null : course.normal(P.x, P.z);
-    if (n && n.y < 0.85) target *= clamp(1 - (0.85 - n.y) * 2.4, 0.22, 1);
+    if (n && n.y < 0.85) target *= 1 - (1 - clamp(1 - (0.85 - n.y) * 2.4, 0.22, 1)) * Math.min(1, tw);
+    target = Math.max(0, target);
     const yaw = G.camYaw;
     const fw = dirFromYaw(yaw), rt = rightOf(yaw);
     let mx = fw.x * inp.f + rt.x * inp.r, mz = fw.z * inp.f + rt.z * inp.r;
@@ -1610,6 +1691,7 @@ function startGame(saved) {
   const focus = new V3();
 
   const _eye = new THREE.Vector3();
+  const _gA = new V3(), _gB = new V3();
   function shotPose(outPos, outLook) {
     const b = G.ball.p, d = dirFromYaw(G.aimYaw), r = rightOf(G.aimYaw);
     const putt = isPutt();
@@ -1623,7 +1705,19 @@ function startGame(saved) {
       _eye.x += r.x * 0.1; _eye.y += 0.04; _eye.z += r.z * 0.1;
       outPos.set(b.x + (_eye.x - b.x) * 0.55, b.y + (_eye.y - b.y) * 0.55, b.z + (_eye.z - b.z) * 0.55);
       outLook.set(b.x - r.x * 0.05, b.y, b.z - r.z * 0.05);
-      World.setAlignmentStick({ x: b.x + r.x * 0.28, z: b.z + r.z * 0.28, yaw: G.aimYaw, face: golfer.faceInfo() });
+      // Holding R he looks up the line to the hole, the way golfers do: the
+      // head comes back from leaning over the ball and turns to the target.
+      const g = G.glance * G.glance * (3 - 2 * G.glance);
+      if (g > 0.001) {
+        const pin = hole().pin;
+        _gA.subVectors(outLook, outPos).normalize();
+        _gB.set(pin.x - _eye.x, pin.y + 1.2 - _eye.y, pin.z - _eye.z).normalize();
+        outPos.lerp(_eye, g);
+        _gA.lerp(_gB, g).normalize();
+        outLook.copy(outPos).addScaledVector(_gA, 10);
+      }
+      // (No alignment stick or face line for a putt.)
+      World.setAlignmentStick(isPutt() ? null : { x: b.x + r.x * 0.28, z: b.z + r.z * 0.28, yaw: G.aimYaw, face: golfer.faceInfo() });
       return;
     }
     if (G.fp) {
@@ -1996,7 +2090,7 @@ function startGame(saved) {
     keys.delete(e.code);
     if (e.code === 'Space') { G.ff = false; swingRelease(); }
   });
-  window.addEventListener('blur', () => { keys.clear(); G.ff = false; hold.left = hold.right = hold.up = hold.down = false; cancelSwing(); });
+  window.addEventListener('blur', () => { keys.clear(); G.ff = false; hold.left = hold.right = hold.up = hold.down = hold.look = false; cancelSwing(); });
 
   // Mouse look (pointer lock on desktop, drag as a fallback and on touch).
   function applyLook(dx, dy, touch) {
@@ -2101,6 +2195,7 @@ function startGame(saved) {
   holdButton('aimRight', () => (hold.right = true), () => (hold.right = false));
   holdButton('setUp', () => (hold.up = true), () => (hold.up = false));
   holdButton('setDown', () => (hold.down = true), () => (hold.down = false));
+  holdButton('lookBtn', () => (hold.look = true), () => (hold.look = false));
   holdButton('swingBtn', () => swingPress(), () => swingRelease());
   // A tap on the action button can swap the controls under the finger (the
   // bag's Close button sits where it was); swallow the click that follows.
@@ -2316,14 +2411,16 @@ function startGame(saved) {
   return {
     G, course, cart, bag, swingPress, swingRelease, enterSetup, leaveSetup, fetchCart, cartArrival, takeShot, enterShot, leaveShot, interact, enterCart, exitCart, activateHole,
     startRound, placePlayer, setCharacter, nextFromCard, showCard, backToTitle, openLobby, recommendedClub, openSelect, chooseSelect, confirmSelect, enterBag, exitBag, selectClub, openWorkshop,
-    get golfer() { return golfer; }, caddy, bagBase,
+    get golfer() { return golfer; }, caddy, bagBase, camera, stickShown: () => World.stickShown(),
+    // An exact swing, for tests: power (0-1) and wobble e, no sweet spot.
     swingNow(power, e) {
       if (G.mode !== 'shot' || G.shotPhase !== 'aim') return false;
       leaveSetup();
       G.swing = { a: 0, top: isPutt() ? 0.5 : 2.5, t: 0, fired: false, finish: 0, putt: isPutt(), p: power };
-      startDownswing(power, e);
+      startDownswing({ T: 0, windup: power, power, e, dist: 1, sweet: false, perfect: false });
       return true;
     },
+    swingOutcome, backswingTime,
     teleportToBall() { const b = G.ball.p; placePlayer(b.x - 1.5, b.z + 1.5, 0, b.y); },
     dropBall(x, z) { placeBall(x, z, false); },
     // Screen position of a club in the bag (for tests that click it).

@@ -17,7 +17,7 @@ import re
 ROOT = pathlib.Path(__file__).parent
 SRC = ROOT / "src"
 JS_ORDER = [
-    "util.js", "data.js", "physics.js", "course.js", "plains.js", "terrain.js", "maphole.js", "audio.js",
+    "util.js", "data.js", "tuning.js", "physics.js", "course.js", "plains.js", "terrain.js", "maphole.js", "audio.js",
     "assets.js", "publish.js", "atmosphere.js", "wind.js", "world.js", "scenery.js", "equipment.js", "character.js", "cart.js", "ui.js",
     "workshop.js", "net.js", "remote.js", "main.js",
 ]
@@ -100,6 +100,12 @@ def assets_js() -> str:
                 embedded[f.stem] = {"name": f.name, "type": ASSET_TYPES[ext],
                                     "b64": base64.b64encode(f.read_bytes()).decode("ascii")}
                 print(f"embedding assets/{f.name} as '{f.stem}'")
+    # Gameplay settings committed from the Workshop (assets/gameplay.json).
+    gameplay = {}
+    gp = folder / "gameplay.json"
+    if gp.is_file():
+        gameplay = json.loads(gp.read_text())
+        print("embedding assets/gameplay.json")
     # The built-in maps painted holes are made from (src/maps/<name>.png|jpg).
     maps = {}
     for f in sorted((SRC / "maps").glob("*")):
@@ -108,6 +114,7 @@ def assets_js() -> str:
             maps[f.stem] = {"name": f.name, "type": ASSET_TYPES[ext],
                             "b64": base64.b64encode(f.read_bytes()).decode("ascii")}
     return (f"window.__PINEHAVEN_ASSETS = {json.dumps(embedded)};\n"
+            f"window.__PINEHAVEN_GAMEPLAY = {json.dumps(gameplay, sort_keys=True)};\n"
             f"window.__PINEHAVEN_MAPS = {json.dumps(maps)};\n"
             f"window.__PINEHAVEN_REPO = {json.dumps(REPO)};\n")
 

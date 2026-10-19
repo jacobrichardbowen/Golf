@@ -40,7 +40,7 @@ always at
 | Change clubs | walk up to the bag, press `E`, click a club (or `1`–`5`) | **Clubs**, then tap a club |
 | Aim | `A` `D` or mouse | ◀ ▶ |
 | Swing | hold `Space` to wind up, let go to hit | hold **Swing**, let go |
-| Look at the club | `Q`; then `A` `D` turn the face, `W` `S` push the club out or pull it in | **Setup**; ◀ ▶ and ▲ ▼ |
+| Look at the club | `Q`; then `A` `D` turn the face, `W` `S` push the club out or pull it in, hold `R` to look up at the hole | **Setup**; ◀ ▶ and ▲ ▼, hold **Look** |
 | Shot camera | `T`: behind, landing area, overhead | **View** |
 | Step away from the ball | `E` or `Esc` | **Back** |
 | Drive the cart | `E` next to it; `W` `S` drive, `A` `D` steer, `Space` brake, `E` to get out | **Drive** / **Get out** |
@@ -49,9 +49,11 @@ always at
 | Course map / scorecard / sound / help | `M` / `C` / `N` / `H` | buttons at the top right |
 
 **Swinging by feel.** Hold to wind up: how far back your golfer gets is how
-hard he hits, and he waits at the top for as long as you hold. Hang there too
-long and he tenses up, and the strike starts to wander. Giving it absolutely
-everything sprays it a little too: a smooth nine-tenths swing is straighter.
+hard he hits, and he waits at the top for as long as you hold, building a
+touch more power. Hang there too long and he tenses up: the strike wanders
+and the power drains away. Giving it everything sprays it, too. Somewhere
+near the top there's a moment when letting go comes off sweet, and you'll
+hear it; nothing on screen shows when. Finding it takes a lot of swings.
 No line shows where the ball will go. When you step up to the ball you're
 lined up roughly, never exactly: often a few degrees off for a full shot, a
 degree or two on the green, so look down the line and adjust.
@@ -59,7 +61,8 @@ degree or two on the green, so look down the line and adjust.
 **Shaping the shot.** The close-up (`Q`) looks down through your golfer's own
 eyes at the club behind the ball, the target off to the left, with an
 alignment stick pointing where you're aimed and a faint line showing where
-the face points. An open face starts the ball right and curves
+the face points (for a full shot; putts have neither). Hold `R` to look up
+the line at the hole and back down, as golfers do. An open face starts the ball right and curves
 it right; a closed face the other way. Pushing the club out puts the ball on
 the heel, which fades it; pulling it in puts it on the toe, which draws it.
 Off-centre strikes lose a little distance. To hook one round a corner, aim
@@ -161,6 +164,32 @@ turntable, then:
 - **Export my assets** / **Import pack…** move your replacements between
   browsers as one `.json` file.
 
+### Gameplay settings
+
+**Gameplay settings**, at the top of the Workshop's list, holds the numbers
+that decide how the game plays, each with a slider and a number box:
+walking and sprint speed, the cart's speed and acceleration, how much the
+terrain slows you, the wind's push on the ball, shot distance, the lie
+penalty, how much rough and sand grab a bouncing ball, green speed, the
+backswing, the spray, the sweet spot, holding at the top, the auto-aim error,
+and the club close-up's turn speeds and how much the face and an off-centre
+strike shape the shot. Changes take effect straight away and stay in that
+browser; ↺ puts one back to the game's default. **Commit to project** writes
+them to `assets/gameplay.json`, which `build.py` builds into the game, so
+they become everyone's defaults.
+
+The swing's sweet spot, for tuning it (none of this shows in the game): it's
+a window of release times, 80 ms wide by default, centred 95% of the way
+through the backswing (each club has its own backswing time). Let go inside
+it and the strike sprays a fraction as much as usual, with a little more
+power and a crisp click. In its middle, a 14 ms window is the perfect
+strike: no spray at all, a touch more power, a ringing note, and, when the
+ball is going to finish near the hole, a nudge that takes some of the miss
+out of its line and length (never more than 2° or 4%). Going all the way to
+the top still hits harder than the sweet spot, with more spray. Waiting at the
+top builds up to 4% more power and more spray for 0.8 s; after that, the
+power drains away (18% a second) and the strike goes wild.
+
 ### Sharing your changes with everyone
 
 **Commit to project** writes each replaced asset to `assets/<asset-id>.<ext>`
@@ -219,6 +248,7 @@ src/index.html        HUD and screen markup
 src/style.css         HUD styling
 src/js/util.js        math, seeded noise, polyline helpers
 src/js/data.js        clubs, surfaces (bounce, friction, lie) and the golfers
+src/js/tuning.js      gameplay settings (Workshop › Gameplay): defaults, the project's, this browser's
 src/js/physics.js     ball flight (drag + Magnus lift), bounce, roll, cup capture
 src/js/course.js      Pinehaven's nine holes and where each sits on the property
 src/js/plains.js      Golden Plains' nine holes, mesas, bridges and tunnel; the list of courses
@@ -413,6 +443,8 @@ node tests/calibrate.js               # carry, apex and rollout for every club
 node tests/smoke.js [outDir]          # plays hole 1 in headless Chromium: select, walk, swing, bag, cart, hole out
 node tests/plains.js [outDir]         # Golden Plains: across a bridge, through the tunnel, the caddy fetching the cart
 node tests/rigged.js [outDir]         # the skinned Surlaw and Salt: clips, no foot sliding, hands on the grip, the cart
+node tests/gameplay.js [outDir]       # Gameplay settings panel, the swing's sweet spot, putts without guides, glancing at the hole
+node tests/tuning.js                  # the settings on the physics: wind, terrain, lie penalty, green speed (no browser)
 node tests/workshop.js [outDir]       # Workshop: download, replace, reload, export/import, reset
 node tests/publish.js [outDir]        # Workshop "Commit to project" against a mock of GitHub's API
 node tests/mobile.js [outDir]         # touch layout screenshots, portrait and landscape

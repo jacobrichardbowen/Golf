@@ -43,8 +43,27 @@ const SURFACES = [
   { id: S_ROCK,    name: 'Rock',       label: 'On the rocks',      bounce: 0.58, mu: 0.35, grip: 0.15, roll: 0.07, rollV: 0.2, lie: 0.8, spinLie: 0.5 },
 ];
 
-// Distance multiplier for a club from a given lie.
+// The surfaces as designed; SURFACES follows the gameplay settings (tuning.js):
+// "terrain grabs the ball" moves every other surface's bounce, friction and
+// roll towards (or past) the fairway's, and "green speed" its rolling
+// resistance on the green.
+const SURFACES_BASE = SURFACES.map((s) => Object.assign({}, s));
+function tuneSurfaces(t) {
+  const fw = SURFACES_BASE[S_FAIRWAY];
+  for (const b of SURFACES_BASE) {
+    const s = SURFACES[b.id];
+    const k = b.id === S_TEE || b.id === S_FAIRWAY || b.id === S_GREEN || b.id === S_WATER ? 1 : t.terrainBall;
+    for (const f of ['bounce', 'mu', 'grip', 'roll', 'rollV']) s[f] = Math.max(0, fw[f] + (b[f] - fw[f]) * k);
+  }
+  SURFACES[S_GREEN].roll = SURFACES_BASE[S_GREEN].roll / t.greenSpeed;
+  SURFACES[S_GREEN].rollV = SURFACES_BASE[S_GREEN].rollV / t.greenSpeed;
+}
+
+// Distance multiplier for a club from a given lie (scaled by the lie penalty setting).
 function lieFactor(club, surf) {
+  return 1 - (1 - lieFactorBase(club, surf)) * TUNE.lie;
+}
+function lieFactorBase(club, surf) {
   if (club.putter) return 1;
   const base = SURFACES[surf].lie;
   if (club.id === 'DR') {
@@ -66,8 +85,7 @@ function lieFactor(club, surf) {
 // Spin multiplier for a club from a given lie: wedges keep their bite.
 function spinLieFactor(club, surf) {
   const base = SURFACES[surf].spinLie;
-  if (club.id === 'CW') return Math.min(1, base + 0.3);
-  return base;
+  return 1 - (1 - (club.id === 'CW' ? Math.min(1, base + 0.3) : base)) * TUNE.lie;
 }
 
 // The cast. Heights in yards (6 ft = 2 yd); `body` is the model each one wears.

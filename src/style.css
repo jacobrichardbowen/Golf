@@ -89,7 +89,7 @@ kbd { font-family: var(--f-display); font-weight: 600; font-size: 0.9em; padding
 
 .controls { justify-self: end; display: flex; align-items: end; gap: 10px; pointer-events: auto; }
 .aim-btns { display: flex; gap: 6px; }
-.aim-btns #aimLeft, .aim-btns #aimRight, .aim-btns #setUp, .aim-btns #setDown { display: none; }
+.aim-btns #aimLeft, .aim-btns #aimRight, .aim-btns #setUp, .aim-btns #setDown, .aim-btns #lookBtn { display: none; }
 .ctl { width: 52px; height: 52px; border-radius: 8px; border: 1px solid var(--plate-edge); background: var(--plate); font-size: 18px; }
 .ctl-text { font-family: var(--f-display); font-weight: 600; font-size: 14px; letter-spacing: 0.06em; text-transform: uppercase; }
 .ctl:active { background: rgba(242,194,48,0.25); }
@@ -99,7 +99,7 @@ kbd { font-family: var(--f-display); font-weight: 600; font-size: 0.9em; padding
 
 @media (pointer: coarse) {
   .aim-btns #aimLeft, .aim-btns #aimRight { display: block; }
-  #hud.setup .aim-btns #setUp, #hud.setup .aim-btns #setDown { display: block; }
+  #hud.setup .aim-btns #setUp, #hud.setup .aim-btns #setDown, #hud.setup .aim-btns #lookBtn { display: block; }
   #hud.setup #viewBtn { display: none; }
 }
 
@@ -352,6 +352,34 @@ label.btn { display: inline-block; cursor: pointer; }
 
 /* Workshop: commit to the project */
 #wsCommitOpen.has { border-color: var(--flag); color: var(--flag); }
+/* Gameplay settings: a tall panel beside the list. */
+.ws-game { position: absolute; top: calc(var(--gutter) + 56px + env(safe-area-inset-top, 0px)); bottom: calc(var(--gutter) + env(safe-area-inset-bottom, 0px));
+  left: calc(min(360px, 42vw) + var(--gutter)); right: calc(var(--gutter) + env(safe-area-inset-right, 0px)); max-width: 760px;
+  background: var(--plate-solid); border: 1px solid var(--plate-edge); border-radius: 10px; padding: 14px 18px; display: flex; flex-direction: column; gap: 6px; }
+.ws-game[hidden] { display: none; }
+.ws-game > .ws-note { margin: 0; }
+.ws-game-list { flex: 1; overflow-y: auto; margin: 4px -8px 6px 0; padding-right: 8px; }
+.ws-game-list h4 { margin: 14px 0 6px; font-family: var(--f-display); font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.ws-game-list h4:first-child { margin-top: 4px; }
+.ws-tune { padding: 8px 10px; border-radius: 8px; border: 1px solid transparent; background: rgba(255,255,255,0.03); margin-bottom: 6px; }
+.ws-tune.local { border-color: rgba(242,194,48,0.5); }
+.ws-tune-head { display: flex; align-items: center; gap: 8px; }
+.ws-tune-head label { font-weight: 600; font-size: 15px; color: var(--chalk); }
+.ws-tune-src { font-family: var(--f-display); font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--flag); }
+.ws-tune.project .ws-tune-src { color: #7fc79a; }
+.ws-tune-reset { margin-left: auto; width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--plate-edge); background: transparent; color: var(--chalk); font-size: 15px; line-height: 1; }
+.ws-tune-reset:disabled { opacity: 0.25; }
+.ws-tune-ctl { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+.ws-tune-ctl input[type=range] { flex: 1; min-width: 0; accent-color: var(--flag); }
+.ws-tune-ctl input[type=number] { width: 86px; font: inherit; font-size: 15px; color: var(--chalk); background: rgba(255,255,255,0.06); border: 1px solid var(--plate-edge); border-radius: 6px; padding: 5px 7px; }
+.ws-tune-ctl input[type=number]:focus { outline: 2px solid var(--flag); outline-offset: 1px; }
+.ws-tune-unit { width: 92px; font-size: 13px; color: var(--muted); }
+.ws-tune-note { margin: 4px 0 0; font-size: 13px; line-height: 1.4; color: var(--muted); }
+.ws-item .ws-icon { width: 64px; height: 48px; border-radius: 4px; background: #14261c; flex: none; display: grid; place-items: center; color: var(--flag); font-size: 26px; }
+@media (max-width: 760px) {
+  .ws-game { top: calc(38% + 8px); left: var(--gutter); }
+  .ws-tune-unit { width: 64px; }
+}
 .ws-badge.wait { background: rgba(242,194,48,0.18); color: var(--flag); }
 .ws-commit { position: absolute; inset: 0; background: rgba(6,16,11,0.6); display: grid; place-items: center; padding: var(--gutter); z-index: 5; }
 .ws-commit[hidden] { display: none; }
