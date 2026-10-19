@@ -9,7 +9,7 @@ for the golf swing decides the timing itself.
 
 Skinned golfers already work. G. Surlaw is KayKit's Barbarian for now, a
 free (CC0) low-poly character, and A. Salt is the base mesh
-(`characters/TestGolferBaseMesh_v002.blend`); see "Rigged characters" in the
+(`characters/TestGolferBaseMesh_v003.blend`); see "Rigged characters" in the
 README. The game plays the file's `idle`, `walk`, `run` and `wave` clips.
 Everything else (address, the swing, putting, the cart), and any of those
 clips a file doesn't have, it poses itself, as it does the other golfers,
@@ -27,10 +27,12 @@ Auto-Rig Pro bones, and that's what the game gets. So:
   named as below, with Fake User on. Keys on the controls are fine: they're
   baked onto golfer_rig when you export.
 - The club is `cc_club`, in the right hand (it follows the hand; key it to
-  turn the club in the fingers, or leave it).
+  turn the club in the fingers, or leave it). `club (reference)` shows it,
+  and the `ball` Empty is already in place.
 - Export: Text Editor → `export_golfer.py` → Run Script. It writes
-  `<file name>.glb` next to the `.blend`, with every Action as a clip. You
-  don't need the export settings under "Exporting" below.
+  `<game_body>.glb` next to the `.blend` (`golfer-salt.glb`), with every
+  Action as a clip. You don't need the export settings under "Exporting"
+  below.
 - Facing: the base mesh faces −Y with its left on +X, as the rules below
   ask.
 

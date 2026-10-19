@@ -376,29 +376,34 @@ pack's `Barbarian.glb`: it drops the props, keeps the Idle, Walking_A and
 Running_A clips as `idle`, `walk` and `run`, and trims animation tracks that
 move nothing (289 KB in all).
 
-A. Salt is the base mesh made for the game's humans and elves
-(`tools/blender/characters/TestGolferBaseMesh_v002.blend`, rigged with
-Auto-Rig Pro). `tools/rigged/fit_golfer.py` fitted it for the game and
-exported `assets/golfer-salt.glb` (88 KB):
+A. Salt is the base mesh made for the game's humans and elves, rigged with
+Auto-Rig Pro: `tools/blender/characters/TestGolferBaseMesh_v003.blend`
+(saved with Blender 4.5). It's also the template for other golfers: its
+`READ ME` text says how to make one from it. `tools/rigged/fit_golfer.py`
+fitted it for the game and exported `assets/golfer-salt.glb` (88 KB):
 
-- **golfer_rig**: a clean skeleton of the bones the game knows (`hips`,
-  `spine`, `chest`, `upper_chest`, `neck`, `head`, and per side `shoulder`,
-  `upper_arm`, `forearm`, `hand`, `index_00`–`03`, `thumb_01`–`03`, `thigh`,
-  `shin`, `foot`, `toe`), plus `club` and `grip.L`/`grip.R`. Each bone follows
-  its Auto-Rig Pro deform bone through a constraint, so you keep animating
-  with the Auto-Rig Pro controls. `cc_club` in the Auto-Rig Pro rig moves the
-  club.
-- **Colour regions**: the single material is split into `skin`, `shirt`,
-  `pants`, `hair`, `shoe` and `shoe.socks`, which the game colours per
-  golfer. Reassign faces between them in Blender to repaint.
-- **Exporting**: the script is saved in the file as `export_golfer.py`.
-  Open it in Blender's Text Editor and press Run Script: it writes
-  `<file name>.glb` next to the `.blend`, with each Action baked onto
-  golfer_rig as a clip of the same name. Load that in the Workshop
-  (**A. Salt body → Replace…**). Or, here:
-  `python tools/rigged/fit_golfer.py -- file.blend --save fitted.blend --glb out.glb`
-  (needs `pip install bpy`; a file that hasn't been fitted yet is fitted
-  first).
+- **golfer_rig** (hidden): a clean skeleton of the bones the game knows
+  (`hips`, `spine`, `chest`, `upper_chest`, `neck`, `head`, and per side
+  `shoulder`, `upper_arm`, `forearm`, `hand`, the fingers, `thigh`, `shin`,
+  `foot`, `toe`), plus `club` and `grip.L`/`grip.R`. Each bone follows its
+  Auto-Rig Pro deform bone through a constraint, so you keep animating with
+  the Auto-Rig Pro controls, and the export rebuilds it from them each time.
+- **cc_club**, a bone in the right hand of the Auto-Rig Pro rig, moves the
+  club; `club (reference)` on it and the `ball` at address are there to
+  animate against (not exported).
+- **Colour regions**: `skin`, `shirt`, `pants`, `hair`, `shoe` and
+  `shoe.socks`, which the game colours per golfer. Reassign faces between
+  them in Blender to repaint.
+- **game_body** (Scene Properties > Custom Properties): which golfer the
+  export is for (`golfer-salt`), and so its file name.
+- **Exporting**: open `export_golfer.py` in Blender's Text Editor and press
+  Run Script. It writes `<game_body>.glb` next to the `.blend`, with each
+  Action baked as a clip of the same name, and says what went in (and any
+  vertex groups or vertices that didn't make it). Load that in the
+  Workshop (**A. Salt body → Replace…**). Or, here:
+  `python tools/rigged/fit_golfer.py -- file.blend [--body golfer-cord] [--save fitted.blend] [--glb out.glb]`
+  (needs `pip install bpy`; it fits the file first, which is harmless on one
+  that's already fitted).
 
 ### Checks
 
